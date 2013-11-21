@@ -990,14 +990,6 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         saveXML("depends.xml", dependencies);
 #endif
 
-    if(true)
-    {
-        EclParser parser(queryContents);
-        parser.parse();
-        printf(" here\n");
-
-    }
-
     Owned<IErrorReceiver> wuErrs = new WorkUnitErrorReceiver(instance.wu, "eclcc");
     Owned<IErrorReceiver> errs = createCompoundErrorReceiver(instance.errs, wuErrs);
 
@@ -1008,11 +1000,19 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
 
+    bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
+    if(printSyntaxTree)
+    {
+        EclParser parser(queryContents);
+        parser.parse();
+        printf("New Parser Parsed!\n");
+    }
+
     if (optTargetCompiler != DEFAULT_COMPILER)
         instance.wu->setDebugValue("targetCompiler", compilerTypeText[optTargetCompiler], true);
 
     bool withinRepository = (queryAttributePath && *queryAttributePath);
-    bool syntaxChecking = instance.wu->getDebugValueBool("syntaxCheck", false);
+    bool syntaxChecking = instance.wu->getDebugValueBool("syntaxCheck", true);
     size32_t prevErrs = errs->errCount();
     unsigned startTime = msTick();
     const char * sourcePathname = queryContents ? queryContents->querySourcePath()->str() : NULL;
@@ -1832,6 +1832,10 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         else if (iter.matchFlag(tempBool, "-syntax"))
         {
             setDebugOption("syntaxCheck", tempBool);
+        }
+        else if (iter.matchFlag(tempBool, "-printsyntaxtree"))
+        {
+             setDebugOption("printSyntaxTree", tempBool);
         }
         else if (iter.matchOption(optIniFilename, "-specs"))
         {
