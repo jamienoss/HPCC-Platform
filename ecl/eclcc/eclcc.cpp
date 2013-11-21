@@ -44,6 +44,8 @@
 #include "hqlgram.hpp"
 #include "hqltrans.ipp"
 
+#include "eclparser.hpp"
+
 #include "build-config.h"
 #include "rmtfile.hpp"
 
@@ -987,6 +989,14 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     if (dependencies)
         saveXML("depends.xml", dependencies);
 #endif
+
+    if(true)
+    {
+        EclParser parser(queryContents);
+        parser.parse();
+        printf(" here\n");
+
+    }
 
     Owned<IErrorReceiver> wuErrs = new WorkUnitErrorReceiver(instance.wu, "eclcc");
     Owned<IErrorReceiver> errs = createCompoundErrorReceiver(instance.errs, wuErrs);

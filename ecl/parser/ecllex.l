@@ -22,26 +22,26 @@
 %option case-insensitive
 
 %{
-#include "eclgram.hpp"
-
+#include "eclparser.hpp"
 #include "eclgram.h"
+#include <iostream>
 
 #define YY_DECL int EclLex::doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, EclLex * lexer, bool lookup, const short * activeState)
 
 //declare this rather than including the header because VC++ seems to get very upset running out of heap if you do.
 extern int rtlSingleUtf8ToCodepage(char * out, unsigned inlen, char const * in, char const * outcodepage);
 
-//#define DEBUG_TOKEN 
+//#define DEBUG_TOKEN
 
 #ifdef DEBUG_TOKEN
 #define TraceReturnToken(id) PrintLog("Returning " #id " %s", name->str())
-#else 
+#else
 #define TraceReturnToken(id)
 #endif
 
 #ifdef FLEX_SCANNER
 //#define updatepos1          lexer->updatePosition(yyleng)
-#define updatepos1          
+#define updatepos1
 #define CUR_TOKEN_TEXT      yytext
 #define CUR_TOKEN_LENGTH    yyleng
 #else
@@ -85,18 +85,18 @@ xpathseq      ([^}\r\n])+
 %%
 
 "/*"                { BEGIN(COMMENT); }
-<COMMENT>"*/"       { 
-                        BEGIN(0); 
+<COMMENT>"*/"       {
+                        BEGIN(0);
                     }
 <COMMENT>[^*\n]+    { }
 <COMMENT>\n         { }
 <COMMENT>"*"        { }
 
-"*/"                { 
-                    }                   
+"*/"                {
+                    }
 
 \r                  { }
-\n                  { 
+\n                  {
                     }
 
 {blank}+            { }
@@ -105,7 +105,8 @@ xpathseq      ([^}\r\n])+
 <SLSL>\n            { BEGIN(0); }
 <SLSL>[^\n]+        { }
 
-    
+{digit}+            {std::cout << "integer\n";}
+
 (\$|{letter}){alphanum}* {
                         setupdatepos;
                         return ID;

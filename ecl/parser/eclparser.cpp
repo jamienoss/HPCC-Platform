@@ -17,38 +17,66 @@
 
 #include "platform.h"
 #include "eclgram.h"
-#include "eclgram.hpp"
+#include "eclparser.hpp"
+#include <iostream>
+#include "ecllex.hpp"
 
 
-EclGram::EclGram()
+EclParser::EclParser(IFileContents * queryContents)
 {
+	init(queryContents);
 }
 
-int EclGram::yyLex(symTree * yylval, const short * activeState)
+int EclParser::yyLex(syntaxTree * yylval, const short * activeState)
 {
-    EclLex * lexer= NULL;
+    //EclLex * lexer= NULL;
     return lexer->yyLex(*yylval, false, activeState);
 }
 
-extern int ecl2yyparse (EclGram* parser);
-
-symTree * EclGram::parse()
+syntaxTree * EclParser::parse()
 {
     ecl2yyparse(this);
     return NULL;
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-
-EclLex::EclLex(IFileContents *)
+void EclParser::init(IFileContents * queryContents)
 {
+	lexer = new EclLex(queryContents);
+	ast = new syntaxTree();
 }
 
+
+//---------------------------------------------------------------------------------------------------------------------
+
+EclLex::EclLex(IFileContents * queryContents)
+{
+	init(queryContents);
+}
+
+EclLex::~EclLex()
+{
+    ecl2yylex_destroy(scanner);
+    scanner = NULL;
+    delete[] yyBuffer;
+}
+
+void EclLex::init(IFileContents * _text)
+{
+    text.set(_text);
+    size32_t len = _text->length();
+    yyBuffer = new char[len+2]; // Include room for \0 and another \0 that we write beyond the end null while parsing
+    memcpy(yyBuffer, text->getText(), len);
+    yyBuffer[len] = '\0';
+    yyBuffer[len+1] = '\0';
+
+    if(ecl2yylex_init(&scanner) != 0)
+        std::cout << "uh-oh\n";
+    ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
+
+}
 int EclLex::yyLex(YYSTYPE & returnToken, bool lookup, const short * activeState)
 {
-    yyscan_t scanner;
+    //yyscan_t scanner;
     int ret = doyyFlex(returnToken, scanner, this, lookup, activeState);
     return 0;
 }
-
-

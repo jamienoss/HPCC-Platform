@@ -17,11 +17,12 @@
 //Either api.pure of c++ skeleton could be used, not both (which causes an error).
 //Note the c++ generation still generates a separate class for the raw processing from the HqlGram class, so whichever is
 //used the productions need to use parser->... to access the context
+
 %define api.pure
 //%error-verbose
-%lex-param {EclGram* parser}
+%lex-param {EclParser* parser}
 %lex-param {int * yyssp}
-%parse-param {EclGram* parser}
+%parse-param {EclParser* parser}
 %name-prefix "ecl2yy"
 //
 %destructor {$$.release();} <>
@@ -33,14 +34,17 @@
 //fixing bison to ignore destructor {} for need use is another alternative - but would take a long time to feed into a public build.
 %{
 #include "platform.h"
-#include "eclgram.hpp"
+#include "eclparser.hpp"
+#include "ecllex.hpp"
 
-inline int ecl2yylex(symTree * yylval, EclGram* parser, const short int * yyssp)
+
+inline int ecl2yylex(syntaxTree * yylval, EclParser* parser, const short int * yyssp)
 {
     return parser->yyLex(yylval, yyssp);
 }
 
-static void reportsyntaxerror(EclGram * parser, const char * s, short yystate, int token);
+
+static void reportsyntaxerror(EclParser * parser, const char * s, short yystate, int token);
 #define ecl2yyerror(parser, s)       reportsyntaxerror(parser, s, yystate, yychar)
 #define ignoreBisonWarning(x)
 #define ignoreBisonWarnings2(x,y)
@@ -77,7 +81,7 @@ eclQuery
 
 %%
 
-static void reportsyntaxerror(EclGram * parser, const char * s, short yystate, int token)
+static void reportsyntaxerror(EclParser * parser, const char * s, short yystate, int token)
 {
 //MORE
 }
