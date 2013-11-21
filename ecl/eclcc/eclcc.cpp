@@ -14,6 +14,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 ############################################################################## */
+#include <iostream>
+#include <limits>
+
 #include <stdio.h>
 #include "jcomp.hpp"
 #include "jfile.hpp"
@@ -1006,6 +1009,9 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         EclParser parser(queryContents);
         parser.parse();
         printf("New Parser Parsed!\n");
+
+        std::cout << "Press ENTER to continue... " << std::flush;
+        std::cin.ignore( std::numeric_limits <std::streamsize> ::max(), '\n' );
     }
 
     if (optTargetCompiler != DEFAULT_COMPILER)

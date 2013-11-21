@@ -28,75 +28,64 @@
 typedef void* yyscan_t;
 #endif
 
-#define YYSTYPE syntaxTree
-
-class EclParser;
-class EclLex;
-
-//----------------------------------syntaxTree--------------------------------------------------------------------
-struct syntaxTree //MORE: struct OR class?
-{
-	union
-	{
-        IAtom * name;
-    };
-
-
-    syntaxTree * left;
-    syntaxTree * right;
-
-
-    syntaxTree()
-	{
-        left  = NULL;
-        right = NULL;
-	}
-    syntaxTree & release()
-    {
-        return *this;
-    }
-
-
-
-};
-//----------------------------------------------------------------------------------------------------------------
-
+#define YYSTYPE SyntaxTree
 /*
 extern int ecl2yylex_init(yyscan_t * scanner);
 extern int ecl2yylex_destroy(yyscan_t scanner);
 extern int ecl2yyparse(EclParser * parser);
 */
+
+
+class EclParser;
+class EclLexer;
+class SyntaxTree;
+
+//----------------------------------SyntaxTree--------------------------------------------------------------------
+class SyntaxTree
+{
+public:
+	union
+	{
+        IAtom * name;
+
+    };
+public:
+    SyntaxTree();
+    ~SyntaxTree();
+
+	SyntaxTree & release();
+
+private:
+    SyntaxTree * left;
+    SyntaxTree * right;
+};
 //----------------------------------EclParser--------------------------------------------------------------------
 class EclParser
 {
-    friend class EclLex;
+    //friend class EclLexer;
     friend int ecl2yyparse(EclParser * parser);
 
 public:
     EclParser(IFileContents * queryContents);
+    ~EclParser();
 
-    int yyLex(syntaxTree * yylval, const short * activeState);
-    syntaxTree * parse();
+    int yyLex(SyntaxTree * yylval, const short * activeState);
+    SyntaxTree * parse();
 
 private:
     void init(IFileContents * queryContents);
 
-    EclLex * lexer;
-    syntaxTree * ast;
-
+    EclLexer * lexer;
+    SyntaxTree * ast;
 };
-//----------------------------------------------------------------------------------------------------------------
-
-
-//----------------------------------EclLex--------------------------------------------------------------------
-class EclLex
+//----------------------------------EclLexer--------------------------------------------------------------------
+class EclLexer
 {
 public:
-    EclLex(IFileContents * queryContents);
-    ~EclLex();
+    EclLexer(IFileContents * queryContents);
+    ~EclLexer();
 
-    static int doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, EclLex * lexer, bool lookup, const short * activeState);
-
+    static int doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, EclLexer * lexer, bool lookup, const short * activeState);
     int yyLex(YYSTYPE & returnToken, bool lookup, const short * activeState);    /* lexical analyzer */
 
 private:
@@ -111,7 +100,7 @@ private:
 
 //Next stages:
 // Separate or same dll? Up to you.
-// Fill in EclLex with code from HqlLex
+// Fill in EclLexer with code from HqlLex
 // Go through and make sure class names, file names etc. are as meaningful as possible.
 // rename symTree
 // modify EclCC::processSingleQuery to conditionally call the new parser, and return xml/dot/json

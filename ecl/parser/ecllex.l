@@ -26,7 +26,7 @@
 #include "eclgram.h"
 #include <iostream>
 
-#define YY_DECL int EclLex::doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, EclLex * lexer, bool lookup, const short * activeState)
+#define YY_DECL int EclLexer::doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, EclLexer * lexer, bool lookup, const short * activeState)
 
 //declare this rather than including the header because VC++ seems to get very upset running out of heap if you do.
 extern int rtlSingleUtf8ToCodepage(char * out, unsigned inlen, char const * in, char const * outcodepage);
@@ -105,7 +105,7 @@ xpathseq      ([^}\r\n])+
 <SLSL>\n            { BEGIN(0); }
 <SLSL>[^\n]+        { }
 
-{digit}+            {std::cout << "integer\n";}
+{digit}+            {std::cout << "integer\n"; }
 
 (\$|{letter}){alphanum}* {
                         setupdatepos;

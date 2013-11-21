@@ -25,7 +25,7 @@
 %parse-param {EclParser* parser}
 %name-prefix "ecl2yy"
 //
-%destructor {$$.release();} <>
+//%destructor {$$.release();} <>
 //Could override destructors for all tokens e.g.,
 //%destructor {} ABS
 //but warnings still come out, and improvement in code is marginal.
@@ -38,7 +38,7 @@
 #include "ecllex.hpp"
 
 
-inline int ecl2yylex(syntaxTree * yylval, EclParser* parser, const short int * yyssp)
+inline int ecl2yylex(SyntaxTree * yylval, EclParser* parser, const short int * yyssp)
 {
     return parser->yyLex(yylval, yyssp);
 }

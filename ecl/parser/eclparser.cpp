@@ -21,19 +21,49 @@
 #include <iostream>
 #include "ecllex.hpp"
 
+//----------------------------------SyntaxTree--------------------------------------------------------------------
+SyntaxTree::SyntaxTree()
+{
+    left  = NULL;
+    right = NULL;
+}
+SyntaxTree::~SyntaxTree()
+{
+       if(left)
+     {
+         //left->deleteTree();
+         delete[] left;
+     }
 
+     if(right)
+     {
+         //right->deleteTree();
+         delete[] right;
+     }
+ }
+SyntaxTree & SyntaxTree::release()
+{
+    return *this;
+}
+//----------------------------------EclParser--------------------------------------------------------------------
 EclParser::EclParser(IFileContents * queryContents)
 {
-	init(queryContents);
+    init(queryContents);
 }
 
-int EclParser::yyLex(syntaxTree * yylval, const short * activeState)
+EclParser::~EclParser()
 {
-    //EclLex * lexer= NULL;
+    if(ast)
+        delete[] ast;
+}
+
+int EclParser::yyLex(SyntaxTree * yylval, const short * activeState)
+{
+    //EclLexer * lexer= NULL;
     return lexer->yyLex(*yylval, false, activeState);
 }
 
-syntaxTree * EclParser::parse()
+SyntaxTree * EclParser::parse()
 {
     ecl2yyparse(this);
     return NULL;
@@ -41,26 +71,25 @@ syntaxTree * EclParser::parse()
 
 void EclParser::init(IFileContents * queryContents)
 {
-	lexer = new EclLex(queryContents);
-	ast = new syntaxTree();
+    lexer = new EclLexer(queryContents);
+    ast = new SyntaxTree();
 }
 
+//----------------------------------EclLexer--------------------------------------------------------------------
 
-//---------------------------------------------------------------------------------------------------------------------
-
-EclLex::EclLex(IFileContents * queryContents)
+EclLexer::EclLexer(IFileContents * queryContents)
 {
-	init(queryContents);
+    init(queryContents);
 }
 
-EclLex::~EclLex()
+EclLexer::~EclLexer()
 {
     ecl2yylex_destroy(scanner);
     scanner = NULL;
     delete[] yyBuffer;
 }
 
-void EclLex::init(IFileContents * _text)
+void EclLexer::init(IFileContents * _text)
 {
     text.set(_text);
     size32_t len = _text->length();
@@ -74,9 +103,10 @@ void EclLex::init(IFileContents * _text)
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 
 }
-int EclLex::yyLex(YYSTYPE & returnToken, bool lookup, const short * activeState)
+int EclLexer::yyLex(YYSTYPE & returnToken, bool lookup, const short * activeState)
 {
     //yyscan_t scanner;
     int ret = doyyFlex(returnToken, scanner, this, lookup, activeState);
     return 0;
 }
+//---------------------------------------------------------------------------------------------------------------------
