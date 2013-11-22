@@ -27,24 +27,41 @@ SyntaxTree::SyntaxTree()
     left  = NULL;
     right = NULL;
 }
+
 SyntaxTree::~SyntaxTree()
 {
-       if(left)
-     {
-         //left->deleteTree();
-         delete[] left;
-     }
-
+     if(left)
+         delete left;
      if(right)
-     {
-         //right->deleteTree();
-         delete[] right;
-     }
- }
+         delete right;
+}
+
+bool  SyntaxTree::printTree()
+{
+	bool ioStatL;
+	bool ioStatR;
+
+	if(!(left && right))
+		return this->printNode();
+
+	if(left)
+		ioStatL = left->printTree();
+	if(right)
+		ioStatR = right->printTree();
+
+	return ioStatL && ioStatR;
+}
+
+bool SyntaxTree::printNode()
+{
+	return false;
+}
+/*
 SyntaxTree & SyntaxTree::release()
 {
     return *this;
 }
+*/
 //----------------------------------EclParser--------------------------------------------------------------------
 EclParser::EclParser(IFileContents * queryContents)
 {
@@ -53,11 +70,13 @@ EclParser::EclParser(IFileContents * queryContents)
 
 EclParser::~EclParser()
 {
+	if(lexer)
+		delete lexer;
     if(ast)
-        delete[] ast;
+        delete ast;
 }
 
-int EclParser::yyLex(SyntaxTree * yylval, const short * activeState)
+int EclParser::yyLex(YYSTYPE * yylval, const short * activeState)
 {
     //EclLexer * lexer= NULL;
     return lexer->yyLex(*yylval, false, activeState);
@@ -73,6 +92,11 @@ void EclParser::init(IFileContents * queryContents)
 {
     lexer = new EclLexer(queryContents);
     ast = new SyntaxTree();
+}
+
+void EclParser::setRoot(SyntaxTree * node)
+{
+	ast = node;
 }
 
 //----------------------------------EclLexer--------------------------------------------------------------------

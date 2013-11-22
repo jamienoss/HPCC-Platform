@@ -28,32 +28,46 @@
 typedef void* yyscan_t;
 #endif
 
-#define YYSTYPE SyntaxTree
+class EclParser;
+class EclLexer;
+class SyntaxTree;
+class TokenData;
+
+#define YYSTYPE	 TokenData
+//SyntaxTree
 /*
 extern int ecl2yylex_init(yyscan_t * scanner);
 extern int ecl2yylex_destroy(yyscan_t scanner);
 extern int ecl2yyparse(EclParser * parser);
 */
 
-
-class EclParser;
-class EclLexer;
-class SyntaxTree;
-
+//----------------------------------TokenData--------------------------------------------------------------------
+class TokenData
+{
+public:
+	TokenData();
+	~TokenData();
+	int dummy;
+	union
+	{
+		int integer;
+		float real;
+		char * lexeme[];
+	};
+};
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 class SyntaxTree
 {
 public:
-	union
-	{
-        IAtom * name;
+	TokenData attributes;
 
-    };
 public:
     SyntaxTree();
     ~SyntaxTree();
+    bool printTree();
+    bool printNode();
 
-	SyntaxTree & release();
+	//SyntaxTree & release();
 
 private:
     SyntaxTree * left;
@@ -69,12 +83,15 @@ public:
     EclParser(IFileContents * queryContents);
     ~EclParser();
 
-    int yyLex(SyntaxTree * yylval, const short * activeState);
+    void setRoot(SyntaxTree * node);
+    bool printTree(SyntaxTree * tree);
+    int yyLex(YYSTYPE * yylval, const short * activeState);
     SyntaxTree * parse();
 
 private:
     void init(IFileContents * queryContents);
 
+public:
     EclLexer * lexer;
     SyntaxTree * ast;
 };
@@ -95,8 +112,11 @@ private:
     Owned<IFileContents> text;
     char *yyBuffer;
 
+public:
+    TokenData token;
 };
-//----------------------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------------------------
 
 //Next stages:
 // Separate or same dll? Up to you.

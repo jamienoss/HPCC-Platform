@@ -79,41 +79,11 @@ err_hexpairs  {hexdigit}({hexdigit}{hexdigit})*
 xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
-%x COMMENT
-%x CPP
-%x SLSL
 %%
-
-"/*"                { BEGIN(COMMENT); }
-<COMMENT>"*/"       {
-                        BEGIN(0);
-                    }
-<COMMENT>[^*\n]+    { }
-<COMMENT>\n         { }
-<COMMENT>"*"        { }
-
-"*/"                {
-                    }
-
-\r                  { }
-\n                  {
-                    }
-
-{blank}+            { }
-
-"//"                { BEGIN(SLSL); }
-<SLSL>\n            { BEGIN(0); }
-<SLSL>[^\n]+        { }
-
-{digit}+            {std::cout << "integer\n"; }
-
-(\$|{letter}){alphanum}* {
-                        setupdatepos;
-                        return ID;
-                    }
-\357\273\277        {
-                    }
-
-.                   { setupdatepos; return (CUR_TOKEN_TEXT[0]); }
+{digit}+                 {parser.lexer.token.integer=atoi(yytext); return INTEGER; }
+(\$|{letter}){alphanum}* { }
+';'                      { return ';'; }
+.                        { }
 
 %%
+/*.                   { setupdatepos; return (CUR_TOKEN_TEXT[0]); }*/

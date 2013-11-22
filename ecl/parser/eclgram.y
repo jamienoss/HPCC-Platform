@@ -19,26 +19,21 @@
 //used the productions need to use parser->... to access the context
 
 %define api.pure
-//%error-verbose
 %lex-param {EclParser* parser}
 %lex-param {int * yyssp}
 %parse-param {EclParser* parser}
 %name-prefix "ecl2yy"
 //
 //%destructor {$$.release();} <>
-//Could override destructors for all tokens e.g.,
-//%destructor {} ABS
-//but warnings still come out, and improvement in code is marginal.
-//Only defining destructors for those productions that need them would solve it, but be open to missing items.
-//Adding a comment to reference unused parameters also fails to solve it because it ignores references in comments (and a bit ugly)
-//fixing bison to ignore destructor {} for need use is another alternative - but would take a long time to feed into a public build.
+
 %{
 #include "platform.h"
 #include "eclparser.hpp"
 #include "ecllex.hpp"
+#include <iostream>
 
 
-inline int ecl2yylex(SyntaxTree * yylval, EclParser* parser, const short int * yyssp)
+inline int ecl2yylex(YYSTYPE * yylval, EclParser * parser, const short int * yyssp)
 {
     return parser->yyLex(yylval, yyssp);
 }
@@ -52,6 +47,7 @@ static void reportsyntaxerror(EclParser * parser, const char * s, short yystate,
 
 %}
 
+
 //=========================================== tokens ====================================
 
 %token
@@ -59,6 +55,9 @@ static void reportsyntaxerror(EclParser * parser, const char * s, short yystate,
 /* If they clash with other #defines etc then use TOK_ as a prefix */
 
   ID
+  INTEGER
+  REAL
+  ';'
 
   /* add new token before this! */
   YY_LAST_TOKEN
@@ -76,7 +75,7 @@ static void reportsyntaxerror(EclParser * parser, const char * s, short yystate,
 //================================== begin of syntax section ==========================
 
 eclQuery
-    : ID
+    : INTEGER ';'                 { std::cout << "integer\n"; }
     ;
 
 %%

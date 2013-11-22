@@ -1007,7 +1007,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     if(printSyntaxTree)
     {
         EclParser parser(queryContents);
-        parser.parse();
+        //parser.parse();
         printf("New Parser Parsed!\n");
 
         std::cout << "Press ENTER to continue... " << std::flush;
