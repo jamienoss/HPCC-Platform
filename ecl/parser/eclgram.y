@@ -14,73 +14,63 @@
 //    limitations under the License.
 //############################################################################## */
 
-//Either api.pure of c++ skeleton could be used, not both (which causes an error).
-//Note the c++ generation still generates a separate class for the raw processing from the HqlGram class, so whichever is
-//used the productions need to use parser->... to access the context
-
 %define api.pure
-%lex-param {EclParser* parser}
-%lex-param {int * yyssp}
-%parse-param {EclParser* parser}
 %name-prefix "ecl2yy"
-//
-//%destructor {$$.release();} <>
+
+%parse-param {EclParser * parser}
+%parse-param {yyscan_t scanner }
+%lex-param {yyscan_t scanner}
+
 
 %{
+class TokenData;
+class SyntaxTree;
+class EclParser;
+class EclLexer;
+
 #include "platform.h"
 #include "eclparser.hpp"
+#include "eclgram.h"
 #include "ecllex.hpp"
 #include <iostream>
 
-
-inline int ecl2yylex(YYSTYPE * yylval, EclParser * parser, const short int * yyssp)
-{
-    return parser->yyLex(yylval, yyssp);
+int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
+    //std::cout << *msg << "\n";
+    std::cout << "Doh! Incorrect syntax\n";
+    return 0;
 }
-
-
-static void reportsyntaxerror(EclParser * parser, const char * s, short yystate, int token);
-#define ecl2yyerror(parser, s)       reportsyntaxerror(parser, s, yystate, yychar)
-#define ignoreBisonWarning(x)
-#define ignoreBisonWarnings2(x,y)
-#define ignoreBisonWarnings3(x,y,z)
 
 %}
 
+%union
+{
+    TokenData returnToken;
+    SyntaxTree * expression;
+}
 
 //=========================================== tokens ====================================
 
-%token
-/* remember to add any new tokens to the error reporter and lexer too! */
-/* If they clash with other #defines etc then use TOK_ as a prefix */
-
+%token <returnToken>
   ID
   INTEGER
   REAL
   ';'
-
-  /* add new token before this! */
   YY_LAST_TOKEN
 
-%left LOWEST_PRECEDENCE
+%type <returnToken>
+    eclQuery
+
+
 
 %left '.'
 %left '('
 %left '['
 
-%left HIGHEST_PRECEDENCE
-
 %%
-
 //================================== begin of syntax section ==========================
 
 eclQuery
-    : INTEGER ';'                 { std::cout << "integer\n"; }
+    : INTEGER              { std::cout << "integer\n"; }
     ;
 
 %%
-
-static void reportsyntaxerror(EclParser * parser, const char * s, short yystate, int token)
-{
-//MORE
-}

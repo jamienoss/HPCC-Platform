@@ -15,13 +15,12 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 ############################################################################## */
-#ifndef ECLGRAM_HPP
-#define ECLGRAM_HPP
+#ifndef ECLPARSER_HPP
+#define ECLPARSER_HPP
 
 #include "platform.h"
 #include "jhash.hpp"
 #include "hqlexpr.hpp"  // MORE: Split IFileContents out of this file
-//#include "ecllex.hpp"
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -33,21 +32,10 @@ class EclLexer;
 class SyntaxTree;
 class TokenData;
 
-#define YYSTYPE	 TokenData
-//SyntaxTree
-/*
-extern int ecl2yylex_init(yyscan_t * scanner);
-extern int ecl2yylex_destroy(yyscan_t scanner);
-extern int ecl2yyparse(EclParser * parser);
-*/
-
 //----------------------------------TokenData--------------------------------------------------------------------
 class TokenData
 {
 public:
-	TokenData();
-	~TokenData();
-	int dummy;
 	union
 	{
 		int integer;
@@ -76,8 +64,7 @@ private:
 //----------------------------------EclParser--------------------------------------------------------------------
 class EclParser
 {
-    //friend class EclLexer;
-    friend int ecl2yyparse(EclParser * parser);
+    friend int ecl2yyparse(EclParser * parser, yyscan_t scanner);
 
 public:
     EclParser(IFileContents * queryContents);
@@ -85,13 +72,12 @@ public:
 
     void setRoot(SyntaxTree * node);
     bool printTree(SyntaxTree * tree);
-    int yyLex(YYSTYPE * yylval, const short * activeState);
-    SyntaxTree * parse();
+    int parse();
 
 private:
     void init(IFileContents * queryContents);
 
-public:
+private:
     EclLexer * lexer;
     SyntaxTree * ast;
 };
@@ -102,20 +88,16 @@ public:
     EclLexer(IFileContents * queryContents);
     ~EclLexer();
 
-    static int doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, EclLexer * lexer, bool lookup, const short * activeState);
-    int yyLex(YYSTYPE & returnToken, bool lookup, const short * activeState);    /* lexical analyzer */
+    int parse(EclParser * parser);
 
 private:
-    void init(IFileContents * queryContents);
-
     yyscan_t scanner;
     Owned<IFileContents> text;
     char *yyBuffer;
-
-public:
     TokenData token;
-};
 
+    void init(IFileContents * queryContents);
+};
 //--------------------------------------------------------------------------------------------------------------
 
 //Next stages:

@@ -16,9 +16,9 @@
 ############################################################################## */
 
 #include "platform.h"
-#include "eclgram.h"
 #include "eclparser.hpp"
 #include <iostream>
+#include "eclgram.h"
 #include "ecllex.hpp"
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
@@ -76,16 +76,9 @@ EclParser::~EclParser()
         delete ast;
 }
 
-int EclParser::yyLex(YYSTYPE * yylval, const short * activeState)
+int EclParser::parse()
 {
-    //EclLexer * lexer= NULL;
-    return lexer->yyLex(*yylval, false, activeState);
-}
-
-SyntaxTree * EclParser::parse()
-{
-    ecl2yyparse(this);
-    return NULL;
+	return lexer->parse(this);
 }
 
 void EclParser::init(IFileContents * queryContents)
@@ -98,9 +91,7 @@ void EclParser::setRoot(SyntaxTree * node)
 {
 	ast = node;
 }
-
 //----------------------------------EclLexer--------------------------------------------------------------------
-
 EclLexer::EclLexer(IFileContents * queryContents)
 {
     init(queryContents);
@@ -127,10 +118,9 @@ void EclLexer::init(IFileContents * _text)
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 
 }
-int EclLexer::yyLex(YYSTYPE & returnToken, bool lookup, const short * activeState)
+
+int EclLexer::parse(EclParser * parser)
 {
-    //yyscan_t scanner;
-    int ret = doyyFlex(returnToken, scanner, this, lookup, activeState);
-    return 0;
+     return ecl2yyparse(parser, scanner);
 }
 //---------------------------------------------------------------------------------------------------------------------

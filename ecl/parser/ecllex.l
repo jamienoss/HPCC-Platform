@@ -20,44 +20,12 @@
 %option reentrant
 %option noyywrap
 %option case-insensitive
+%option bison-bridge
 
 %{
 #include "eclparser.hpp"
 #include "eclgram.h"
 #include <iostream>
-
-#define YY_DECL int EclLexer::doyyFlex(YYSTYPE & returnToken, yyscan_t yyscanner, EclLexer * lexer, bool lookup, const short * activeState)
-
-//declare this rather than including the header because VC++ seems to get very upset running out of heap if you do.
-extern int rtlSingleUtf8ToCodepage(char * out, unsigned inlen, char const * in, char const * outcodepage);
-
-//#define DEBUG_TOKEN
-
-#ifdef DEBUG_TOKEN
-#define TraceReturnToken(id) PrintLog("Returning " #id " %s", name->str())
-#else
-#define TraceReturnToken(id)
-#endif
-
-#ifdef FLEX_SCANNER
-//#define updatepos1          lexer->updatePosition(yyleng)
-#define updatepos1
-#define CUR_TOKEN_TEXT      yytext
-#define CUR_TOKEN_LENGTH    yyleng
-#else
-#define updatepos1          lexer->updatePosition(CUR_TOKEN_LENGTH)
-#define CUR_TOKEN_TEXT      lexer->yyText
-#define CUR_TOKEN_LENGTH    lexer->yyLeng
-#endif
-
-#define setupdatepos        { }
-//#define setupdatepos        { lexer->setTokenPosition(returnToken); updatepos1; }
-extern void hex2str(char * target, const char * digits, unsigned len);
-
-#define RETURNSYM(sym) \
-        setupdatepos; return sym;
-
-
 %}
 
 
@@ -80,10 +48,13 @@ xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
 %%
-{digit}+                 {parser.lexer.token.integer=atoi(yytext); return INTEGER; }
+{digit}+                 { std::cout << "lexINT\n"; return INTEGER; }
 (\$|{letter}){alphanum}* { }
-';'                      { return ';'; }
+';'                      { std::cout << "lex;\n"; return ';'; }
 .                        { }
 
 %%
-/*.                   { setupdatepos; return (CUR_TOKEN_TEXT[0]); }*/
+
+int yyerror(const char *msg) {
+    fprintf(stderr,"Error:%s\n",msg); return 0;
+}

@@ -30,8 +30,8 @@ set (   SRCS
         eclgram.y
         ecllex.l
 
-        eclparser.cpp
         eclparser.hpp
+        eclparser.cpp
     )
 
 include_directories (
