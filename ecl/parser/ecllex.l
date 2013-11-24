@@ -48,9 +48,9 @@ xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
 %%
-{digit}+                 { std::cout << "lexINT\n"; return INTEGER; }
+{digit}+                 { return INTEGER; }
 (\$|{letter}){alphanum}* { }
-';'                      { std::cout << "lex;\n"; return ';'; }
+";"                      { return ';'; }
 .                        { }
 
 %%

@@ -70,7 +70,7 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
 //================================== begin of syntax section ==========================
 
 eclQuery
-    : INTEGER              { std::cout << "integer\n"; }
+    : INTEGER ';'              { std::cout << "integer\n"; }
     ;
 
 %%
