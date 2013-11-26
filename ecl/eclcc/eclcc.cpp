@@ -1008,7 +1008,8 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     {
         EclParser parser(queryContents);
         parser.parse();
-        printf("New Parser Parsed!\n");
+        //printf("New Parser Parsed!\n");
+        parser.printAST();
 
         //std::cout << "Press ENTER to continue... " << std::flush;
         //std::cin.ignore( std::numeric_limits <std::streamsize> ::max(), '\n' );

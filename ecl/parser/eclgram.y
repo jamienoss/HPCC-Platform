@@ -45,7 +45,7 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
 %union
 {
     TokenData returnToken;
-    SyntaxTree * expression;
+    SyntaxTree * node;
 }
 
 //=========================================== tokens ====================================
@@ -55,12 +55,14 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
   INTEGER
   REAL
   ';'
+  PLUS
   YY_LAST_TOKEN
 
-%type <returnToken>
+%type <node>
     eclQuery
-
-
+    line_of_code
+    expr
+    maths
 
 %left '.'
 %left '('
@@ -69,8 +71,28 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
 %%
 //================================== begin of syntax section ==========================
 
-eclQuery
-    : INTEGER ';'              { std::cout << "integer\n"; }
+code
+    : eclQuery                      { parser->setRoot($1); }
     ;
+
+eclQuery
+    : line_of_code ';'              { $$ = $1 }
+    | line_of_code ';' eclQuery     { }
+    ;
+
+line_of_code
+    : expr                          { $$ = $1; }
+    | ID ';' expr                   { }
+    ;
+
+expr
+    : ID                            {  }
+    | maths                         { $$ = $1; }
+    ;
+
+maths
+    : INTEGER PLUS INTEGER          { $$ = parser->bifurcate($2, $1, $3); }
+    ;
+
 
 %%

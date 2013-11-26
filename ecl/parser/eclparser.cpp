@@ -18,14 +18,29 @@
 #include "platform.h"
 #include "eclparser.hpp"
 #include <iostream>
+#include <typeinfo>
 #include "eclgram.h"
 #include "ecllex.hpp"
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 SyntaxTree::SyntaxTree()
 {
-    left  = NULL;
+    left = NULL;
     right = NULL;
+}
+
+SyntaxTree::SyntaxTree(TokenData node)
+{
+	attributes = node;
+	left = NULL;
+	right = NULL;
+}
+
+SyntaxTree::SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok)
+{
+	attributes = parent;
+	left = new SyntaxTree(leftTok);
+	right = new SyntaxTree(rightTok);
 }
 
 SyntaxTree::~SyntaxTree()
@@ -36,32 +51,63 @@ SyntaxTree::~SyntaxTree()
          delete right;
 }
 
-bool  SyntaxTree::printTree()
+void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData rightTok)
+{
+	left = leftBranch;
+	right = new SyntaxTree(rightTok);
+}
+
+SyntaxTree * SyntaxTree::setRight(TokenData rightTok)
+{
+	right = new SyntaxTree(rightTok);
+	return this;
+}
+
+bool  SyntaxTree::printTree(int * parentNodeNum, int * nodeNum)
 {
 	bool ioStatL;
 	bool ioStatR;
+	int parentNodeNumm = *nodeNum;
 
-	if(!(left && right))
-		return this->printNode();
+	this->printNode(nodeNum);
 
 	if(left)
-		ioStatL = left->printTree();
+	{
+		this->printEdge(parentNodeNumm, *nodeNum);
+		ioStatL = left->printTree(parentNodeNum, nodeNum);
+	}
 	if(right)
-		ioStatR = right->printTree();
+	{
+		this->printEdge(parentNodeNumm, *nodeNum);
+		ioStatR = right->printTree(parentNodeNum, nodeNum);
+	}
 
-	return ioStatL && ioStatR;
+	return !(ioStatL && ioStatR);
+	//return this->printNode(parentNodeNum, nodeNum);
 }
 
-bool SyntaxTree::printNode()
+void SyntaxTree::printEdge(int parentNodeNum, int nodeNum)
 {
-	return false;
+	std::cout << nodeNum << " -- " << parentNodeNum << " [style = solid]\n";
 }
-/*
-SyntaxTree & SyntaxTree::release()
+
+bool SyntaxTree::printNode(int * nodeNum)
 {
-    return *this;
+	std::cout << *nodeNum << " [label = \"";
+
+	symbolKind kind = this->attributes.attributeKind;
+	switch(kind){
+	case integerKind : std::cout << this->attributes.integer; break;
+	case realKind : std::cout << this->attributes.real; break;
+	case lexemeKind : std::cout << this->attributes.lexeme; break;
+	default : std::cout << "KIND not yet defined!\n"; break;
+	}
+
+	std::cout << "\"]\n";
+	//std::cout << *nodeNum << " -- " << *parentNodeNum << " [style = solid]\n";
+	(*nodeNum)++;
+	return true;
 }
-*/
 //----------------------------------EclParser--------------------------------------------------------------------
 EclParser::EclParser(IFileContents * queryContents)
 {
@@ -90,6 +136,22 @@ void EclParser::init(IFileContents * queryContents)
 void EclParser::setRoot(SyntaxTree * node)
 {
 	ast = node;
+}
+
+SyntaxTree * EclParser::bifurcate(TokenData parent, TokenData left, TokenData right)
+{
+	return new SyntaxTree(parent, left, right);
+}
+
+bool EclParser::printAST()
+{
+	int ioStat;
+	int parentNodeNum = 0, nodeNum = 0;
+
+	std::cout << "graph \"Abstract Syntax Tree\"\n{\n";
+	ioStat = ast->printTree(& parentNodeNum, & nodeNum);
+	std::cout << "}\n";
+	return ioStat;
 }
 //----------------------------------EclLexer--------------------------------------------------------------------
 EclLexer::EclLexer(IFileContents * queryContents)

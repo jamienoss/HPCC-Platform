@@ -26,6 +26,7 @@
 #include "eclparser.hpp"
 #include "eclgram.h"
 #include <iostream>
+
 %}
 
 
@@ -48,9 +49,10 @@ xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
 %%
-{digit}+                 { return INTEGER; }
-(\$|{letter}){alphanum}* { }
-";"                      { return ';'; }
+{digit}+                 { yylval->returnToken.attributeKind = integerKind; yylval->returnToken.integer = atoi(yytext); return INTEGER; }
+(\$|{letter}){alphanum}* { yylval->returnToken.attributeKind = lexemeKind; strcpy(yylval->returnToken.lexeme, yytext); return ID; }
+";"                      { yylval->returnToken.attributeKind = lexemeKind; strcpy(yylval->returnToken.lexeme, yytext); return ';'; }
+"+"                      { yylval->returnToken.attributeKind = lexemeKind; strcpy(yylval->returnToken.lexeme, yytext); return PLUS; }
 .                        { }
 
 %%

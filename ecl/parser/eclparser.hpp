@@ -32,32 +32,44 @@ class EclLexer;
 class SyntaxTree;
 class TokenData;
 
+
+enum symbolKind
+{
+	integerKind,
+	realKind,
+	lexemeKind
+};
 //----------------------------------TokenData--------------------------------------------------------------------
 class TokenData
 {
 public:
+	symbolKind attributeKind;
 	union
 	{
 		int integer;
 		float real;
-		char * lexeme[];
+		char lexeme[256];
+		//char * lexeme[];
 	};
 };
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 class SyntaxTree
 {
-public:
-	TokenData attributes;
 
 public:
     SyntaxTree();
+    SyntaxTree(TokenData node);
+    SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok);
     ~SyntaxTree();
-    bool printTree();
-    bool printNode();
+    bool printTree(int * parentNodeNum, int * nodeNum);
+    void printEdge(int parentNodeNum, int nodeNum);
+    bool printNode(int * nodeNum);
 
-	//SyntaxTree & release();
+    SyntaxTree * setRight(TokenData rightTok);
+    void bifurcate(SyntaxTree * leftBranch, TokenData rightTok);
 
 private:
+    TokenData attributes;
     SyntaxTree * left;
     SyntaxTree * right;
 };
@@ -71,7 +83,8 @@ public:
     ~EclParser();
 
     void setRoot(SyntaxTree * node);
-    bool printTree(SyntaxTree * tree);
+    SyntaxTree * bifurcate(TokenData parent, TokenData left, TokenData right);
+    bool printAST();
     int parse();
 
 private:
