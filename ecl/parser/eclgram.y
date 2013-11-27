@@ -40,6 +40,8 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
     return 0;
 }
 
+inline SyntaxTree * newNode() {return new SyntaxTree(); }
+
 %}
 
 %union
@@ -56,6 +58,10 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
   REAL
   ';'
   PLUS
+  MINUS
+  MULTIPLY
+  DIVIDE
+
   YY_LAST_TOKEN
 
 %type <node>
@@ -76,23 +82,25 @@ code
     ;
 
 eclQuery
-    : line_of_code ';'              { $$ = $1 }
-    | line_of_code ';' eclQuery     { }
+    : line_of_code ';'              { $$ = newNode(); $$->bifurcate($1, $2); }
+    | line_of_code ';' eclQuery     { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
     ;
 
 line_of_code
     : expr                          { $$ = $1; }
-    | ID ';' expr                   { }
     ;
 
 expr
-    : ID                            {  }
-    | maths                         { $$ = $1; }
+    : maths                         { $$ = $1; }
     ;
 
 maths
-    : INTEGER PLUS INTEGER          { $$ = parser->bifurcate($2, $1, $3); }
+    : maths PLUS maths              { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | maths MINUS maths             { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | maths MULTIPLY maths          { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | maths DIVIDE maths            { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | INTEGER                       { $$ = new SyntaxTree($1); }
+    | REAL                          { $$ = new SyntaxTree($1); }
+    | ID                            { $$ = new SyntaxTree($1); }
     ;
-
-
 %%

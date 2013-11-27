@@ -27,6 +27,21 @@
 #include "eclgram.h"
 #include <iostream>
 
+inline void setInt(YYSTYPE * tokenVal, char * tokenText)
+{
+tokenVal->returnToken.attributeKind = integerKind;
+tokenVal->returnToken.integer = atoi(tokenText);
+}
+
+inline void setLex(YYSTYPE * tokenVal, char * tokenText)
+{
+tokenVal->returnToken.attributeKind = lexemeKind;
+strcpy(tokenVal->returnToken.lexeme, tokenText);
+}
+
+#define setInt setInt(yylval, yytext)
+#define setLex setLex(yylval, yytext)
+
 %}
 
 
@@ -49,10 +64,13 @@ xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
 %%
-{digit}+                 { yylval->returnToken.attributeKind = integerKind; yylval->returnToken.integer = atoi(yytext); return INTEGER; }
-(\$|{letter}){alphanum}* { yylval->returnToken.attributeKind = lexemeKind; strcpy(yylval->returnToken.lexeme, yytext); return ID; }
-";"                      { yylval->returnToken.attributeKind = lexemeKind; strcpy(yylval->returnToken.lexeme, yytext); return ';'; }
-"+"                      { yylval->returnToken.attributeKind = lexemeKind; strcpy(yylval->returnToken.lexeme, yytext); return PLUS; }
+{digit}+                 { setInt; return INTEGER; }
+(\$|{letter}){alphanum}* { setLex; return ID; }
+";"                      { setLex; return ';'; }
+"+"                      { setLex; return PLUS; }
+"-"                      { setLex; return MINUS; }
+"*"                      { setLex; return MULTIPLY; }
+"/"                      { setLex; return DIVIDE; }
 .                        { }
 
 %%

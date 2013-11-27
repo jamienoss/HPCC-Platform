@@ -57,13 +57,36 @@ void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData rightTok)
 	right = new SyntaxTree(rightTok);
 }
 
+void SyntaxTree::bifurcate(TokenData leftTok, TokenData rightTok)
+{
+	left = new SyntaxTree(leftTok);
+	right = new SyntaxTree(rightTok);
+}
+
+void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
+{
+	left = leftBranch;
+	right = rightBranch;
+}
+
 SyntaxTree * SyntaxTree::setRight(TokenData rightTok)
 {
 	right = new SyntaxTree(rightTok);
 	return this;
 }
 
-bool  SyntaxTree::printTree(int * parentNodeNum, int * nodeNum)
+bool SyntaxTree::printTree()
+{
+	int ioStat;
+	int parentNodeNum = 0, nodeNum = 0;
+
+	std::cout << "graph \"Abstract Syntax Tree\"\n{\n";
+	ioStat = this->printBranch(& parentNodeNum, & nodeNum);
+	std::cout << "}\n";
+	return ioStat;
+}
+
+bool  SyntaxTree::printBranch(int * parentNodeNum, int * nodeNum)
 {
 	bool ioStatL;
 	bool ioStatR;
@@ -74,21 +97,21 @@ bool  SyntaxTree::printTree(int * parentNodeNum, int * nodeNum)
 	if(left)
 	{
 		this->printEdge(parentNodeNumm, *nodeNum);
-		ioStatL = left->printTree(parentNodeNum, nodeNum);
+		ioStatL = left->printBranch(parentNodeNum, nodeNum);
 	}
 	if(right)
 	{
 		this->printEdge(parentNodeNumm, *nodeNum);
-		ioStatR = right->printTree(parentNodeNum, nodeNum);
+		ioStatR = right->printBranch(parentNodeNum, nodeNum);
 	}
 
 	return !(ioStatL && ioStatR);
-	//return this->printNode(parentNodeNum, nodeNum);
 }
 
-void SyntaxTree::printEdge(int parentNodeNum, int nodeNum)
+bool SyntaxTree::printEdge(int parentNodeNum, int nodeNum)
 {
-	std::cout << nodeNum << " -- " << parentNodeNum << " [style = solid]\n";
+	std::cout << parentNodeNum << " -- " << nodeNum << " [style = solid]\n";
+	return true;
 }
 
 bool SyntaxTree::printNode(int * nodeNum)
@@ -100,11 +123,10 @@ bool SyntaxTree::printNode(int * nodeNum)
 	case integerKind : std::cout << this->attributes.integer; break;
 	case realKind : std::cout << this->attributes.real; break;
 	case lexemeKind : std::cout << this->attributes.lexeme; break;
-	default : std::cout << "KIND not yet defined!\n"; break;
+	default : std::cout << "KIND not yet defined!"; break;
 	}
 
 	std::cout << "\"]\n";
-	//std::cout << *nodeNum << " -- " << *parentNodeNum << " [style = solid]\n";
 	(*nodeNum)++;
 	return true;
 }
@@ -145,13 +167,7 @@ SyntaxTree * EclParser::bifurcate(TokenData parent, TokenData left, TokenData ri
 
 bool EclParser::printAST()
 {
-	int ioStat;
-	int parentNodeNum = 0, nodeNum = 0;
-
-	std::cout << "graph \"Abstract Syntax Tree\"\n{\n";
-	ioStat = ast->printTree(& parentNodeNum, & nodeNum);
-	std::cout << "}\n";
-	return ioStat;
+	return ast->printTree();
 }
 //----------------------------------EclLexer--------------------------------------------------------------------
 EclLexer::EclLexer(IFileContents * queryContents)
