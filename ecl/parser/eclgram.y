@@ -73,6 +73,10 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
 %left '.'
 %left '('
 %left '['
+%left PLUS
+%left MINUS
+%left MULTIPLY
+%left DIVIDE
 
 %%
 //================================== begin of syntax section ==========================
@@ -102,5 +106,6 @@ maths
     | INTEGER                       { $$ = new SyntaxTree($1); }
     | REAL                          { $$ = new SyntaxTree($1); }
     | ID                            { $$ = new SyntaxTree($1); }
+    | '(' maths ')'                 { $$ = $2; }
     ;
 %%

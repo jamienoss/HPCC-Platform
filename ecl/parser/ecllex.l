@@ -75,6 +75,8 @@ xpathseq      ([^}\r\n])+
 "-"                      { setLex; return MINUS; }
 "*"                      { setLex; return MULTIPLY; }
 "/"                      { setLex; return DIVIDE; }
+"("                      { setLex; return '('; }
+")"                      { setLex; return ')'; }
 "\n"                     { }
 .                        { }
 
