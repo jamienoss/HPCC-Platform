@@ -195,6 +195,11 @@ void EclLexer::init(IFileContents * _text)
         std::cout << "uh-oh\n";
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 
+
+
+
+    //std::cout << _text->queryFile()->queryFilename() << "\n";
+
 }
 
 int EclLexer::parse(EclParser * parser)

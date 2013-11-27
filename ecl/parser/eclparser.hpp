@@ -91,11 +91,10 @@ public:
     int parse();
 
 private:
-    void init(IFileContents * queryContents);
-
-private:
     EclLexer * lexer;
     SyntaxTree * ast;
+
+    void init(IFileContents * queryContents);
 };
 //----------------------------------EclLexer--------------------------------------------------------------------
 class EclLexer
