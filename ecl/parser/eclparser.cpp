@@ -25,6 +25,7 @@
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 SyntaxTree::SyntaxTree()
 {
+	attributes.lineNumber = 0;
     left = NULL;
     right = NULL;
 }
@@ -126,7 +127,7 @@ bool SyntaxTree::printNode(int * nodeNum)
 	default : std::cout << "KIND not yet defined!"; break;
 	}
 
-	std::cout << "\"]\n";
+	std::cout << "\\nLine: " << this->attributes.lineNumber << "\"]\n";
 	(*nodeNum)++;
 	return true;
 }

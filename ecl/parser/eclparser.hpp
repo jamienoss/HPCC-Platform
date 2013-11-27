@@ -43,6 +43,7 @@ enum symbolKind
 class TokenData
 {
 public:
+	int lineNumber;
 	symbolKind attributeKind;
 	union
 	{

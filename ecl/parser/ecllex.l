@@ -21,26 +21,29 @@
 %option noyywrap
 %option case-insensitive
 %option bison-bridge
+%option yylineno
 
 %{
 #include "eclparser.hpp"
 #include "eclgram.h"
 #include <iostream>
 
-inline void setInt(YYSTYPE * tokenVal, char * tokenText)
+inline void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
 {
+tokenVal->returnToken.lineNumber = lineno + 1;
 tokenVal->returnToken.attributeKind = integerKind;
 tokenVal->returnToken.integer = atoi(tokenText);
 }
 
-inline void setLex(YYSTYPE * tokenVal, char * tokenText)
+inline void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
 {
+tokenVal->returnToken.lineNumber = lineno + 1;
 tokenVal->returnToken.attributeKind = lexemeKind;
 strcpy(tokenVal->returnToken.lexeme, tokenText);
 }
 
-#define setInt setInt(yylval, yytext)
-#define setLex setLex(yylval, yytext)
+#define setInt setInt(yylval, yytext, yylineno)
+#define setLex setLex(yylval, yytext, yylineno)
 
 %}
 
@@ -63,6 +66,7 @@ err_hexpairs  {hexdigit}({hexdigit}{hexdigit})*
 xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
+
 %%
 {digit}+                 { setInt; return INTEGER; }
 (\$|{letter}){alphanum}* { setLex; return ID; }
@@ -71,6 +75,7 @@ xpathseq      ([^}\r\n])+
 "-"                      { setLex; return MINUS; }
 "*"                      { setLex; return MULTIPLY; }
 "/"                      { setLex; return DIVIDE; }
+"\n"                     { }
 .                        { }
 
 %%
