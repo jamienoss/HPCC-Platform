@@ -30,14 +30,14 @@
 #include "eclgram.h"
 #include <iostream>
 
-inline void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
+static inline void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
 {
 tokenVal->returnToken.lineNumber = lineno + 1;
 tokenVal->returnToken.attributeKind = integerKind;
 tokenVal->returnToken.integer = atoi(tokenText);
 }
 
-inline void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
+static inline void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
 {
 tokenVal->returnToken.lineNumber = lineno + 1;
 tokenVal->returnToken.attributeKind = lexemeKind;
@@ -74,6 +74,7 @@ xpathseq      ([^}\r\n])+
 
 "/*"                     { BEGIN(COMMENT); }
 <COMMENT>[^*/]           { }
+<COMMENT>"*"             { }
 <COMMENT>"*/"            { BEGIN(0); }
 
 "//"                     { BEGIN(SLCOMMENT); }
@@ -88,10 +89,13 @@ xpathseq      ([^}\r\n])+
 "/"                      { setLex; return DIVIDE; }
 "("                      { setLex; return '('; }
 ")"                      { setLex; return ')'; }
-":="                     { setLex; return ASIGN; }
+":="                     { setLex; return ASSIGN; }
 "\n"                     { }
 {blank}+                 { }
 .                        { }
+
+"END"                    { setLex; return END; }
+"RECORD"                 { setLex; return RECORD; }
 
 %%
 

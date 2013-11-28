@@ -1010,6 +1010,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         if(!parser.parse())
             parser.printAST();
 
+        //std::cout << queryContents->queryFile()->queryFilename() << "\n";
         //std::cout << "Press ENTER to continue... " << std::flush;
         //std::cin.ignore( std::numeric_limits <std::streamsize> ::max(), '\n' );
     }

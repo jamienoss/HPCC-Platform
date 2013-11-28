@@ -26,6 +26,7 @@ SyntaxTree::SyntaxTree()
     left = NULL;
     right = NULL;
     aux = NULL;
+    auxLength = 0;
 }
 
 SyntaxTree::SyntaxTree(TokenData node)
@@ -34,6 +35,7 @@ SyntaxTree::SyntaxTree(TokenData node)
 	left = NULL;
 	right = NULL;
     aux = NULL;
+    auxLength = 0;
 }
 
 SyntaxTree::SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok)
@@ -42,6 +44,7 @@ SyntaxTree::SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok)
 	left = new SyntaxTree(leftTok);
 	right = new SyntaxTree(rightTok);
     aux = NULL;
+    auxLength = 0;
 }
 
 SyntaxTree::~SyntaxTree()
@@ -51,8 +54,12 @@ SyntaxTree::~SyntaxTree()
      if(right)
          delete right;
      if(aux)
-         delete aux;
-
+     {
+         for ( int i = 0; i > auxLength; ++i)
+         {
+             delete aux[i];
+         }
+     }
 }
 
 void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData rightTok)
@@ -133,4 +140,40 @@ bool SyntaxTree::printNode(int * nodeNum)
 	std::cout << "\\nLine: " << attributes.lineNumber << "\"]\n";
 	(*nodeNum)++;
 	return true;
+}
+
+bool SyntaxTree::add2Aux(TokenData addition)
+{
+	if(!aux)
+	{
+		if(!(aux = new (std::nothrow) SyntaxTree * [1]))
+		{
+			std::cout << "oops didn't allocate!\n";
+			return false;
+		}
+	}
+	else
+	{
+		SyntaxTree ** temp;
+		if(!(temp = new (std::nothrow) SyntaxTree * [auxLength + 1]))
+		{
+			std::cout << "oops didn't allocate!\n";
+			return false;
+		}
+		for(int i = 0; i < auxLength; ++i)
+		{
+			temp[i] = aux[i];
+		}
+		delete[] aux;
+		aux = temp;
+		temp = NULL;
+	}
+
+	aux[auxLength++] = new SyntaxTree(addition);
+	return true;
+}
+
+int SyntaxTree::getAuxLength()
+{
+	return auxLength;
 }

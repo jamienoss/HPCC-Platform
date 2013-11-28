@@ -16,11 +16,14 @@
 ############################################################################## */
 
 #include "platform.h"
+#include "jfile.hpp"
 #include "eclparser.hpp"
 #include <iostream>
 #include "eclgram.h"
 #include "ecllex.hpp"
 #include "syntaxtree.hpp"
+
+class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
 EclParser::EclParser(IFileContents * queryContents)
@@ -88,6 +91,7 @@ void EclLexer::init(IFileContents * _text)
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 
     //std::cout << _text->queryFile()->queryFilename() << "\n";
+    //std::cout << _text->querySourcePath()<< "\n";
 
 }
 

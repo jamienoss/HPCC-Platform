@@ -53,31 +53,37 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
 //=========================================== tokens ====================================
 
 %token <returnToken>
-  ID
-  INTEGER
-  REAL
-  ';'
-  PLUS
-  MINUS
-  MULTIPLY
-  DIVIDE
-  ASIGN
+    ';'
+    ASSIGN
+    DIVIDE
+    END
+    ID
+    INTEGER
+    REAL
+    RECORD
+    PLUS
+    MINUS
+    MULTIPLY
 
-  YY_LAST_TOKEN
+    YY_LAST_TOKEN
 
 %type <node>
     eclQuery
-    line_of_code
     expr
+    lhs
+    line_of_code
     maths
+    recordset
+    rhs
+    type
 
 %left '.'
 %left '('
 %left '['
-%left PLUS
+%left DIVIDE
 %left MINUS
 %left MULTIPLY
-%left DIVIDE
+%left PLUS
 
 %%
 //================================== begin of syntax section ==========================
@@ -93,7 +99,7 @@ eclQuery
 
 line_of_code
     : expr                          { $$ = $1; }
-  //  | ID ASIGN expr                 { $$->bifurcate($1, $2); }
+    | lhs ASSIGN rhs                { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
     ;
 
 expr
@@ -110,4 +116,26 @@ maths
     | ID                            { $$ = new SyntaxTree($1); }
     | '(' maths ')'                 { $$ = $2; }
     ;
+
+lhs
+    : ID                            { $$ = new SyntaxTree($1); }
+    ;
+
+rhs
+    : maths                         { $$ = $1; }
+    | recordset                     { $$ = $1; }
+    ;
+
+recordset
+    : RECORD fields END             {  }
+    ;
+
+fields
+    : type ID ';'                   { }
+    ;
+
+type
+    : ID                            { } //put actual reserved types in here
+    ;
+
 %%
