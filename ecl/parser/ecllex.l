@@ -22,6 +22,8 @@
 %option case-insensitive
 %option bison-bridge
 %option yylineno
+%option stack
+%option nodefault
 
 %{
 #include "eclparser.hpp"
@@ -47,7 +49,6 @@ strcpy(tokenVal->returnToken.lexeme, tokenText);
 
 %}
 
-
 letter        [a-z_A-Z]
 digit         [0-9]
 bindigit      [0-1]
@@ -66,8 +67,18 @@ err_hexpairs  {hexdigit}({hexdigit}{hexdigit})*
 xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
+%x COMMENT
+%x SLCOMMENT
 
 %%
+
+"/*"                     { BEGIN(COMMENT); }
+<COMMENT>[^*/]           { }
+<COMMENT>"*/"            { BEGIN(0); }
+
+"//"                     { BEGIN(SLCOMMENT); }
+<SLCOMMENT>[^\n]+        { BEGIN(0); }
+
 {digit}+                 { setInt; return INTEGER; }
 (\$|{letter}){alphanum}* { setLex; return ID; }
 ";"                      { setLex; return ';'; }
@@ -77,7 +88,9 @@ xpathseq      ([^}\r\n])+
 "/"                      { setLex; return DIVIDE; }
 "("                      { setLex; return '('; }
 ")"                      { setLex; return ')'; }
+":="                     { setLex; return ASIGN; }
 "\n"                     { }
+{blank}+                 { }
 .                        { }
 
 %%

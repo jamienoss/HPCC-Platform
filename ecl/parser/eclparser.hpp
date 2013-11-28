@@ -21,6 +21,7 @@
 #include "platform.h"
 #include "jhash.hpp"
 #include "hqlexpr.hpp"  // MORE: Split IFileContents out of this file
+#include "syntaxtree.hpp"
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -29,54 +30,7 @@ typedef void* yyscan_t;
 
 class EclParser;
 class EclLexer;
-class SyntaxTree;
-class TokenData;
 
-
-enum symbolKind
-{
-	integerKind,
-	realKind,
-	lexemeKind
-};
-//----------------------------------TokenData--------------------------------------------------------------------
-class TokenData
-{
-public:
-	int lineNumber;
-	symbolKind attributeKind;
-	union
-	{
-		int integer;
-		float real;
-		char lexeme[256];
-		//char * lexeme[];
-	};
-};
-//----------------------------------SyntaxTree--------------------------------------------------------------------
-class SyntaxTree
-{
-
-public:
-    SyntaxTree();
-    SyntaxTree(TokenData node);
-    SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok);
-    ~SyntaxTree();
-    bool printTree();
-    bool printBranch(int * parentNodeNum, int * nodeNum);
-    bool printEdge(int parentNodeNum, int nodeNum);
-    bool printNode(int * nodeNum);
-
-    SyntaxTree * setRight(TokenData rightTok);
-    void bifurcate(SyntaxTree * leftBranch, TokenData rightTok);
-    void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch);
-    void bifurcate(TokenData leftTok, TokenData rightTok);
-
-private:
-    TokenData attributes;
-    SyntaxTree * left;
-    SyntaxTree * right;
-};
 //----------------------------------EclParser--------------------------------------------------------------------
 class EclParser
 {

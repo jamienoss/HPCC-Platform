@@ -61,6 +61,7 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
   MINUS
   MULTIPLY
   DIVIDE
+  ASIGN
 
   YY_LAST_TOKEN
 
@@ -92,6 +93,7 @@ eclQuery
 
 line_of_code
     : expr                          { $$ = $1; }
+  //  | ID ASIGN expr                 { $$->bifurcate($1, $2); }
     ;
 
 expr

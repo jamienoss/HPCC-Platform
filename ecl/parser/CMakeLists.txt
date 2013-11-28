@@ -30,6 +30,9 @@ set (   SRCS
         eclgram.y
         ecllex.l
 
+        tokendata.hpp
+        syntaxtree.hpp
+        syntaxtree.cpp
         eclparser.hpp
         eclparser.cpp
     )
