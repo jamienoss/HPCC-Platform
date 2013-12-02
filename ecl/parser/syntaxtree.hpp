@@ -28,6 +28,9 @@ public:
     SyntaxTree();
     SyntaxTree(TokenData node);
     SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok);
+    SyntaxTree(TokenData parent, SyntaxTree * leftBranch, TokenData rightTok);
+    SyntaxTree(TokenData node, SyntaxTree * tempAux);
+
     ~SyntaxTree();
 
     bool printTree();
@@ -39,7 +42,10 @@ public:
     void bifurcate(SyntaxTree * leftBranch, TokenData rightTok);
     void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch);
     void bifurcate(TokenData leftTok, TokenData rightTok);
-    bool add2Aux(TokenData addition);
+    void add2Aux(SyntaxTree * addition);
+    SyntaxTree ** releaseAux();
+    bool auxExists();
+
 
     int getAuxLength();
 

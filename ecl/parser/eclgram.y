@@ -47,7 +47,7 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
 %union
 {
     TokenData returnToken;
-    SyntaxTree * node;
+    SyntaxTree * treeNode;
 }
 
 //=========================================== tokens ====================================
@@ -59,17 +59,18 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
     END
     ID
     INTEGER
+    PLUS
     REAL
     RECORD
-    PLUS
     MINUS
     MULTIPLY
 
     YY_LAST_TOKEN
 
-%type <node>
+%type <treeNode>
     eclQuery
     expr
+    fields
     lhs
     line_of_code
     maths
@@ -94,7 +95,7 @@ code
 
 eclQuery
     : line_of_code ';'              { $$ = newNode(); $$->bifurcate($1, $2); }
-    | line_of_code ';' eclQuery     { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    |  eclQuery line_of_code ';'    { $$ = new SyntaxTree($3); $$->bifurcate($2, $1); }
     ;
 
 line_of_code
@@ -126,16 +127,19 @@ rhs
     | recordset                     { $$ = $1; }
     ;
 
+//-----------------------------RECORDSETS-------------------------------------------------
 recordset
-    : RECORD fields END             {  }
+    : RECORD fields END             { $$ = new SyntaxTree($1, $2); }
     ;
 
 fields
-    : type ID ';'                   { }
+    : type ID ';'                   { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($3, $1, $2) ); }
+    | fields type ID ';'            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($4, $2, $3) ); }
     ;
+//-----------------------------------------------------------------------------------------
 
 type
-    : ID                            { } //put actual reserved types in here
+    : ID                            { $$ = new SyntaxTree($1); } //put actual reserved types in here
     ;
 
 %%

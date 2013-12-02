@@ -47,6 +47,25 @@ SyntaxTree::SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok)
     auxLength = 0;
 }
 
+SyntaxTree::SyntaxTree(TokenData parent, SyntaxTree * leftBranch, TokenData rightTok)
+{
+	attributes = parent;
+	left = leftBranch;
+	right = new SyntaxTree(rightTok);
+    aux = NULL;
+    auxLength = 0;
+}
+
+SyntaxTree::SyntaxTree(TokenData node, SyntaxTree * tempAux)
+{
+	attributes = node;
+	left = NULL;
+	right = NULL;
+	auxLength = tempAux->getAuxLength();
+	aux = tempAux->releaseAux();
+	//delete tempAux;
+}
+
 SyntaxTree::~SyntaxTree()
 {
      if(left)
@@ -55,11 +74,18 @@ SyntaxTree::~SyntaxTree()
          delete right;
      if(aux)
      {
-         for ( int i = 0; i > auxLength; ++i)
+         for ( int i = 0; i < auxLength; ++i)
          {
              delete aux[i];
          }
+         delete[] aux;
      }
+}
+
+SyntaxTree ** SyntaxTree::releaseAux()
+{
+	return aux;
+	aux = NULL;
 }
 
 void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData rightTok)
@@ -116,6 +142,15 @@ bool  SyntaxTree::printBranch(int * parentNodeNum, int * nodeNum)
 		ioStatR = right->printBranch(parentNodeNum, nodeNum);
 	}
 
+	if(aux)
+	{
+		for (int i = 0; i < auxLength; ++i)
+		{
+			printEdge(parentNodeNumm, *nodeNum);
+			aux[i]->printBranch(parentNodeNum, nodeNum);
+		}
+	}
+
 	return !(ioStatL && ioStatR);
 }
 
@@ -142,14 +177,13 @@ bool SyntaxTree::printNode(int * nodeNum)
 	return true;
 }
 
-bool SyntaxTree::add2Aux(TokenData addition)
+void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
 	if(!aux)
 	{
 		if(!(aux = new (std::nothrow) SyntaxTree * [1]))
 		{
 			std::cout << "oops didn't allocate!\n";
-			return false;
 		}
 	}
 	else
@@ -158,22 +192,26 @@ bool SyntaxTree::add2Aux(TokenData addition)
 		if(!(temp = new (std::nothrow) SyntaxTree * [auxLength + 1]))
 		{
 			std::cout << "oops didn't allocate!\n";
-			return false;
 		}
 		for(int i = 0; i < auxLength; ++i)
 		{
 			temp[i] = aux[i];
 		}
-		delete[] aux;
+		delete[] aux; //MORE: maybe recycle these?
 		aux = temp;
 		temp = NULL;
 	}
 
-	aux[auxLength++] = new SyntaxTree(addition);
-	return true;
+	aux[auxLength++] = addition;
 }
 
 int SyntaxTree::getAuxLength()
 {
 	return auxLength;
+}
+
+bool SyntaxTree::auxExists()
+{
+	bool flag = ( aux ? true : false );
+	return flag;
 }

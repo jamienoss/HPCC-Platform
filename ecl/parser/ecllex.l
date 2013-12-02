@@ -80,6 +80,9 @@ xpathseq      ([^}\r\n])+
 "//"                     { BEGIN(SLCOMMENT); }
 <SLCOMMENT>[^\n]+        { BEGIN(0); }
 
+END                      { setLex; return END; }
+RECORD                   { setLex; return RECORD; }
+
 {digit}+                 { setInt; return INTEGER; }
 (\$|{letter}){alphanum}* { setLex; return ID; }
 ";"                      { setLex; return ';'; }
@@ -90,13 +93,10 @@ xpathseq      ([^}\r\n])+
 "("                      { setLex; return '('; }
 ")"                      { setLex; return ')'; }
 ":="                     { setLex; return ASSIGN; }
-"\n"                     { }
+\n                       { }
 {blank}+                 { }
+
 .                        { }
-
-"END"                    { setLex; return END; }
-"RECORD"                 { setLex; return RECORD; }
-
 %%
 
 int yyerror(const char *msg) {
