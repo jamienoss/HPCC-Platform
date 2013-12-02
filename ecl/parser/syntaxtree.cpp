@@ -17,6 +17,7 @@
 ############################################################################## */
 
 #include "syntaxtree.hpp"
+#include "jstring.hpp"
 #include <iostream>
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
@@ -115,7 +116,7 @@ SyntaxTree * SyntaxTree::setRight(TokenData rightTok)
 bool SyntaxTree::printTree()
 {
 	int ioStat;
-	int parentNodeNum = 0, nodeNum = 0;
+	unsigned parentNodeNum = 0, nodeNum = 0;
 
 	std::cout << "graph \"Abstract Syntax Tree\"\n{\n";
 	ioStat = printBranch(& parentNodeNum, & nodeNum);
@@ -123,7 +124,7 @@ bool SyntaxTree::printTree()
 	return ioStat;
 }
 
-bool  SyntaxTree::printBranch(int * parentNodeNum, int * nodeNum)
+bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 {
 	bool ioStatL;
 	bool ioStatR;
@@ -154,13 +155,15 @@ bool  SyntaxTree::printBranch(int * parentNodeNum, int * nodeNum)
 	return !(ioStatL && ioStatR);
 }
 
-bool SyntaxTree::printEdge(int parentNodeNum, int nodeNum)
+bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum)
 {
+	//StringBuffer text;
+	//text.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
 	std::cout << parentNodeNum << " -- " << nodeNum << " [style = solid]\n";
 	return true;
 }
 
-bool SyntaxTree::printNode(int * nodeNum)
+bool SyntaxTree::printNode(unsigned * nodeNum)
 {
 	std::cout << *nodeNum << " [label = \"";
 
@@ -205,13 +208,7 @@ void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors
 	aux[auxLength++] = addition;
 }
 
-int SyntaxTree::getAuxLength()
+unsigned SyntaxTree::getAuxLength()
 {
 	return auxLength;
-}
-
-bool SyntaxTree::auxExists()
-{
-	bool flag = ( aux ? true : false );
-	return flag;
 }

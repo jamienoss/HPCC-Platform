@@ -34,9 +34,9 @@ public:
     ~SyntaxTree();
 
     bool printTree();
-    bool printBranch(int * parentNodeNum, int * nodeNum);
-    bool printEdge(int parentNodeNum, int nodeNum);
-    bool printNode(int * nodeNum);
+    bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum);
+    bool printEdge(unsigned parentNodeNum, unsigned nodeNum);
+    bool printNode(unsigned * nodeNum);
 
     SyntaxTree * setRight(TokenData rightTok);
     void bifurcate(SyntaxTree * leftBranch, TokenData rightTok);
@@ -44,10 +44,8 @@ public:
     void bifurcate(TokenData leftTok, TokenData rightTok);
     void add2Aux(SyntaxTree * addition);
     SyntaxTree ** releaseAux();
-    bool auxExists();
 
-
-    int getAuxLength();
+    unsigned getAuxLength();
 
 private:
     TokenData attributes;

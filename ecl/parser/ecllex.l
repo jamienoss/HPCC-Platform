@@ -81,6 +81,7 @@ xpathseq      ([^}\r\n])+
 <SLCOMMENT>[^\n]+        { BEGIN(0); }
 
 END                      { setLex; return END; }
+IMPORT                   { setLex; return IMPORT; }
 RECORD                   { setLex; return RECORD; }
 
 {digit}+                 { setInt; return INTEGER; }

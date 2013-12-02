@@ -58,6 +58,7 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
     DIVIDE
     END
     ID
+    IMPORT
     INTEGER
     PLUS
     REAL
@@ -71,9 +72,9 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
     eclQuery
     expr
     fields
+    import_list
     lhs
     line_of_code
-    maths
     recordset
     rhs
     type
@@ -94,49 +95,58 @@ code
     ;
 
 eclQuery
-    : line_of_code ';'              { $$ = newNode(); $$->bifurcate($1, $2); }
+    : line_of_code ';'              { $$ = new SyntaxTree(); $$->bifurcate($1, $2); }
     |  eclQuery line_of_code ';'    { $$ = new SyntaxTree($3); $$->bifurcate($2, $1); }
     ;
 
 line_of_code
     : expr                          { $$ = $1; }
+    | IMPORT imports                { }
     | lhs ASSIGN rhs                { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
     ;
 
-expr
-    : maths                         { $$ = $1; }
-    ;
+//-----------Listed Alphabetical from here on in------------------------------------------
 
-maths
-    : maths PLUS maths              { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | maths MINUS maths             { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | maths MULTIPLY maths          { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | maths DIVIDE maths            { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+expr
+    : expr PLUS expr                { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | expr MINUS expr               { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | expr MULTIPLY expr            { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | expr DIVIDE expr              { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
     | INTEGER                       { $$ = new SyntaxTree($1); }
     | REAL                          { $$ = new SyntaxTree($1); }
     | ID                            { $$ = new SyntaxTree($1); }
-    | '(' maths ')'                 { $$ = $2; }
-    ;
-
-lhs
-    : ID                            { $$ = new SyntaxTree($1); }
-    ;
-
-rhs
-    : maths                         { $$ = $1; }
-    | recordset                     { $$ = $1; }
-    ;
-
-//-----------------------------RECORDSETS-------------------------------------------------
-recordset
-    : RECORD fields END             { $$ = new SyntaxTree($1, $2); }
+    | '(' expr ')'                  { $$ = $2; }
     ;
 
 fields
     : type ID ';'                   { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($3, $1, $2) ); }
     | fields type ID ';'            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($4, $2, $3) ); }
     ;
-//-----------------------------------------------------------------------------------------
+
+imports
+    : module_list                   { }
+    | folder AS alias               { }
+    | symbol_list FROM folder       { }
+    | ID                            { } //language - can this not be listed in module_list?
+    ;
+
+lhs
+    : ID                            { $$ = new SyntaxTree($1); }
+    ;
+
+module_list
+    : ID                            { }
+    | module_list ',' ID            { }
+    ;
+
+recordset
+    : RECORD fields END             { $$ = new SyntaxTree($1, $2); }
+    ;
+
+rhs
+    : expr                          { $$ = $1; }
+    | recordset                     { $$ = $1; }
+    ;
 
 type
     : ID                            { $$ = new SyntaxTree($1); } //put actual reserved types in here
