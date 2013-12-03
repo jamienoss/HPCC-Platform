@@ -100,7 +100,6 @@ RECORD                   { setLex; return RECORD; }
 "("                      { setLex; return '('; }
 ")"                      { setLex; return ')'; }
 ":="                     { setLex; return ASSIGN; }
-"\$"                      { setLex; return '$'; }
 \n                       { }
 {blank}+                 { }
 

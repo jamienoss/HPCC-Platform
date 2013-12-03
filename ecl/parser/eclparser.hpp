@@ -49,7 +49,7 @@ public:
 
 private:
     EclLexer * lexer;
-    SyntaxTree * ast;
+    ISyntaxTree * ast;
 
     void init(IFileContents * queryContents);
 };

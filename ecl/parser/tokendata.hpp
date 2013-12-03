@@ -19,10 +19,14 @@
 #ifndef TOKENDATA_HPP
 #define TOKENDATA_HPP
 
+//#include "eclgram.h"
+
+//extern YYTOKENTYPE;
 
 enum symbolKind
 {
 	integerKind,
+	unsignedKind,
 	realKind,
 	lexemeKind
 };
@@ -32,6 +36,7 @@ class TokenData
 public:
 	int lineNumber;
 	symbolKind attributeKind;
+	//yytokentype attributeKind;
 	union
 	{
 		int integer;

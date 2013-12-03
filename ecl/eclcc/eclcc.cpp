@@ -1010,7 +1010,6 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
             SyntaxTree * AST = parser->releaseAST();
             delete parser;
             AST->printTree();
-            //parser->printAST();
         }
 
         //std::cout << queryContents->queryFile()->queryFilename() << "\n";
