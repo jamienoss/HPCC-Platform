@@ -33,17 +33,19 @@ public:
 
     ~SyntaxTree();
 
+    SyntaxTree * release();
+
     bool printTree();
     bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum);
     bool printEdge(unsigned parentNodeNum, unsigned nodeNum);
     bool printNode(unsigned * nodeNum);
 
-    SyntaxTree * setRight(TokenData rightTok);
     void bifurcate(SyntaxTree * leftBranch, TokenData rightTok);
     void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch);
     void bifurcate(TokenData leftTok, TokenData rightTok);
     void add2Aux(SyntaxTree * addition);
     SyntaxTree ** releaseAux();
+    void takeAux(SyntaxTree * node);
 
     unsigned getAuxLength();
 

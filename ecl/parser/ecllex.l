@@ -29,6 +29,7 @@
 #include "eclparser.hpp"
 #include "eclgram.h"
 #include <iostream>
+#include <cstring>
 
 static inline void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
 {
@@ -41,7 +42,10 @@ static inline void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
 {
 tokenVal->returnToken.lineNumber = lineno + 1;
 tokenVal->returnToken.attributeKind = lexemeKind;
-strcpy(tokenVal->returnToken.lexeme, tokenText);
+
+unsigned txtLen = strlen(tokenText)+1;
+tokenVal->returnToken.lexeme = new char [txtLen];
+memcpy(tokenVal->returnToken.lexeme, tokenText, txtLen);
 }
 
 #define setInt setInt(yylval, yytext, yylineno)
@@ -80,11 +84,13 @@ xpathseq      ([^}\r\n])+
 "//"                     { BEGIN(SLCOMMENT); }
 <SLCOMMENT>[^\n]+        { BEGIN(0); }
 
+AS                       { setLex; return AS; }
 END                      { setLex; return END; }
+FROM                     { setLex; return FROM; }
 IMPORT                   { setLex; return IMPORT; }
 RECORD                   { setLex; return RECORD; }
 
-{digit}+                 { setInt; return INTEGER; }
+{digit}+                 { setInt; return UNSIGNED; } /* complete for UNSIGNED[n]*/
 (\$|{letter}){alphanum}* { setLex; return ID; }
 ";"                      { setLex; return ';'; }
 "+"                      { setLex; return PLUS; }
@@ -94,6 +100,7 @@ RECORD                   { setLex; return RECORD; }
 "("                      { setLex; return '('; }
 ")"                      { setLex; return ')'; }
 ":="                     { setLex; return ASSIGN; }
+"\$"                      { setLex; return '$'; }
 \n                       { }
 {blank}+                 { }
 

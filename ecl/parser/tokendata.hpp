@@ -36,9 +36,10 @@ public:
 	{
 		int integer;
 		float real;
-		char lexeme[256];
-		//char * lexeme[];
+		char * lexeme;
 	};
+
+	void cpy(TokenData tok);
 };
 
 #endif

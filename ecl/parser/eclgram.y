@@ -53,18 +53,22 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
 //=========================================== tokens ====================================
 
 %token <returnToken>
+    '$'
     ';'
+    AS
     ASSIGN
+    DIR
     DIVIDE
     END
+    FROM
     ID
     IMPORT
-    INTEGER
     PLUS
-    REAL
-    RECORD
     MINUS
     MULTIPLY
+    REAL
+    RECORD
+    UNSIGNED
 
     YY_LAST_TOKEN
 
@@ -72,9 +76,10 @@ inline SyntaxTree * newNode() {return new SyntaxTree(); }
     eclQuery
     expr
     fields
-    import_list
+    imports
     lhs
     line_of_code
+    module_list
     recordset
     rhs
     type
@@ -101,7 +106,7 @@ eclQuery
 
 line_of_code
     : expr                          { $$ = $1; }
-    | IMPORT imports                { }
+    | IMPORT imports                { $$ = new SyntaxTree($1); $$->takeAux($2); }
     | lhs ASSIGN rhs                { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
     ;
 
@@ -112,7 +117,7 @@ expr
     | expr MINUS expr               { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
     | expr MULTIPLY expr            { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
     | expr DIVIDE expr              { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | INTEGER                       { $$ = new SyntaxTree($1); }
+    | UNSIGNED                      { $$ = new SyntaxTree($1); }
     | REAL                          { $$ = new SyntaxTree($1); }
     | ID                            { $$ = new SyntaxTree($1); }
     | '(' expr ')'                  { $$ = $2; }
@@ -124,10 +129,10 @@ fields
     ;
 
 imports
-    : module_list                   { }
-    | folder AS alias               { }
-    | symbol_list FROM folder       { }
-    | ID                            { } //language - can this not be listed in module_list?
+    : module_list                   { $$ = $1; }
+    | ID AS ID                     { $$ = new SyntaxTree(); SyntaxTree * temp = new SyntaxTree($2); temp->bifurcate($1, $3); $$->add2Aux(temp); } // folder AS alias
+    | module_list FROM  DIR         {  }
+//  r/r error with ID in module_list  | ID                            { } // language - can this not be listed in module_list?
     ;
 
 lhs
@@ -135,8 +140,9 @@ lhs
     ;
 
 module_list
-    : ID                            { }
-    | module_list ',' ID            { }
+    : '$'                           { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($1) ); } // do we want to allow this to be repeated?
+    | ID                            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($1) ); }
+    | module_list ',' ID            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($3) ); }
     ;
 
 recordset
@@ -149,7 +155,7 @@ rhs
     ;
 
 type
-    : ID                            { $$ = new SyntaxTree($1); } //put actual reserved types in here
+    : ID                            { $$ = new SyntaxTree($1); }
     ;
 
 %%

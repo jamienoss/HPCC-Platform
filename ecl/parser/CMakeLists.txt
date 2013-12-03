@@ -31,6 +31,7 @@ set (   SRCS
         ecllex.l
 
         tokendata.hpp
+        tokendata.cpp
         syntaxtree.hpp
         syntaxtree.cpp
         eclparser.hpp

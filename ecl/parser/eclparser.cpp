@@ -33,9 +33,9 @@ EclParser::EclParser(IFileContents * queryContents)
 
 EclParser::~EclParser()
 {
-	if(lexer)
+	if (lexer)
 		delete lexer;
-    if(ast)
+    if (ast)
         delete ast;
 }
 
@@ -64,6 +64,13 @@ bool EclParser::printAST()
 {
 	return ast->printTree();
 }
+
+SyntaxTree * EclParser::releaseAST()
+{
+	SyntaxTree * temp = ast;
+	ast = NULL;
+	return temp;
+}
 //----------------------------------EclLexer--------------------------------------------------------------------
 EclLexer::EclLexer(IFileContents * queryContents)
 {
@@ -86,7 +93,7 @@ void EclLexer::init(IFileContents * _text)
     yyBuffer[len] = '\0';
     yyBuffer[len+1] = '\0';
 
-    if(ecl2yylex_init(&scanner) != 0)
+    if (ecl2yylex_init(&scanner) != 0)
         std::cout << "uh-oh\n";
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 

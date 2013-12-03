@@ -1004,11 +1004,14 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyApplicationOptions(instance.wu);
 
     bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
-    if(printSyntaxTree)
-    {
-        EclParser parser(queryContents);
-        if(!parser.parse())
-            parser.printAST();
+    if (printSyntaxTree) {
+        EclParser * parser = new EclParser(queryContents);
+        if (!(parser->parse())) { // Check persistence of AST
+            SyntaxTree * AST = parser->releaseAST();
+            delete parser;
+            AST->printTree();
+            //parser->printAST();
+        }
 
         //std::cout << queryContents->queryFile()->queryFilename() << "\n";
         //std::cout << "Press ENTER to continue... " << std::flush;

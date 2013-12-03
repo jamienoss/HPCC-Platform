@@ -39,6 +39,8 @@ class EclParser
 public:
     EclParser(IFileContents * queryContents);
     ~EclParser();
+    SyntaxTree * releaseAST();
+
 
     void setRoot(SyntaxTree * node);
     SyntaxTree * bifurcate(TokenData parent, TokenData left, TokenData right);

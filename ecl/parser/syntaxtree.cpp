@@ -19,6 +19,7 @@
 #include "syntaxtree.hpp"
 #include "jstring.hpp"
 #include <iostream>
+#include <cstring>
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 SyntaxTree::SyntaxTree()
@@ -32,7 +33,7 @@ SyntaxTree::SyntaxTree()
 
 SyntaxTree::SyntaxTree(TokenData node)
 {
-	attributes = node;
+	attributes.cpy(node);
 	left = NULL;
 	right = NULL;
     aux = NULL;
@@ -41,7 +42,7 @@ SyntaxTree::SyntaxTree(TokenData node)
 
 SyntaxTree::SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok)
 {
-	attributes = parent;
+	attributes.cpy(parent);
 	left = new SyntaxTree(leftTok);
 	right = new SyntaxTree(rightTok);
     aux = NULL;
@@ -50,7 +51,7 @@ SyntaxTree::SyntaxTree(TokenData parent, TokenData leftTok, TokenData rightTok)
 
 SyntaxTree::SyntaxTree(TokenData parent, SyntaxTree * leftBranch, TokenData rightTok)
 {
-	attributes = parent;
+	attributes.cpy(parent);
 	left = leftBranch;
 	right = new SyntaxTree(rightTok);
     aux = NULL;
@@ -59,34 +60,43 @@ SyntaxTree::SyntaxTree(TokenData parent, SyntaxTree * leftBranch, TokenData righ
 
 SyntaxTree::SyntaxTree(TokenData node, SyntaxTree * tempAux)
 {
-	attributes = node;
+	attributes.cpy(node);
 	left = NULL;
 	right = NULL;
 	auxLength = tempAux->getAuxLength();
 	aux = tempAux->releaseAux();
-	//delete tempAux;
 }
 
 SyntaxTree::~SyntaxTree()
 {
-     if(left)
+     if (left)
          delete left;
-     if(right)
+     if (right)
          delete right;
-     if(aux)
-     {
+     if (aux) {
          for ( int i = 0; i < auxLength; ++i)
          {
              delete aux[i];
          }
          delete[] aux;
      }
+
+     if (attributes.attributeKind == lexemeKind)
+        delete[] attributes.lexeme;
+}
+
+SyntaxTree * SyntaxTree::release()
+{
+	SyntaxTree * temp = this;
+//	this = NULL;
+	return temp;
 }
 
 SyntaxTree ** SyntaxTree::releaseAux()
 {
-	return aux;
+	SyntaxTree ** temp = aux;
 	aux = NULL;
+	return temp;
 }
 
 void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData rightTok)
@@ -107,12 +117,6 @@ void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
 	right = rightBranch;
 }
 
-SyntaxTree * SyntaxTree::setRight(TokenData rightTok)
-{
-	right = new SyntaxTree(rightTok);
-	return this;
-}
-
 bool SyntaxTree::printTree()
 {
 	int ioStat;
@@ -128,23 +132,20 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 {
 	bool ioStatL;
 	bool ioStatR;
-	int parentNodeNumm = *nodeNum;
+	unsigned parentNodeNumm = *nodeNum;
 
 	printNode(nodeNum);
 
-	if(left)
-	{
+	if (left) {
 		printEdge(parentNodeNumm, *nodeNum);
 		ioStatL = left->printBranch(parentNodeNum, nodeNum);
 	}
-	if(right)
-	{
+	if (right) {
 		printEdge(parentNodeNumm, *nodeNum);
 		ioStatR = right->printBranch(parentNodeNum, nodeNum);
 	}
 
-	if(aux)
-	{
+	if (aux) {
 		for (int i = 0; i < auxLength; ++i)
 		{
 			printEdge(parentNodeNumm, *nodeNum);
@@ -182,18 +183,13 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 
 void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
-	if(!aux)
-	{
-		if(!(aux = new (std::nothrow) SyntaxTree * [1]))
-		{
+	if (!aux) {
+		if (!(aux = new (std::nothrow) SyntaxTree * [1])) {
 			std::cout << "oops didn't allocate!\n";
 		}
-	}
-	else
-	{
+	} else	{
 		SyntaxTree ** temp;
-		if(!(temp = new (std::nothrow) SyntaxTree * [auxLength + 1]))
-		{
+		if (!(temp = new (std::nothrow) SyntaxTree * [auxLength + 1])) {
 			std::cout << "oops didn't allocate!\n";
 		}
 		for(int i = 0; i < auxLength; ++i)
@@ -205,10 +201,21 @@ void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors
 		temp = NULL;
 	}
 
-	aux[auxLength++] = addition;
+	aux[auxLength++] = addition;//->release();
+	//addition = NULL;
 }
 
 unsigned SyntaxTree::getAuxLength()
 {
 	return auxLength;
+}
+
+void SyntaxTree::takeAux(SyntaxTree * node) // come up with a better name!!!
+{
+	if(aux) {
+		std::cout << "hmmm, aux is already pointing to something\n";
+		return;
+	}
+
+	aux = node->releaseAux();
 }
