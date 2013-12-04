@@ -20,36 +20,23 @@
 
 #include "tokendata.hpp"
 
-class SyntaxTree;
-
-class ISyntaxTree
-{
-public :
-   virtual SyntaxTree * createSyntaxTree() = 0;
-   virtual SyntaxTree * createSyntaxTree(TokenData & node) = 0;
-   virtual SyntaxTree * createSyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok) = 0;
-   virtual SyntaxTree * createSyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & rightTok) = 0;
-   virtual SyntaxTree * createSyntaxTree(TokenData & node, SyntaxTree * tempAux) = 0;
-
-   virtual bool printTree() const = 0;
-   virtual void bifurcate(SyntaxTree * leftBranch, TokenData rightTok) = 0;
-   virtual void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch) = 0;
-   virtual void bifurcate(TokenData leftTok, TokenData rightTok) = 0;
-};
-
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
-class SyntaxTree : public ISyntaxTree
+class SyntaxTree
 {
 
 public:
-
+    SyntaxTree();
+        SyntaxTree(TokenData & node);
+        SyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok);
+        SyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & rightTok);
+        SyntaxTree(TokenData & node, SyntaxTree * tempAux);
 
     ~SyntaxTree();
 
     SyntaxTree * release();
 
-    bool printTree() const;
+    bool printTree();
     bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum);
     bool printEdge(unsigned parentNodeNum, unsigned nodeNum);
     bool printNode(unsigned * nodeNum);
@@ -65,24 +52,11 @@ public:
 
     unsigned getAuxLength();
 
-protected:
-    SyntaxTree * createSyntaxTree();
-    SyntaxTree * createSyntaxTree(TokenData & node);
-    SyntaxTree * createSyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok);
-    SyntaxTree * createSyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & rightTok);
-    SyntaxTree * createSyntaxTree(TokenData & node, SyntaxTree * tempAux);
-
 private:
-    SyntaxTree();
-    SyntaxTree(TokenData & node);
-    SyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok);
-    SyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & rightTok);
-    SyntaxTree(TokenData & node, SyntaxTree * tempAux);
-
     TokenData attributes;
 
-    ISyntaxTree * left;
-    ISyntaxTree * right;
+    SyntaxTree * left;
+    SyntaxTree * right;
 
     SyntaxTree ** aux;
     int auxLength;

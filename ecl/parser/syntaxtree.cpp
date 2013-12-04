@@ -23,31 +23,6 @@
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 
-SyntaxTree * SyntaxTree::createSyntaxTree()
-{
-    return new SyntaxTree();
-}
-
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & node)
-{
-    return new SyntaxTree(node);
-}
-
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok)
-{
-    return new SyntaxTree(parent, leftTok, rightTok);
-}
-
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & rightTok)
-{
-    return new SyntaxTree(parent, leftBranch, rightTok);
-}
-
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & node, SyntaxTree * tempAux)
-{
-    return new SyntaxTree(node, tempAux);
-}
-
 SyntaxTree::SyntaxTree()
 {
 	attributes.lineNumber = 0;
@@ -69,8 +44,8 @@ SyntaxTree::SyntaxTree(TokenData & node)
 SyntaxTree::SyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok)
 {
 	attributes.cpy(parent);
-	left = createSyntaxTree(leftTok);
-	right = createSyntaxTree(rightTok);
+	left = new SyntaxTree(leftTok);
+	right = new SyntaxTree(rightTok);
     aux = NULL;
     auxLength = 0;
 }
@@ -79,7 +54,7 @@ SyntaxTree::SyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & 
 {
 	attributes.cpy(parent);
 	left = leftBranch;
-	right = createSyntaxTree(rightTok);
+	right = new SyntaxTree(rightTok);
     aux = NULL;
     auxLength = 0;
 }
@@ -128,13 +103,13 @@ SyntaxTree ** SyntaxTree::releaseAux()
 void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData rightTok)
 {
 	left = leftBranch;
-	right = createSyntaxTree(rightTok);
+	right = new SyntaxTree(rightTok);
 }
 
 void SyntaxTree::bifurcate(TokenData leftTok, TokenData rightTok)
 {
-	left = createSyntaxTree(leftTok);
-	right = createSyntaxTree(rightTok);
+	left = new SyntaxTree(leftTok);
+	right = new SyntaxTree(rightTok);
 }
 
 void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
@@ -210,10 +185,10 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
 	if (!aux) {
-		if (!(aux = createSyntaxTree * [1]))
+		aux = new SyntaxTree * [1];
 	} else	{
 		SyntaxTree ** temp;
-		if (!(temp = createSyntaxTree * [auxLength + 1]))
+		temp = new SyntaxTree * [auxLength + 1];
 		for(int i = 0; i < auxLength; ++i)
 		{
 			temp[i] = aux[i];
@@ -242,7 +217,7 @@ void SyntaxTree::takeAux(SyntaxTree * node) // come up with a better name!!!
 	aux = node->releaseAux();
 }
 
-bool SyntaxTree::isAux() const
+bool SyntaxTree::isAux()
 {
 	return aux ? true : false;
 }
