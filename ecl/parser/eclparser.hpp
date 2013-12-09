@@ -43,7 +43,6 @@ public:
 
 
     void setRoot(SyntaxTree * node);
-    SyntaxTree * bifurcate(TokenData parent, TokenData left, TokenData right);
     bool printAST();
     int parse();
 

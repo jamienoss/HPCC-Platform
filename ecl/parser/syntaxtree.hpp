@@ -26,12 +26,11 @@ class SyntaxTree
 {
 
 public:
-    SyntaxTree();
-        SyntaxTree(TokenData & node);
-        SyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok);
-        SyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & rightTok);
-        SyntaxTree(TokenData & node, SyntaxTree * tempAux);
-
+    SyntaxTree * createSyntaxTree();
+    SyntaxTree * createSyntaxTree(TokenData & token);
+    SyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
+    SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
+    SyntaxTree * createSyntaxTree(TokenData & token, SyntaxTree * tempAux);
     ~SyntaxTree();
 
     SyntaxTree * release();
@@ -41,16 +40,31 @@ public:
     bool printEdge(unsigned parentNodeNum, unsigned nodeNum);
     bool printNode(unsigned * nodeNum);
 
-    void bifurcate(SyntaxTree * leftBranch, TokenData rightTok);
+    void bifurcate(SyntaxTree * leftBranch, TokenData & rightTok);
     void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch);
-    void bifurcate(TokenData leftTok, TokenData rightTok);
+    void bifurcate(TokenData & leftTok, TokenData & rightTok);
+
+    void setLeft(TokenData & token);
+    void setLeft(SyntaxTree * node);
+    void setRight(TokenData & token);
+    void setRight(SyntaxTree * node);
+
     void add2Aux(SyntaxTree * addition);
     SyntaxTree ** releaseAux();
     void takeAux(SyntaxTree * node);
+    void transferChildren(SyntaxTree * node);
     bool isAux();
 
 
     unsigned getAuxLength();
+
+private:
+    SyntaxTree();
+    SyntaxTree(TokenData & token);
+    SyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
+    SyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
+    SyntaxTree(TokenData & token, SyntaxTree * tempAux);
+
 
 private:
     TokenData attributes;

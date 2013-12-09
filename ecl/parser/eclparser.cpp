@@ -47,17 +47,12 @@ int EclParser::parse()
 void EclParser::init(IFileContents * queryContents)
 {
     lexer = new EclLexer(queryContents);
-    ast = new SyntaxTree();
+    ast = ast->createSyntaxTree();
 }
 
 void EclParser::setRoot(SyntaxTree * node)
 {
 	ast = node;
-}
-
-SyntaxTree * EclParser::bifurcate(TokenData parent, TokenData left, TokenData right)
-{
-	return new SyntaxTree(parent, left, right);
 }
 
 bool EclParser::printAST()

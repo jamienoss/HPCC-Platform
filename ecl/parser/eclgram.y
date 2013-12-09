@@ -98,52 +98,56 @@ code
     ;
 
 eclQuery
-    : line_of_code ';'              { $$ = new SyntaxTree(); $$->bifurcate($1, $2); }
-    |  eclQuery line_of_code ';'    { $$ = new SyntaxTree($3); $$->bifurcate($2, $1); }
+    : line_of_code ';'              { $$ = $$->createSyntaxTree($2); $$->setLeft($1); } //$$->bifurcate($1, $2); }
+    |  eclQuery line_of_code ';'    { $$ = $$->createSyntaxTree($3); $$->bifurcate($2, $1); }
     ;
 
 line_of_code
     : expr                          { $$ = $1; }
-    | IMPORT imports                { $$ = new SyntaxTree($1); $$->takeAux($2); }
-    | lhs ASSIGN rhs                { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
+    | IMPORT imports                { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
+    | lhs ASSIGN rhs                { $$ = $$->createSyntaxTree($2); $$->bifurcate($1, $3); }
     ;
 
 //-----------Listed Alphabetical from here on in------------------------------------------
 
 expr
-    : expr PLUS expr                { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | expr MINUS expr               { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | expr MULTIPLY expr            { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | expr DIVIDE expr              { $$ = new SyntaxTree($2); $$->bifurcate($1, $3); }
-    | UNSIGNED                      { $$ = new SyntaxTree($1); }
-    | REAL                          { $$ = new SyntaxTree($1); }
-    | ID                            { $$ = new SyntaxTree($1); }
+    : expr PLUS expr                { $$ = $$->createSyntaxTree($2); $$->bifurcate($1, $3); }
+    | expr MINUS expr               { $$ = $$->createSyntaxTree($2); $$->bifurcate($1, $3); }
+    | expr MULTIPLY expr            { $$ = $$->createSyntaxTree($2); $$->bifurcate($1, $3); }
+    | expr DIVIDE expr              { $$ = $$->createSyntaxTree($2); $$->bifurcate($1, $3); }
+    | UNSIGNED                      { $$ = $$->createSyntaxTree($1); }
+    | REAL                          { $$ = $$->createSyntaxTree($1); }
+    | ID                            { $$ = $$->createSyntaxTree($1); }
     | '(' expr ')'                  { $$ = $2; }
     ;
 
 fields
-    : type ID ';'                   { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($3, $1, $2) ); }
-    | fields type ID ';'            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($4, $2, $3) ); }
+    : fields type ID ';'            { $$ = $1; SyntaxTree * newField = newField->createSyntaxTree($4, $2, $3); $$->add2Aux( newField ); }
+    | type ID ';'                   { $$ = $$->createSyntaxTree(); SyntaxTree * newField = newField->createSyntaxTree($3, $1, $2); $$->add2Aux( newField ); }
     ;
 
 imports
     : module_list                   { $$ = $1; }
-    | ID AS ID                      { $$ = new SyntaxTree(); SyntaxTree * temp = new SyntaxTree($2); temp->bifurcate($1, $3); $$->add2Aux(temp); } // folder AS alias
+    | ID AS ID                      { $$ = $$->createSyntaxTree(); SyntaxTree * temp = temp->createSyntaxTree($2); temp->bifurcate($1, $3); $$->add2Aux(temp); } // folder AS alias
     | module_list FROM  DIR         {  }
 //  r/r error with ID in module_list  | ID                            { } // language - can this not be listed in module_list?
     ;
 
 lhs
-    : ID                            { $$ = new SyntaxTree($1); }
+    : ID                            { $$ = $$->createSyntaxTree($1); }
     ;
 
 module_list
-    : ID                            { if(!$$->isAux()){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($1) ); }
-    | module_list ',' ID            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($3) ); }
+    : module_list ',' ID            { $$ = $1; SyntaxTree * newField = newField->createSyntaxTree($3); $$->add2Aux( newField ); }
+    | ID                            { $$ = $$->createSyntaxTree(); SyntaxTree * newField = newField->createSyntaxTree($1); $$->add2Aux( newField );}
     ;
 
+   /* : ID                            { if(!$$->isAux()){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($1) ); }
+    | module_list ',' ID            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($3) ); }
+    ; */
+
 recordset
-    : RECORD fields END             { $$ = new SyntaxTree($1, $2); }
+    : RECORD fields END             { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
     ;
 
 rhs
@@ -152,7 +156,7 @@ rhs
     ;
 
 type
-    : ID                            { $$ = new SyntaxTree($1); }
+    : ID                            { $$ = $$->createSyntaxTree($1); }
     ;
 
 %%

@@ -22,6 +22,32 @@
 #include <cstring>
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
+SyntaxTree * SyntaxTree::createSyntaxTree()
+{
+    return new SyntaxTree();
+}
+
+SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token)
+{
+    return new SyntaxTree(token);
+}
+
+
+SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
+{
+    return new SyntaxTree(parentTok, leftTok, rightTok);
+}
+
+SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok)
+{
+    return new SyntaxTree(parentTok, leftBranch, rightTok);
+}
+
+SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token, SyntaxTree * tempAux)
+{
+    return new SyntaxTree(token, tempAux);
+}
+
 
 SyntaxTree::SyntaxTree()
 {
@@ -32,40 +58,41 @@ SyntaxTree::SyntaxTree()
     auxLength = 0;
 }
 
-SyntaxTree::SyntaxTree(TokenData & node)
+SyntaxTree::SyntaxTree(TokenData & token)
 {
-	attributes.cpy(node);
+	attributes.cpy(token);
 	left = NULL;
 	right = NULL;
     aux = NULL;
     auxLength = 0;
 }
 
-SyntaxTree::SyntaxTree(TokenData & parent, TokenData & leftTok, TokenData & rightTok)
+SyntaxTree::SyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
 {
-	attributes.cpy(parent);
-	left = new SyntaxTree(leftTok);
-	right = new SyntaxTree(rightTok);
+	attributes.cpy(parentTok);
+	setLeft(leftTok);
+	setRight(rightTok);
     aux = NULL;
     auxLength = 0;
 }
 
-SyntaxTree::SyntaxTree(TokenData & parent, SyntaxTree * leftBranch, TokenData & rightTok)
+SyntaxTree::SyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok)
 {
-	attributes.cpy(parent);
-	left = leftBranch;
-	right = new SyntaxTree(rightTok);
+	attributes.cpy(parentTok);
+	setLeft(leftBranch);
+	setRight(rightTok);
     aux = NULL;
     auxLength = 0;
 }
 
-SyntaxTree::SyntaxTree(TokenData & node, SyntaxTree * tempAux)
+SyntaxTree::SyntaxTree(TokenData & token, SyntaxTree * tempAux)
 {
-	attributes.cpy(node);
+	attributes.cpy(token);
 	left = NULL;
 	right = NULL;
 	auxLength = tempAux->getAuxLength();
 	aux = tempAux->releaseAux();
+	delete tempAux;
 }
 
 SyntaxTree::~SyntaxTree()
@@ -93,23 +120,37 @@ SyntaxTree * SyntaxTree::release()
 	return temp;
 }
 
-SyntaxTree ** SyntaxTree::releaseAux()
+void SyntaxTree::setLeft(SyntaxTree * node)
 {
-	SyntaxTree ** temp = aux;
-	aux = NULL;
-	return temp;
+    left = node;
 }
 
-void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData rightTok)
+void SyntaxTree::setRight(SyntaxTree * node)
+{
+    right = node;
+}
+
+
+void SyntaxTree::setLeft(TokenData & token)
+{
+    left = createSyntaxTree(token);
+}
+
+void SyntaxTree::setRight(TokenData & token)
+{
+    right = createSyntaxTree(token);
+}
+
+void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData & rightTok)
 {
 	left = leftBranch;
-	right = new SyntaxTree(rightTok);
+	setRight(rightTok);
 }
 
-void SyntaxTree::bifurcate(TokenData leftTok, TokenData rightTok)
+void SyntaxTree::bifurcate(TokenData & leftTok, TokenData & rightTok)
 {
-	left = new SyntaxTree(leftTok);
-	right = new SyntaxTree(rightTok);
+	setLeft(leftTok);
+	setRight(rightTok);
 }
 
 void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
@@ -202,6 +243,13 @@ void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors
 	//addition = NULL;
 }
 
+SyntaxTree ** SyntaxTree::releaseAux()
+{
+    SyntaxTree ** temp = aux;
+    aux = NULL;
+    return temp;
+}
+
 unsigned SyntaxTree::getAuxLength()
 {
 	return auxLength;
@@ -215,6 +263,18 @@ void SyntaxTree::takeAux(SyntaxTree * node) // come up with a better name!!!
 	}
 
 	aux = node->releaseAux();
+}
+
+void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
+{
+    if(aux) {
+        std::cout << "hmmm, aux is already pointing to something. Maybe you meant to addto?\n";
+        return;
+    }
+
+    auxLength = node->getAuxLength();
+    aux = node->releaseAux();
+    delete node;
 }
 
 bool SyntaxTree::isAux()
