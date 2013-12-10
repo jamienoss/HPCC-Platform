@@ -51,6 +51,7 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
 //=========================================== tokens ====================================
 
 %token <returnToken>
+    ','
     '$'
     ';'
     AS
@@ -78,6 +79,7 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
     lhs
     line_of_code
     module_list
+    module_symbols
     recordset
     rhs
     type
@@ -128,8 +130,16 @@ fields
 
 imports
     : module_list                   { $$ = $1; }
-    | ID AS ID                      { $$ = $$->createSyntaxTree(); SyntaxTree * temp = temp->createSyntaxTree($2); temp->bifurcate($1, $3); $$->add2Aux(temp); } // folder AS alias
-    | module_list FROM  DIR         {  }
+    | ID AS ID                      { $$ = $$->createSyntaxTree(); SyntaxTree * temp = temp->createSyntaxTree($2, $1, $3); $$->add2Aux(temp); } // folder AS alias
+    | module_list FROM  ID
+                                    {
+                                        $$->createSyntaxTree();
+                                        SyntaxTree * temp = temp->createSyntaxTree($2);
+                                        temp->setRight($3);
+                                        temp->transferChildren($1);
+                                        //$$->add2Aux(temp);
+                                     }
+
 //  r/r error with ID in module_list  | ID                            { } // language - can this not be listed in module_list?
     ;
 
@@ -138,13 +148,14 @@ lhs
     ;
 
 module_list
-    : module_list ',' ID            { $$ = $1; SyntaxTree * newField = newField->createSyntaxTree($3); $$->add2Aux( newField ); }
-    | ID                            { $$ = $$->createSyntaxTree(); SyntaxTree * newField = newField->createSyntaxTree($1); $$->add2Aux( newField );}
+    : module_list ',' module_symbols            { $$ = $1; $$->add2Aux( $3 ); }
+    | module_symbols                            { $$ = $$->createSyntaxTree(); $$->add2Aux( $1 ); }
     ;
 
-   /* : ID                            { if(!$$->isAux()){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($1) ); }
-    | module_list ',' ID            { if($$->getAuxLength() < 1){$$ = new SyntaxTree();}; $$->add2Aux( new SyntaxTree($3) ); }
-    ; */
+module_symbols
+    : ID                            { $$ = $$->createSyntaxTree($1); }
+    | '$'                           { $$ = $$->createSyntaxTree($1); }
+    ;
 
 recordset
     : RECORD fields END             { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }

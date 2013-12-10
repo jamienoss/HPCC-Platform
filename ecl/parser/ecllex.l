@@ -24,7 +24,6 @@
 %option yylineno
 %option stack
 %option nodefault
-
 %{
 #include "eclparser.hpp"
 #include "eclgram.h"
@@ -92,6 +91,7 @@ RECORD                   { setLex; return RECORD; }
 
 {digit}+                 { setInt; return UNSIGNED; } /* complete for UNSIGNED[n]*/
 (\$|{letter}){alphanum}* { setLex; return ID; }
+","                      { setLex; return ','; }
 ";"                      { setLex; return ';'; }
 "+"                      { setLex; return PLUS; }
 "-"                      { setLex; return MINUS; }

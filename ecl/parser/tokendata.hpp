@@ -34,7 +34,8 @@ enum symbolKind
 class TokenData
 {
 public:
-	int lineNumber;
+    //ECLlocation pos;
+	unsigned lineNumber;
 	symbolKind attributeKind;
 	//yytokentype attributeKind;
 	union
