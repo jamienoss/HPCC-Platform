@@ -35,17 +35,34 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token)
 
 SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
 {
-    return new SyntaxTree(parentTok, leftTok, rightTok);
+    SyntaxTree * temp = new SyntaxTree(parentTok);
+    temp->setLeft(leftTok);
+    temp->setRight(rightTok);
+    return temp;
 }
 
 SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok)
 {
-    return new SyntaxTree(parentTok, leftBranch, rightTok);
+    SyntaxTree * temp = new SyntaxTree(parentTok);
+    temp->setLeft(leftBranch);
+    temp->setRight(rightTok);
+    return temp;
 }
+
+SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * rightBranch)
+{
+    SyntaxTree * temp =  new SyntaxTree(parentTok);
+    temp->setLeft(leftBranch);
+    temp->setRight(rightBranch);
+    return temp;
+}
+
 
 SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token, SyntaxTree * tempAux)
 {
-    return new SyntaxTree(token, tempAux);
+    SyntaxTree * temp = new SyntaxTree(token);
+    temp->transferChildren(tempAux);
+    return temp;
 }
 
 
@@ -67,41 +84,14 @@ SyntaxTree::SyntaxTree(TokenData & token)
     auxLength = 0;
 }
 
-SyntaxTree::SyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
-{
-	attributes.cpy(parentTok);
-	setLeft(leftTok);
-	setRight(rightTok);
-    aux = NULL;
-    auxLength = 0;
-}
-
-SyntaxTree::SyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok)
-{
-	attributes.cpy(parentTok);
-	setLeft(leftBranch);
-	setRight(rightTok);
-    aux = NULL;
-    auxLength = 0;
-}
-
-SyntaxTree::SyntaxTree(TokenData & token, SyntaxTree * tempAux)
-{
-	attributes.cpy(token);
-	left = NULL;
-	right = NULL;
-	auxLength = tempAux->getAuxLength();
-	aux = tempAux->releaseAux();
-	delete tempAux;
-}
-
 SyntaxTree::~SyntaxTree()
 {
      if (left)
          delete left;
      if (right)
          delete right;
-     if (aux) {
+     if (aux)
+     {
          for ( int i = 0; i < auxLength; ++i)
          {
              delete aux[i];
@@ -123,13 +113,14 @@ SyntaxTree * SyntaxTree::release()
 void SyntaxTree::setLeft(SyntaxTree * node)
 {
     left = node;
+    node = NULL;
 }
 
 void SyntaxTree::setRight(SyntaxTree * node)
 {
     right = node;
+    node = NULL;
 }
-
 
 void SyntaxTree::setLeft(TokenData & token)
 {
@@ -178,21 +169,25 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 
 	printNode(nodeNum);
 
-	if (left) {
+	if (left)
+	{
 		printEdge(parentNodeNumm, *nodeNum);
 		ioStatL = left->printBranch(parentNodeNum, nodeNum);
 	}
-	if (right) {
+
+	if (aux)
+	    {
+	        for (int i = 0; i < auxLength; ++i)
+	        {
+	            printEdge(parentNodeNumm, *nodeNum);
+	            aux[i]->printBranch(parentNodeNum, nodeNum);
+	        }
+	    }
+
+	if (right)
+	{
 		printEdge(parentNodeNumm, *nodeNum);
 		ioStatR = right->printBranch(parentNodeNum, nodeNum);
-	}
-
-	if (aux) {
-		for (int i = 0; i < auxLength; ++i)
-		{
-			printEdge(parentNodeNumm, *nodeNum);
-			aux[i]->printBranch(parentNodeNum, nodeNum);
-		}
 	}
 
 	return !(ioStatL && ioStatR);
@@ -240,12 +235,13 @@ void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors
 	}
 
 	aux[auxLength++] = addition;//->release();
-	//addition = NULL;
+	addition = NULL;
 }
 
 SyntaxTree ** SyntaxTree::releaseAux()
 {
     SyntaxTree ** temp = aux;
+    auxLength = 0;
     aux = NULL;
     return temp;
 }
@@ -255,20 +251,10 @@ unsigned SyntaxTree::getAuxLength()
 	return auxLength;
 }
 
-void SyntaxTree::takeAux(SyntaxTree * node) // come up with a better name!!!
-{
-	if(aux) {
-		std::cout << "hmmm, aux is already pointing to something\n";
-		return;
-	}
-
-	aux = node->releaseAux();
-}
-
 void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
 {
     if(aux) {
-        std::cout << "hmmm, aux is already pointing to something. Maybe you meant to addto?\n";
+        std::cout << "hmmm, aux is already pointing to something. Maybe you meant to use add2Aux?\n";
         return;
     }
 

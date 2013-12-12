@@ -30,6 +30,7 @@ public:
     SyntaxTree * createSyntaxTree(TokenData & token);
     SyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
     SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
+    SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * righBranch);
     SyntaxTree * createSyntaxTree(TokenData & token, SyntaxTree * tempAux);
     ~SyntaxTree();
 
@@ -51,7 +52,6 @@ public:
 
     void add2Aux(SyntaxTree * addition);
     SyntaxTree ** releaseAux();
-    void takeAux(SyntaxTree * node);
     void transferChildren(SyntaxTree * node);
     bool isAux();
 
@@ -61,10 +61,6 @@ public:
 private:
     SyntaxTree();
     SyntaxTree(TokenData & token);
-    SyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
-    SyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
-    SyntaxTree(TokenData & token, SyntaxTree * tempAux);
-
 
 private:
     TokenData attributes;
