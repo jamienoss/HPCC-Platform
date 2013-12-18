@@ -28,7 +28,10 @@ enum symbolKind
 	integerKind,
 	unsignedKind,
 	realKind,
-	lexemeKind
+	lexemeKind,
+    terminalKind,
+    nonTerminalKind,
+    productionKind
 };
 //----------------------------------TokenData--------------------------------------------------------------------
 class TokenData

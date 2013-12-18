@@ -19,6 +19,8 @@
 #define SYNTAXTREE_HPP
 
 #include "tokendata.hpp"
+#include <string>
+#include <vector>
 
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
@@ -54,9 +56,10 @@ public:
     SyntaxTree ** releaseAux();
     void transferChildren(SyntaxTree * node);
     bool isAux();
-
-
     unsigned getAuxLength();
+    const char * getLexeme();
+
+    void extractSymbols(std::vector <std::string> & symbolList);
 
 private:
     SyntaxTree();

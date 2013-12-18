@@ -1009,8 +1009,10 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         if (!(parser->parse())) { // Check persistence of AST
             SyntaxTree * AST = parser->releaseAST();
             delete parser;
-            AST->printTree();
+            //AST->printTree();
+            parser->analyseGrammar(AST);
         }
+        throwUnexpected();
 
         //std::cout << queryContents->queryFile()->queryFilename() << "\n";
         //std::cout << "Press ENTER to continue... " << std::flush;

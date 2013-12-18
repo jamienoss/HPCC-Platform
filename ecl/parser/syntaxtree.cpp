@@ -21,6 +21,7 @@
 #include <iostream>
 #include <cstring>
 
+
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 SyntaxTree * SyntaxTree::createSyntaxTree()
 {
@@ -99,8 +100,14 @@ SyntaxTree::~SyntaxTree()
          delete[] aux;
      }
 
-     if (attributes.attributeKind == lexemeKind)
-        delete[] attributes.lexeme;
+     switch(attributes.attributeKind)
+     {
+     case lexemeKind :
+     case terminalKind :
+     case nonTerminalKind :
+     case productionKind :
+        delete[] attributes.lexeme; break;
+     }
 }
 
 SyntaxTree * SyntaxTree::release()
@@ -209,7 +216,10 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 	switch(kind){
 	case integerKind : std::cout << attributes.integer; break;
 	case realKind : std::cout << attributes.real; break;
-	case lexemeKind : std::cout << attributes.lexeme; break;
+	case lexemeKind:
+	case terminalKind :
+    case nonTerminalKind :
+    case productionKind : std::cout << attributes.lexeme; break;
 	default : std::cout << "KIND not yet defined!"; break;
 	}
 
@@ -266,4 +276,45 @@ void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better na
 bool SyntaxTree::isAux()
 {
 	return aux ? true : false;
+}
+
+void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
+{
+    if(left)
+        left->extractSymbols(symbolList);
+    if(right)
+        right->extractSymbols(symbolList);
+
+    unsigned n = getAuxLength();
+    if(n > 0)
+    {
+        for (unsigned i = 0; i < n; ++i)
+        {
+            aux[i]->extractSymbols(symbolList);
+        }
+    }
+
+    // add only new symbols
+    unsigned m = symbolList.size();
+    std::string lexeme;
+    switch(attributes.attributeKind)
+    {
+    //case terminalKind :
+    case nonTerminalKind :
+    {
+        lexeme = getLexeme();
+        for (unsigned i = 0; i < m; ++i)
+        {
+            if(!symbolList[i].compare(lexeme))
+                return;
+        }
+        symbolList.push_back(lexeme);
+        break;
+    }
+    }
+}
+
+const char * SyntaxTree::getLexeme()
+{
+    return attributes.lexeme;
 }

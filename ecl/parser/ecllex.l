@@ -19,40 +19,70 @@
 %option nounistd
 %option reentrant
 %option noyywrap
-%option case-insensitive
 %option bison-bridge
 %option yylineno
 %option stack
-%option nodefault
 %{
 #include "eclparser.hpp"
 #include "eclgram.h"
 #include <iostream>
 #include <cstring>
 
-static inline void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
+static void setLexeme(YYSTYPE * tokenVal, char * tokenText)
 {
-tokenVal->returnToken.lineNumber = lineno + 1;
-tokenVal->returnToken.attributeKind = integerKind;
-tokenVal->returnToken.integer = atoi(tokenText);
+    unsigned txtLen = strlen(tokenText)+1;
+    tokenVal->returnToken.lexeme = new char [txtLen];
+    memcpy(tokenVal->returnToken.lexeme, tokenText, txtLen);
 }
 
-static inline void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
+static void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
 {
-tokenVal->returnToken.lineNumber = lineno + 1;
-tokenVal->returnToken.attributeKind = lexemeKind;
-
-unsigned txtLen = strlen(tokenText)+1;
-tokenVal->returnToken.lexeme = new char [txtLen];
-memcpy(tokenVal->returnToken.lexeme, tokenText, txtLen);
+    tokenVal->returnToken.lineNumber = lineno + 1;
+    tokenVal->returnToken.attributeKind = integerKind;
+    tokenVal->returnToken.integer = atoi(tokenText);
 }
+
+static void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
+{
+    tokenVal->returnToken.lineNumber = lineno + 1;
+    tokenVal->returnToken.attributeKind = lexemeKind;
+    setLexeme(tokenVal, tokenText);
+}
+
+static void setNonTerminal(YYSTYPE * tokenVal, char * tokenText, int lineno)
+{
+    tokenVal->returnToken.lineNumber = lineno + 1;
+    tokenVal->returnToken.attributeKind = nonTerminalKind;
+    setLexeme(tokenVal, tokenText);
+}
+
+static void setTerminal(YYSTYPE * tokenVal, char * tokenText, int lineno)
+{
+    tokenVal->returnToken.lineNumber = lineno + 1;
+    tokenVal->returnToken.attributeKind = terminalKind;
+    setLexeme(tokenVal, tokenText);
+}
+
+static void setProduction(YYSTYPE * tokenVal, char * tokenText, int lineno)
+{
+    tokenVal->returnToken.lineNumber = lineno + 1;
+    tokenVal->returnToken.attributeKind = productionKind;
+    setLexeme(tokenVal, tokenText);
+}
+
+
+
+static inline void pText(char * tokenText)
+{
+    std::cout << tokenText << "\n";
+}
+#define pText pText(yytext)
 
 #define setInt setInt(yylval, yytext, yylineno)
 #define setLex setLex(yylval, yytext, yylineno)
 
 %}
 
-letter        [a-z_A-Z]
 digit         [0-9]
 bindigit      [0-1]
 hexdigit      [a-fA-F0-9]
@@ -70,6 +100,10 @@ err_hexpairs  {hexdigit}({hexdigit}{hexdigit})*
 xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
 xpathseq      ([^}\r\n])+
 
+lower_letter [a-z]
+upper_letter [A-Z]
+upper_alphanum [A-Z$_0-9]
+
 %x COMMENT
 %x SLCOMMENT
 
@@ -83,23 +117,28 @@ xpathseq      ([^}\r\n])+
 "//"                     { BEGIN(SLCOMMENT); }
 <SLCOMMENT>[^\n]+        { BEGIN(0); }
 
-AS                       { setLex; return AS; }
-END                      { setLex; return END; }
-FROM                     { setLex; return FROM; }
-IMPORT                   { setLex; return IMPORT; }
-RECORD                   { setLex; return RECORD; }
 
-{digit}+                 { setInt; return UNSIGNED; } /* complete for UNSIGNED[n]*/
-(\$|{letter}){alphanum}* { setLex; return ID; }
+"_"{0,2}{lower_letter}{alphanum}* {
+                         setNonTerminal(yylval, yytext, yylineno); return NONTERMINAL;
+                       }
+#?"'"?"_"{0,2}{upper_letter}{upper_alphanum}*"'"? { ;
+                         setTerminal(yylval, yytext, yylineno); return TERMINAL;
+                       }
+
+"'"."'"                  { setTerminal(yylval, yytext, yylineno); return TERMINAL; }
+.*"%%"                   { return STUFF; }
+"%%".*                   { return STUFF; }
+
+\{.+\}                   { setProduction(yylval, yytext, yylineno); return CODE; }
+
+"%prec"                  { setLex; return PREC; }
+":"                      { setLex; return ':'; }
 ","                      { setLex; return ','; }
 ";"                      { setLex; return ';'; }
-"+"                      { setLex; return PLUS; }
-"-"                      { setLex; return MINUS; }
-"*"                      { setLex; return MULTIPLY; }
-"/"                      { setLex; return DIVIDE; }
-"("                      { setLex; return '('; }
-")"                      { setLex; return ')'; }
-":="                     { setLex; return ASSIGN; }
+"|"                      { setLex; return '|'; }
+"{"                      { setLex; return '{'; }
+"}"                      { setLex; return '}'; }
+
 \n                       { }
 {blank}+                 { }
 

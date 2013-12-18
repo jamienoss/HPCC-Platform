@@ -51,60 +51,102 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
 //=========================================== tokens ====================================
 
 %token <returnToken>
-    '['
-    ']'
     '{'
     '}'
     '('
     ')'
     ','
-    '$'
+    ':'
     ';'
-    AS
-    ASSIGN
-    DIR
-    DIVIDE
-    END
-    FROM
-    ID
-    IMPORT
-    PLUS
-    MINUS
-    MULTIPLY
-    REAL
-    RECORD
-    UNSIGNED
+    '|'
+
+    CODE
+    DOUBLE_PERCENT
+    NONTERMINAL
+    PREC
+    STUFF
+    TERMINAL
+
 
     YY_LAST_TOKEN
 
 %type <treeNode>
-    eclQuery
-    expr
-    expr_list
-    fields
-    imports
-    lhs
-    line_of_code
-    module_from
-    module_list
-    module_symbols
-    recordset
-    rhs
-    set
-    type
+    grammar_item
+    grammar_rule
+    grammar_rules
+    production
+    terminals
+    terminal_list
+    terminal_productions
+
 
 %left '.'
-%left '('
 %left '{'
-%left '['
-%left DIVIDE
-%left MINUS
-%left MULTIPLY
-%left PLUS
 
 %%
-//================================== begin of syntax section ==========================
+//================================== beginning of syntax section ==========================
 
+bison_file
+    : STUFF grammar_item STUFF      { parser->setRoot($2); }
+    ;
+
+grammar_item
+    : grammar_item grammar_rule     { $$ = $1; $$->add2Aux($2); }
+    | grammar_rule                  { $$ = $$->createSyntaxTree(); $$->add2Aux($1); }
+    ;
+
+grammar_rule
+    : NONTERMINAL grammar_rules ';'
+                                    { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
+    ;
+
+grammar_rules
+    : grammar_rules '|' terminal_productions
+                                    {
+                                        $$ = $1;
+                                        SyntaxTree * temp = temp->createSyntaxTree($2);
+                                        temp->transferChildren($3);
+                                        $$->add2Aux(temp);
+                                    }
+    | ':' terminal_productions      {
+                                        $$ = $$->createSyntaxTree();
+                                        SyntaxTree * temp = temp->createSyntaxTree($1);
+                                        temp->transferChildren($2);
+                                        $$->add2Aux(temp);
+                                    }
+    ;
+
+terminal_productions
+    : terminal_list                 { $$ = $1; }
+    | terminal_list production      { $$ = $1; $$->add2Aux($2); }
+    ;
+
+production
+    : CODE                          { $$ = $$->createSyntaxTree($1); }
+    ;
+
+terminals
+    : NONTERMINAL                   { $$ = $$->createSyntaxTree($1); }
+    | TERMINAL                      { $$ = $$->createSyntaxTree($1); }
+    | PREC                          { $$ = $$->createSyntaxTree($1); }
+    ;
+
+terminal_list
+    : terminal_list terminals       { $$ = $1; $$->add2Aux($2); }
+    | terminals                     { $$ = $$->createSyntaxTree(); $$->add2Aux($1); }
+    ;
+
+%%
+
+
+
+
+
+
+
+
+
+/*
 code
     : eclQuery                      { parser->setRoot($1); }
     ;
@@ -231,3 +273,4 @@ type
     ;
 
 %%
+*/

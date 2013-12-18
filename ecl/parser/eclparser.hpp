@@ -22,6 +22,8 @@
 #include "jhash.hpp"
 #include "hqlexpr.hpp"  // MORE: Split IFileContents out of this file
 #include "syntaxtree.hpp"
+#include <vector>
+#include <string>
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -45,6 +47,9 @@ public:
     void setRoot(SyntaxTree * node);
     bool printAST();
     int parse();
+
+    void analyseGrammar(SyntaxTree * tree);
+    void createSymbolList(SyntaxTree * tree, std::vector <std::string> & symbolList);
 
 private:
     EclLexer * lexer;

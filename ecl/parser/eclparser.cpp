@@ -53,6 +53,7 @@ void EclParser::init(IFileContents * queryContents)
 void EclParser::setRoot(SyntaxTree * node)
 {
 	ast = node;
+	node = NULL;
 }
 
 bool EclParser::printAST()
@@ -66,6 +67,33 @@ SyntaxTree * EclParser::releaseAST()
 	ast = NULL;
 	return temp;
 }
+
+void printStringVector(std::vector <std::string> vector);
+
+void EclParser::analyseGrammar(SyntaxTree * tree)
+{
+    std::vector <std::string> terminalSymbols;
+    createSymbolList(tree, terminalSymbols);
+    printStringVector(terminalSymbols);
+
+
+}
+
+void EclParser::createSymbolList(SyntaxTree *  tree, std::vector <std::string> & symbolList)
+{
+    tree->extractSymbols(symbolList);
+
+}
+
+void printStringVector(std::vector <std::string> vector)
+{
+    unsigned n = vector.size();
+    for (unsigned i = 0; i < n; ++i)
+    {
+        std::cout << vector[i] << "\n";
+    }
+}
+
 //----------------------------------EclLexer--------------------------------------------------------------------
 EclLexer::EclLexer(IFileContents * queryContents)
 {
