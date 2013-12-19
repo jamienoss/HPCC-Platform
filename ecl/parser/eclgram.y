@@ -68,6 +68,7 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
     FROM
     ID
     IMPORT
+    INTEGER
     PLUS
     MINUS
     MULTIPLY
@@ -83,11 +84,13 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
     expr_list
     fields
     imports
+    inline_recordset
     lhs
     line_of_code
     module_from
     module_list
     module_symbols
+    records
     recordset
     rhs
     set
@@ -136,8 +139,8 @@ expr
     ;
 
 expr_list
-    : expr_list ',' expr            { $$ = $1; $$->add2Aux($3); }
-    | expr                          { $$ = $$->createSyntaxTree(); $$->add2Aux($1); }
+    : expr_list ',' expr            { $$ = $1; $$->addChild($3); }
+    | expr                          { $$ = $$->createSyntaxTree(); $$->addChild($1); }
     ;
 
 fields
@@ -145,13 +148,13 @@ fields
                                     {
                                         $$ = $1;
                                         SyntaxTree * newField = newField->createSyntaxTree($4, $2, $3);
-                                        $$->add2Aux( newField );
+                                        $$->addChild( newField );
                                     }
     | type ID ';'
                                     {
                                         $$ = $$->createSyntaxTree();
                                         SyntaxTree * newField = newField->createSyntaxTree($3, $1, $2);
-                                        $$->add2Aux( newField );
+                                        $$->addChild( newField );
                                     }
     ;
 
@@ -160,10 +163,10 @@ imports
     | ID AS ID                      {   // folder AS alias
                                         $$ = $$->createSyntaxTree();
                                         SyntaxTree * temp = temp->createSyntaxTree($1);
-                                        $$->add2Aux(temp);
+                                        $$->addChild(temp);
                                         temp = temp->createSyntaxTree($2);
                                         temp->setRight($3);
-                                        $$->add2Aux(temp);
+                                        $$->addChild(temp);
                                     }
     | module_list FROM  module_from
                                     {
@@ -171,7 +174,7 @@ imports
                                         SyntaxTree * temp = temp->createSyntaxTree($2);
                                         temp->setRight($3);
                                         $$->transferChildren($1);
-                                        $$->add2Aux(temp);
+                                        $$->addChild(temp);
                                      }
 
 //  r/r error with ID in module_list  | ID                            { } // language - can this not be listed in module_list?
@@ -198,8 +201,8 @@ module_from
 
 module_list
     : module_list ',' module_symbols
-                                    { $$ = $1; $$->add2Aux( $3 ); }
-    | module_symbols                { $$ = $$->createSyntaxTree(); $$->add2Aux($1); }
+                                    { $$ = $1; $$->addChild( $3 ); }
+    | module_symbols                { $$ = $$->createSyntaxTree(); $$->addChild($1); }
     ;
 
 module_symbols
@@ -209,8 +212,11 @@ module_symbols
 
 inline_recordset
     : '{' inline_fields '}'         { }
-    | ID                            { }
-    |
+    ;
+
+records
+    :                               { }
+    ;
 
 recordset
     : RECORD fields END             { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
@@ -219,7 +225,7 @@ recordset
 rhs
     : expr                          { $$ = $1; }
     | recordset                     { $$ = $1; }
-    | inline_recordset              { $$ = $1; }}
+    | inline_recordset              { $$ = $1; }
     ;
 
 set

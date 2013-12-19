@@ -20,10 +20,12 @@
 
 #include "tokendata.hpp"
 
+class linkedSTlist;
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 class SyntaxTree
 {
+
 
 public:
     SyntaxTree * createSyntaxTree();
@@ -50,11 +52,10 @@ public:
     void setRight(TokenData & token);
     void setRight(SyntaxTree * node);
 
-    void add2Aux(SyntaxTree * addition);
+    void addChild(SyntaxTree * addition);
     SyntaxTree ** releaseAux();
     void transferChildren(SyntaxTree * node);
     bool isAux();
-
 
     unsigned getAuxLength();
 
@@ -68,8 +69,35 @@ private:
     SyntaxTree * left;
     SyntaxTree * right;
 
-    SyntaxTree ** aux;
-    int auxLength;
+    //SyntaxTree ** aux;
+    linkedSTlist * children;
+    //int auxLength;
 };
+
+//----------------------------------linkeSTlist--------------------------------------------------------------------
+class linkedSTlist
+{
+
+    friend class SyntaxTree;
+
+public:
+    linkedSTlist();
+    ~linkedSTlist();
+    void push(SyntaxTree * addition);
+    SyntaxTree * pop();
+    unsigned size();
+
+    SyntaxTree * operator[](unsigned idx);
+    // const value_type& operator[](index_type idx) const;
+
+private:
+    linkedSTlist(SyntaxTree * node);
+
+private:
+    SyntaxTree * data;
+    linkedSTlist * next;
+};
+
+
 
 #endif
