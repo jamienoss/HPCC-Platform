@@ -72,8 +72,7 @@ SyntaxTree::SyntaxTree()
 	attributes.lineNumber = 0;
     left = NULL;
     right = NULL;
-    aux = NULL;
-    auxLength = 0;
+    children = NULL;
 }
 
 SyntaxTree::SyntaxTree(TokenData & token)
@@ -81,8 +80,8 @@ SyntaxTree::SyntaxTree(TokenData & token)
 	attributes.cpy(token);
 	left = NULL;
 	right = NULL;
-    aux = NULL;
-    auxLength = 0;
+    children = NULL;
+
 }
 
 SyntaxTree::~SyntaxTree()
@@ -91,14 +90,8 @@ SyntaxTree::~SyntaxTree()
          delete left;
      if (right)
          delete right;
-     if (aux)
-     {
-         for ( int i = 0; i < auxLength; ++i)
-         {
-             delete aux[i];
-         }
-         delete[] aux;
-     }
+     if(children)
+              delete children;
 
      switch(attributes.attributeKind)
      {
@@ -182,14 +175,19 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 		ioStatL = left->printBranch(parentNodeNum, nodeNum);
 	}
 
-	if (aux)
-	    {
-	        for (int i = 0; i < auxLength; ++i)
-	        {
-	            printEdge(parentNodeNumm, *nodeNum);
-	            aux[i]->printBranch(parentNodeNum, nodeNum);
-	        }
-	    }
+    if(children)
+    {
+        linkedSTlist * temp = children;
+        while(temp->next)
+        {
+            printEdge(parentNodeNumm, *nodeNum);
+            temp->data->printBranch(parentNodeNum, nodeNum);
+            temp = temp->next;
+        }
+        // print last node
+         printEdge(parentNodeNumm, *nodeNum);
+         temp->data->printBranch(parentNodeNum, nodeNum);
+    }
 
 	if (right)
 	{
@@ -228,54 +226,20 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 	return true;
 }
 
-void SyntaxTree::add2Aux(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
+void SyntaxTree::addChild(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
-	if (!aux) {
-		aux = new SyntaxTree * [1];
-	} else	{
-		SyntaxTree ** temp;
-		temp = new SyntaxTree * [auxLength + 1];
-		for(int i = 0; i < auxLength; ++i)
-		{
-			temp[i] = aux[i];
-		}
-		delete[] aux; //MORE: maybe recycle these?
-		aux = temp;
-		temp = NULL;
-	}
-
-	aux[auxLength++] = addition;//->release();
-	addition = NULL;
-}
-
-SyntaxTree ** SyntaxTree::releaseAux()
-{
-    SyntaxTree ** temp = aux;
-    auxLength = 0;
-    aux = NULL;
-    return temp;
-}
-
-unsigned SyntaxTree::getAuxLength()
-{
-	return auxLength;
+    if(!children)
+            children = new linkedSTlist(addition);
+        else
+            children->push(addition);
+        addition = NULL;
 }
 
 void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
 {
-    if(aux) {
-        std::cout << "hmmm, aux is already pointing to something. Maybe you meant to use add2Aux?\n";
-        return;
-    }
-
-    auxLength = node->getAuxLength();
-    aux = node->releaseAux();
+    children = node->children;
+    node->children = NULL;
     delete node;
-}
-
-bool SyntaxTree::isAux()
-{
-	return aux ? true : false;
 }
 
 void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
@@ -285,6 +249,19 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
     if(right)
         right->extractSymbols(symbolList);
 
+    if(children)
+    {
+        linkedSTlist * temp = children;
+        while(temp->next)
+        {
+            temp->data->extractSymbols(symbolList);
+            temp = temp->next;
+        }
+        //last node
+        temp->data->extractSymbols(symbolList);
+    }
+
+    /*
     unsigned n = getAuxLength();
     if(n > 0)
     {
@@ -293,6 +270,7 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
             aux[i]->extractSymbols(symbolList);
         }
     }
+    */
 
     // add only new symbols
     unsigned m = symbolList.size();
@@ -317,4 +295,79 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
 const char * SyntaxTree::getLexeme()
 {
     return attributes.lexeme;
+}
+
+//----------------------------------linkedSTlist--------------------------------------------------------------------
+
+linkedSTlist::linkedSTlist()
+{
+    data = NULL;
+    next = NULL;
+}
+
+linkedSTlist::linkedSTlist(SyntaxTree * node)
+{
+    data = node;
+    next = NULL;
+}
+
+SyntaxTree * linkedSTlist::pop()
+{
+   linkedSTlist * temp = this;
+   linkedSTlist * tempB4 = NULL;
+   SyntaxTree * toReturn;
+
+   while(temp->next)
+   {
+       tempB4 = temp;
+       temp = temp->next;
+   }
+   toReturn = temp->data;
+   if(tempB4)
+       tempB4->next = NULL;
+   delete temp;
+   return toReturn;
+}
+
+linkedSTlist::~linkedSTlist()
+{
+    if(next)
+        delete next;
+}
+
+void linkedSTlist::push(SyntaxTree * node)
+{
+    if(next)
+       next->push(node);
+    else
+        next = new linkedSTlist(node);
+}
+
+unsigned linkedSTlist::size()
+{
+    if(!this)
+        return 0;
+
+    unsigned count = 0;
+    linkedSTlist * temp = this;
+    while(temp->next)
+    {
+        count++;
+        temp = temp->next;
+    }
+    return count=1;
+}
+
+SyntaxTree * linkedSTlist::operator[](unsigned idx)
+{
+    if(idx < 0 || idx > size())
+        std::cout << "error: subscript out of bounds\n";
+        return NULL;
+
+    linkedSTlist* temp = this;
+    for ( unsigned i = 0; i < idx; ++i)
+    {
+        temp = temp->next;
+    }
+    return temp->data;
 }

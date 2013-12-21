@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+class linkedSTlist;
+
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 class SyntaxTree
@@ -52,11 +54,10 @@ public:
     void setRight(TokenData & token);
     void setRight(SyntaxTree * node);
 
-    void add2Aux(SyntaxTree * addition);
+    void addChild(SyntaxTree * addition);
     SyntaxTree ** releaseAux();
     void transferChildren(SyntaxTree * node);
-    bool isAux();
-    unsigned getAuxLength();
+
     const char * getLexeme();
 
     void extractSymbols(std::vector <std::string> & symbolList);
@@ -70,9 +71,35 @@ private:
 
     SyntaxTree * left;
     SyntaxTree * right;
+    linkedSTlist * children;
 
-    SyntaxTree ** aux;
-    int auxLength;
+    //SyntaxTree ** aux;
+    //int auxLength;
 };
+
+//----------------------------------linkeSTlist--------------------------------------------------------------------
+class linkedSTlist
+{
+
+    friend class SyntaxTree;
+
+public:
+    linkedSTlist();
+    ~linkedSTlist();
+    void push(SyntaxTree * addition);
+    SyntaxTree * pop();
+    unsigned size();
+
+    SyntaxTree * operator[](unsigned idx);
+    // const value_type& operator[](index_type idx) const;
+
+private:
+    linkedSTlist(SyntaxTree * node);
+
+private:
+    SyntaxTree * data;
+    linkedSTlist * next;
+};
+
 
 #endif

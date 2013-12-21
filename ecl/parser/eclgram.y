@@ -87,12 +87,12 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
 //================================== beginning of syntax section ==========================
 
 bison_file
-    : STUFF grammar_item STUFF      { parser->setRoot($2); }
+    : grammar_item       { parser->setRoot($1); }
     ;
 
 grammar_item
-    : grammar_item grammar_rule     { $$ = $1; $$->add2Aux($2); }
-    | grammar_rule                  { $$ = $$->createSyntaxTree(); $$->add2Aux($1); }
+    : grammar_item grammar_rule     { $$ = $1; $$->addChild($2); }
+    | grammar_rule                  { $$ = $$->createSyntaxTree(); $$->addChild($1); }
     ;
 
 grammar_rule
@@ -106,19 +106,19 @@ grammar_rules
                                         $$ = $1;
                                         SyntaxTree * temp = temp->createSyntaxTree($2);
                                         temp->transferChildren($3);
-                                        $$->add2Aux(temp);
+                                        $$->addChild(temp);
                                     }
     | ':' terminal_productions      {
                                         $$ = $$->createSyntaxTree();
                                         SyntaxTree * temp = temp->createSyntaxTree($1);
                                         temp->transferChildren($2);
-                                        $$->add2Aux(temp);
+                                        $$->addChild(temp);
                                     }
     ;
 
 terminal_productions
     : terminal_list                 { $$ = $1; }
-    | terminal_list production      { $$ = $1; $$->add2Aux($2); }
+    | terminal_list production      { $$ = $1; $$->addChild($2); }
     ;
 
 production
@@ -132,8 +132,8 @@ terminals
     ;
 
 terminal_list
-    : terminal_list terminals       { $$ = $1; $$->add2Aux($2); }
-    | terminals                     { $$ = $$->createSyntaxTree(); $$->add2Aux($1); }
+    : terminal_list terminals       { $$ = $1; $$->addChild($2); }
+    | terminals                     { $$ = $$->createSyntaxTree(); $$->addChild($1); }
     ;
 
 %%

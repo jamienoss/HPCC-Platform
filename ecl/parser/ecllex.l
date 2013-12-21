@@ -129,7 +129,7 @@ upper_alphanum [A-Z$_0-9]
 .*"%%"                   { return STUFF; }
 "%%".*                   { return STUFF; }
 
-\{.+\}                   { setProduction(yylval, yytext, yylineno); return CODE; }
+\{[\s\S]*\}                   { setProduction(yylval, yytext, yylineno); return CODE; }
 
 "%prec"                  { setLex; return PREC; }
 ":"                      { setLex; return ':'; }
@@ -146,5 +146,5 @@ upper_alphanum [A-Z$_0-9]
 %%
 
 int yyerror(const char *msg) {
-    fprintf(stderr,"Error:%s\n",msg); return 0;
+    fprintf(stderr,"Error:%s \n",msg); return 0;
 }
