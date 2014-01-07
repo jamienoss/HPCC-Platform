@@ -76,7 +76,8 @@ xpathseq      ([^}\r\n])+
 %%
 
 "/*"                     { BEGIN(COMMENT); }
-<COMMENT>[^*/]           { }
+<COMMENT>[^*\n]+         { }
+<COMMENT>\n              { }
 <COMMENT>"*"             { }
 <COMMENT>"*/"            { BEGIN(0); }
 
