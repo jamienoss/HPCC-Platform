@@ -28,6 +28,10 @@
 #include <iostream>
 #include <cstring>
 
+  /*YYLTYPE  yylloc;
+
+#define YY_USER_ACTION {yylloc.first_line = yylineno; } */
+
 static void setLexeme(YYSTYPE * tokenVal, const char * tokenText)
 {
     unsigned txtLen = strlen(tokenText)+1;
@@ -109,29 +113,33 @@ upper_alphanum [A-Z$_0-9]
 %x SLCOMMENT
 %x PRODUCTION
 
+%x BISON
+
 %%
 
-"/*"                     { BEGIN(COMMENT); }
+"%%"                     { BEGIN(BISON); }
+<BISON>"%%"              { BEGIN(0); }
+<BISON>"/*"              { BEGIN(COMMENT); }
 <COMMENT>[^*\n]+         { }
 <COMMENT>\n              { }
 <COMMENT>"*"             { }
-<COMMENT>"*/"            { BEGIN(0); }
+<COMMENT>"*/"            { BEGIN(BISON); }
 
-"//"                     { BEGIN(SLCOMMENT); }
-<SLCOMMENT>[^\n]+        { BEGIN(0); }
+<BISON>"//"              { BEGIN(SLCOMMENT); }
+<SLCOMMENT>[^\n]+        { BEGIN(BISON); }
 
-#?"'"?"_"{0,2}{upper_alphanum}*"'"? { ;
+<BISON>#?"'"?"_"{0,2}{upper_alphanum}*"'"? { ;
                          setTerminal(yylval, yytext, yylineno); return TERMINAL;
-                       }
+                         }
 
-"_"{0,2}{alphanum}* {
+<BISON>"_"{0,2}{alphanum}* {
                          setNonTerminal(yylval, yytext, yylineno); return NONTERMINAL;
-                       }
+                         }
 
 
-"'"."'"                  { setTerminal(yylval, yytext, yylineno); return TERMINAL; }
+<BISON>"'"."'"           { setTerminal(yylval, yytext, yylineno); return TERMINAL; }
 
-"\{"                     { BEGIN(PRODUCTION); productionLineNo = yylineno; }
+<BISON>"\{"              { BEGIN(PRODUCTION); productionLineNo = yylineno; }
 <PRODUCTION>"\{"         { nestCounter++; productionLexeme(yytext); }
 <PRODUCTION>[^}\n]       { productionText.append(yytext); }
 <PRODUCTION>\n           { productionText.append("\\n"); }
@@ -141,7 +149,7 @@ upper_alphanum [A-Z$_0-9]
                                 setProduction(yylval, productionText.data(), productionLineNo);
                                 productionText.clear();
                                 productionLineNo = 0; // helpfull for debugging this code.
-                                BEGIN(0);
+                                BEGIN(BISON);
                                 return CODE;
                             }
                             else
@@ -154,18 +162,18 @@ upper_alphanum [A-Z$_0-9]
 
   /*    "\{"(.|\n)+/"\}"               { setProduction(yylval, yytext, yylineno); return CODE; }   */
 
-"%prec"                  { setLex; return PREC; }
-":"                      { setLex; return ':'; }
-","                      { setLex; return ','; }
-";"                      { setLex; return ';'; }
-"|"                      { setLex; return '|'; }
+<BISON>"%prec"            { setLex; return PREC; }
+<BISON>":"                { setLex; return ':'; }
+<BISON>","                { setLex; return ','; }
+<BISON>";"                { setLex; return ';'; }
+<BISON>"|"                { setLex; return '|'; }
 
-\n                       { }
-{blank}+                 { }
+<INITIAL,BISON>\n         { }
+<INITIAL,BISON>{blank}+   { }
 
- /*.                        { }*/
+.                         { }
 %%
 
-int yyerror(const char *msg) {
+  /*int yyerror(const char *msg) {
     fprintf(stderr,"Error:%s \n",msg); return 0;
-}
+ } */

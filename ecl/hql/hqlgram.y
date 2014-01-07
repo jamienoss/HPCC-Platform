@@ -9822,7 +9822,7 @@ xmlOption
 
 optPipeOptions
     :                   {   $$.setNullExpr(); }
-    | ',' pipeOptions   {   $$.inherit($2); }
+    | ',' pipeOptions   {   $$.inherit($2); } ;
 
 pipeOptions
     : pipeOption
