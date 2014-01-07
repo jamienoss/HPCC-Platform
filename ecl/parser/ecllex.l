@@ -28,11 +28,14 @@
 #include <iostream>
 #include <cstring>
 
-static void setLexeme(YYSTYPE * tokenVal, char * tokenText)
+static void setLexeme(YYSTYPE * tokenVal, const char * tokenText)
 {
     unsigned txtLen = strlen(tokenText)+1;
     tokenVal->returnToken.lexeme = new char [txtLen];
     memcpy(tokenVal->returnToken.lexeme, tokenText, txtLen);
+
+    //std::cout << tokenText << "\n";
+
 }
 
 static void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
@@ -63,23 +66,31 @@ static void setTerminal(YYSTYPE * tokenVal, char * tokenText, int lineno)
     setLexeme(tokenVal, tokenText);
 }
 
-static void setProduction(YYSTYPE * tokenVal, char * tokenText, int lineno)
+static void setProduction(YYSTYPE * tokenVal, const char * tokenText, int lineno)
 {
     tokenVal->returnToken.lineNumber = lineno + 1;
     tokenVal->returnToken.attributeKind = productionKind;
     setLexeme(tokenVal, tokenText);
+
+    //std::cout <<  " : " << lineno << "\n";
 }
 
 
-
-static inline void pText(char * tokenText)
-{
-    std::cout << tokenText << "\n";
-}
-#define pText pText(yytext)
 
 #define setInt setInt(yylval, yytext, yylineno)
 #define setLex setLex(yylval, yytext, yylineno)
+
+//global code used for returning productions within grammar file
+unsigned nestCounter = 0;
+unsigned productionLineNo = 0;
+std::string productionText;
+
+static inline void productionLexeme(const char * tokenText)
+{
+    productionText.append(tokenText);
+    productionText.append("\\n");
+}
+
 
 %}
 
@@ -89,16 +100,6 @@ hexdigit      [a-fA-F0-9]
 alphanum      [a-z_A-Z$_0-9]
 alphanumcolon [a-z_A-Z$_0-9:@]
 blank         [ \t\r]
-slash         [/]
-star          [*]
-percent       [%]
-lcurly        [\{]
-rcurly        [\}]
-dot           [\.]
-hexpairs      ({hexdigit}{hexdigit})+
-err_hexpairs  {hexdigit}({hexdigit}{hexdigit})*
-xpathchars    [a-z_A-Z$_0-9:/\[\]@=!]
-xpathseq      ([^}\r\n])+
 
 lower_letter [a-z]
 upper_letter [A-Z]
@@ -106,43 +107,63 @@ upper_alphanum [A-Z$_0-9]
 
 %x COMMENT
 %x SLCOMMENT
+%x PRODUCTION
 
 %%
 
 "/*"                     { BEGIN(COMMENT); }
-<COMMENT>[^*/]           { }
+<COMMENT>[^*\n]+         { }
+<COMMENT>\n              { }
 <COMMENT>"*"             { }
 <COMMENT>"*/"            { BEGIN(0); }
 
 "//"                     { BEGIN(SLCOMMENT); }
 <SLCOMMENT>[^\n]+        { BEGIN(0); }
 
-
-"_"{0,2}{lower_letter}{alphanum}* {
-                         setNonTerminal(yylval, yytext, yylineno); return NONTERMINAL;
-                       }
-#?"'"?"_"{0,2}{upper_letter}{upper_alphanum}*"'"? { ;
+#?"'"?"_"{0,2}{upper_alphanum}*"'"? { ;
                          setTerminal(yylval, yytext, yylineno); return TERMINAL;
                        }
 
-"'"."'"                  { setTerminal(yylval, yytext, yylineno); return TERMINAL; }
-.*"%%"                   { return STUFF; }
-"%%".*                   { return STUFF; }
+"_"{0,2}{alphanum}* {
+                         setNonTerminal(yylval, yytext, yylineno); return NONTERMINAL;
+                       }
 
-\{[\s\S]*\}                   { setProduction(yylval, yytext, yylineno); return CODE; }
+
+"'"."'"                  { setTerminal(yylval, yytext, yylineno); return TERMINAL; }
+
+"\{"                     { BEGIN(PRODUCTION); productionLineNo = yylineno; }
+<PRODUCTION>"\{"         { nestCounter++; productionLexeme(yytext); }
+<PRODUCTION>[^}\n]       { productionText.append(yytext); }
+<PRODUCTION>\n           { productionText.append("\\n"); }
+<PRODUCTION>"\}"         {
+                            if(!nestCounter)
+                            {
+                                setProduction(yylval, productionText.data(), productionLineNo);
+                                productionText.clear();
+                                productionLineNo = 0; // helpfull for debugging this code.
+                                BEGIN(0);
+                                return CODE;
+                            }
+                            else
+                            {
+                                nestCounter--;
+                                productionLexeme(yytext);
+                            }
+                          }
+
+
+  /*    "\{"(.|\n)+/"\}"               { setProduction(yylval, yytext, yylineno); return CODE; }   */
 
 "%prec"                  { setLex; return PREC; }
 ":"                      { setLex; return ':'; }
 ","                      { setLex; return ','; }
 ";"                      { setLex; return ';'; }
 "|"                      { setLex; return '|'; }
-"{"                      { setLex; return '{'; }
-"}"                      { setLex; return '}'; }
 
 \n                       { }
 {blank}+                 { }
 
-.                        { }
+ /*.                        { }*/
 %%
 
 int yyerror(const char *msg) {

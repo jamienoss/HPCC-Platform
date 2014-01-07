@@ -21,7 +21,6 @@
 %parse-param {yyscan_t scanner }
 %lex-param {yyscan_t scanner}
 
-
 %{
 class TokenData;
 class SyntaxTree;
@@ -53,8 +52,6 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
 %token <returnToken>
     '{'
     '}'
-    '('
-    ')'
     ','
     ':'
     ';'
@@ -108,27 +105,40 @@ grammar_rules
                                         temp->transferChildren($3);
                                         $$->addChild(temp);
                                     }
+    | grammar_rules '|'
+                                    {
+                                        $$ = $1;
+                                        SyntaxTree * temp = temp->createSyntaxTree($2);
+                                        $$->addChild(temp);
+                                    }
     | ':' terminal_productions      {
                                         $$ = $$->createSyntaxTree();
                                         SyntaxTree * temp = temp->createSyntaxTree($1);
                                         temp->transferChildren($2);
                                         $$->addChild(temp);
                                     }
+    | ':'                           {
+                                        $$ = $$->createSyntaxTree();
+                                        SyntaxTree * temp = temp->createSyntaxTree($1);
+                                        $$->addChild(temp);
+                                    }
     ;
 
 terminal_productions
     : terminal_list                 { $$ = $1; }
-    | terminal_list production      { $$ = $1; $$->addChild($2); }
+  //  | terminal_list production      { $$ = $1; $$->addChild($2); }
+  //  | production                    { $$ = $$->createSyntaxTree(); $$->addChild($1); }
     ;
 
 production
-    : CODE                          { $$ = $$->createSyntaxTree($1); }
+    : CODE                          { $$ = $$->createSyntaxTree($1); /*std::cout << $$->getLexeme() << "\n";*/ }
     ;
 
 terminals
     : NONTERMINAL                   { $$ = $$->createSyntaxTree($1); }
     | TERMINAL                      { $$ = $$->createSyntaxTree($1); }
     | PREC                          { $$ = $$->createSyntaxTree($1); }
+    | production                    { $$ = $1; }
     ;
 
 terminal_list

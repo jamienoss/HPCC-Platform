@@ -261,24 +261,13 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
         temp->data->extractSymbols(symbolList);
     }
 
-    /*
-    unsigned n = getAuxLength();
-    if(n > 0)
-    {
-        for (unsigned i = 0; i < n; ++i)
-        {
-            aux[i]->extractSymbols(symbolList);
-        }
-    }
-    */
-
     // add only new symbols
     unsigned m = symbolList.size();
     std::string lexeme;
     switch(attributes.attributeKind)
     {
-    //case terminalKind :
-    case nonTerminalKind :
+    case terminalKind :
+    //case nonTerminalKind :
     {
         lexeme = getLexeme();
         for (unsigned i = 0; i < m; ++i)
