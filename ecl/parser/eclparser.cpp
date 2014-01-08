@@ -77,6 +77,8 @@ void EclParser::analyseGrammar(SyntaxTree * tree)
     printStringVector(terminalSymbols);
 
 
+
+
 }
 
 void EclParser::createSymbolList(SyntaxTree *  tree, std::vector <std::string> & symbolList)

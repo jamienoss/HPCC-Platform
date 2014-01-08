@@ -112,13 +112,13 @@ upper_alphanum [A-Z$_0-9]
 %x COMMENT
 %x SLCOMMENT
 %x PRODUCTION
-
 %x BISON
 
 %%
 
 "%%"                     { BEGIN(BISON); }
 <BISON>"%%"              { BEGIN(0); }
+
 <BISON>"/*"              { BEGIN(COMMENT); }
 <COMMENT>[^*\n]+         { }
 <COMMENT>\n              { }
@@ -141,14 +141,16 @@ upper_alphanum [A-Z$_0-9]
 
 <BISON>"\{"              { BEGIN(PRODUCTION); productionLineNo = yylineno; }
 <PRODUCTION>"\{"         { nestCounter++; productionLexeme(yytext); }
-<PRODUCTION>[^}\n]       { productionText.append(yytext); }
+<PRODUCTION>[^\t }\n\"]+ { productionText.append(yytext); }
+<PRODUCTION>[ \t]+       { }
+<PRODUCTION>\"           { productionText.append("\\\""); }
 <PRODUCTION>\n           { productionText.append("\\n"); }
 <PRODUCTION>"\}"         {
                             if(!nestCounter)
                             {
                                 setProduction(yylval, productionText.data(), productionLineNo);
                                 productionText.clear();
-                                productionLineNo = 0; // helpfull for debugging this code.
+                                productionLineNo = 0; // helpful for debugging this code.
                                 BEGIN(BISON);
                                 return CODE;
                             }

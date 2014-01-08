@@ -100,7 +100,7 @@ grammar_item
 
 grammar_rule
     : NONTERMINAL grammar_rules ';'
-                                    { $$ = $$->createSyntaxTree($1); $$->transferChildren($2);}
+                                    { $1.setKind(nonTerminalDefKind); $$ = $$->createSyntaxTree($1); $$->transferChildren($2);}
     ;
 
 grammar_rules

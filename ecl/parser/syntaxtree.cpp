@@ -266,7 +266,7 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
     std::string lexeme;
     switch(attributes.attributeKind)
     {
-    case terminalKind :
+    //case terminalKind :
     //case nonTerminalKind :
     {
         lexeme = getLexeme();
@@ -275,6 +275,12 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
             if(!symbolList[i].compare(lexeme))
                 return;
         }
+        symbolList.push_back(lexeme);
+        break;
+    }
+    case nonTerminalDefKind :
+    {
+        lexeme = getLexeme();
         symbolList.push_back(lexeme);
         break;
     }

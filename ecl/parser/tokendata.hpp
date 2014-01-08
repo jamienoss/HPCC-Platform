@@ -31,6 +31,7 @@ enum symbolKind
 	lexemeKind,
     terminalKind,
     nonTerminalKind,
+    nonTerminalDefKind,
     productionKind
 };
 //----------------------------------TokenData--------------------------------------------------------------------
@@ -49,6 +50,7 @@ public:
 	};
 
 	void cpy(TokenData tok);
+	void setKind(symbolKind kind);
 };
 
 #endif

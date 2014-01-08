@@ -1,5 +1,6 @@
 #include "tokendata.hpp"
 #include <cstring>
+#include <iostream>
 
 void TokenData::cpy(TokenData tok) // Discuss with Gavin. At present this is implemented to allow for char * lexeme
 {
@@ -8,6 +9,7 @@ void TokenData::cpy(TokenData tok) // Discuss with Gavin. At present this is imp
 	case lexemeKind :
 	case terminalKind :
 	case nonTerminalKind :
+	case nonTerminalDefKind :
 	case productionKind  :
 	            {
 		unsigned txtLen = strlen(tok.lexeme) + 1;
@@ -21,4 +23,9 @@ void TokenData::cpy(TokenData tok) // Discuss with Gavin. At present this is imp
 
 	lineNumber = tok.lineNumber;
 	attributeKind = tok.attributeKind;
+}
+
+void TokenData::setKind(symbolKind kind)
+{
+    attributeKind = kind;
 }
