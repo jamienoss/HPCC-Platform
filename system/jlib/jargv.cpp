@@ -142,8 +142,7 @@ bool ArgvIterator::matchOption(unsigned & value, const char * name)
 bool ArgvIterator::matchFlag(StringAttr & value, const char * name)
 {
     const char * arg = query();
-    //size_t len = strlen(name);
-    size_t len = strlen(arg);
+    size_t len = strlen(name);
     if (memcmp(arg, name, len) != 0)
         return false;
 

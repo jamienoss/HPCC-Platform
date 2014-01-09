@@ -49,7 +49,7 @@ public:
     int parse();
 
     void analyseGrammar();
-    void createSymbolList(SyntaxTree * tree, std::vector <std::string> & symbolList);
+    void createSymbolList(SyntaxTree * tree, std::vector <std::string> & symbolList, symbolKind kind);
 
 private:
     AnalyserLexer * lexer;

@@ -73,17 +73,18 @@ void printStringVector(std::vector <std::string> vector);
 void AnalyserParser::analyseGrammar()
 {
     std::vector <std::string> terminalSymbols;
-    createSymbolList(ast, terminalSymbols);
+    createSymbolList(ast, terminalSymbols, nonTerminalDefKind);
     printStringVector(terminalSymbols);
 
+    //ast->printTree();
 
 
 
 }
 
-void AnalyserParser::createSymbolList(SyntaxTree *  tree, std::vector <std::string> & symbolList)
+void AnalyserParser::createSymbolList(SyntaxTree *  tree, std::vector <std::string> & symbolList, symbolKind kind)
 {
-    tree->extractSymbols(symbolList);
+    tree->extractSymbols(symbolList, kind);
 
 }
 

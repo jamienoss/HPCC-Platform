@@ -60,7 +60,7 @@ public:
 
     const char * getLexeme();
 
-    void extractSymbols(std::vector <std::string> & symbolList);
+    void extractSymbols(std::vector <std::string> & symbolList, symbolKind kind);
 
 private:
     SyntaxTree();

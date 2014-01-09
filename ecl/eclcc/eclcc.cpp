@@ -1004,7 +1004,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
 
-    bool analyseGrammar = instance.wu->getDebugValueBool("analysegrammar", false);
+    bool analyseGrammar = instance.wu->getDebugValueBool("grammaranalysis", false);
     if (analyseGrammar)
     {
         AnalyserParser * parser = new AnalyserParser(queryContents);
@@ -1859,9 +1859,9 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         {
              setDebugOption("printSyntaxTree", tempBool);
         }
-        else if (iter.matchFlag(tempBool, "-analysegrammar"))
+        else if (iter.matchFlag(tempBool, "-grammaranalysis"))
         {
-             setDebugOption("analysegrammar", tempBool);
+             setDebugOption("grammaranalysis", tempBool);
         }
         else if (iter.matchOption(optIniFilename, "-specs"))
         {

@@ -242,48 +242,52 @@ void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better na
     delete node;
 }
 
-void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList)
+void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, symbolKind kind)
 {
     if(left)
-        left->extractSymbols(symbolList);
+        left->extractSymbols(symbolList, kind);
     if(right)
-        right->extractSymbols(symbolList);
+        right->extractSymbols(symbolList, kind);
 
     if(children)
     {
         linkedSTlist * temp = children;
         while(temp->next)
         {
-            temp->data->extractSymbols(symbolList);
+            temp->data->extractSymbols(symbolList, kind);
             temp = temp->next;
         }
         //last node
-        temp->data->extractSymbols(symbolList);
+        temp->data->extractSymbols(symbolList, kind);
     }
 
     // add only new symbols
     unsigned m = symbolList.size();
     std::string lexeme;
-    switch(attributes.attributeKind)
+    symbolKind nodeKind = attributes.attributeKind;
+    if(nodeKind == kind)
     {
-    //case terminalKind :
-    //case nonTerminalKind :
-    {
-        lexeme = getLexeme();
-        for (unsigned i = 0; i < m; ++i)
+        switch(nodeKind)
         {
-            if(!symbolList[i].compare(lexeme))
-                return;
+           case terminalKind :
+           case nonTerminalKind :
+           {
+               lexeme = getLexeme();
+               for (unsigned i = 0; i < m; ++i)
+               {
+                   if(!symbolList[i].compare(lexeme))
+                       return;
+               }
+               symbolList.push_back(lexeme);
+               break;
+           }
+           case nonTerminalDefKind :
+           {
+               lexeme = getLexeme();
+               symbolList.push_back(lexeme);
+               break;
+           }
         }
-        symbolList.push_back(lexeme);
-        break;
-    }
-    case nonTerminalDefKind :
-    {
-        lexeme = getLexeme();
-        symbolList.push_back(lexeme);
-        break;
-    }
     }
 }
 
