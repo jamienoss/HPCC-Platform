@@ -15,30 +15,32 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 ############################################################################## */
-#ifndef ECLPARSER_HPP
-#define ECLPARSER_HPP
+#ifndef ANALYSERPARSER_HPP
+#define ANALYSERPARSER_HPP
 
 #include "platform.h"
 #include "jhash.hpp"
 #include "hqlexpr.hpp"  // MORE: Split IFileContents out of this file
 #include "syntaxtree.hpp"
+#include <vector>
+#include <string>
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
 typedef void* yyscan_t;
 #endif
 
-class EclParser;
-class EclLexer;
+class AnalyserParser;
+class AnalyserLexer;
 
-//----------------------------------EclParser--------------------------------------------------------------------
-class EclParser
+//----------------------------------AnalyserParser--------------------------------------------------------------------
+class AnalyserParser
 {
-    friend int ecl2yyparse(EclParser * parser, yyscan_t scanner);
+    friend int ecl3yyparse(AnalyserParser * parser, yyscan_t scanner);
 
 public:
-    EclParser(IFileContents * queryContents);
-    ~EclParser();
+    AnalyserParser(IFileContents * queryContents);
+    ~AnalyserParser();
     SyntaxTree * releaseAST();
 
 
@@ -46,20 +48,23 @@ public:
     bool printAST();
     int parse();
 
+    void analyseGrammar();
+    void createSymbolList(SyntaxTree * tree, std::vector <std::string> & symbolList);
+
 private:
-    EclLexer * lexer;
+    AnalyserLexer * lexer;
     SyntaxTree * ast;
 
     void init(IFileContents * queryContents);
 };
-//----------------------------------EclLexer--------------------------------------------------------------------
-class EclLexer
+//----------------------------------AnalyserLexer--------------------------------------------------------------------
+class AnalyserLexer
 {
 public:
-    EclLexer(IFileContents * queryContents);
-    ~EclLexer();
+    AnalyserLexer(IFileContents * queryContents);
+    ~AnalyserLexer();
 
-    int parse(EclParser * parser);
+    int parse(AnalyserParser * parser);
 
 private:
     yyscan_t scanner;

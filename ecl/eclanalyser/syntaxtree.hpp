@@ -19,13 +19,15 @@
 #define SYNTAXTREE_HPP
 
 #include "tokendata.hpp"
+#include <string>
+#include <vector>
 
 class linkedSTlist;
+
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 class SyntaxTree
 {
-
 
 public:
     SyntaxTree * createSyntaxTree();
@@ -55,9 +57,10 @@ public:
     void addChild(SyntaxTree * addition);
     SyntaxTree ** releaseAux();
     void transferChildren(SyntaxTree * node);
-    bool isAux();
 
-    unsigned getAuxLength();
+    const char * getLexeme();
+
+    void extractSymbols(std::vector <std::string> & symbolList);
 
 private:
     SyntaxTree();
@@ -68,9 +71,9 @@ private:
 
     SyntaxTree * left;
     SyntaxTree * right;
+    linkedSTlist * children;
 
     //SyntaxTree ** aux;
-    linkedSTlist * children;
     //int auxLength;
 };
 
@@ -97,7 +100,6 @@ private:
     SyntaxTree * data;
     linkedSTlist * next;
 };
-
 
 
 #endif

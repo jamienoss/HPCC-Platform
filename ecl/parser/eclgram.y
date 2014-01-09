@@ -16,11 +16,11 @@
 
 %define api.pure
 %name-prefix "ecl2yy"
-%error-verbose
 
 %parse-param {EclParser * parser}
 %parse-param {yyscan_t scanner }
 %lex-param {yyscan_t scanner}
+
 
 %{
 class TokenData;
@@ -34,16 +34,11 @@ class EclLexer;
 #include "ecllex.hpp"
 #include <iostream>
 
-int yyerror(EclParser * parser, yyscan_t scanner, const char *msg);
-int syntaxerror(const char *msg, short yystate, YYSTYPE token);
-#define ecl2yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval)
-
-int syntaxerror(const char *msg, short yystate, YYSTYPE token)
-{
-    std::cout << msg <<  " on line "  << token.returnToken.lineNumber <<  "\n";
+int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
+    //std::cout << *msg << "\n";
+    std::cout << "Doh! Incorrect syntax\n";
     return 0;
 }
-
 
 %}
 
@@ -56,100 +51,189 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 //=========================================== tokens ====================================
 
 %token <returnToken>
+    '['
+    ']'
     '{'
     '}'
+    '('
+    ')'
     ','
-    ':'
+    '$'
     ';'
-    '|'
-
-    CODE
-    DOUBLE_PERCENT
-    NONTERMINAL
-    PREC
-    STUFF
-    TERMINAL
-
+    AS
+    ASSIGN
+    DIR
+    DIVIDE
+    END
+    FROM
+    ID
+    IMPORT
+    INTEGER
+    PLUS
+    MINUS
+    MULTIPLY
+    REAL
+    RECORD
+    UNSIGNED
 
     YY_LAST_TOKEN
 
 %type <treeNode>
-    grammar_item
-    grammar_rule
-    grammar_rules
-    production
-    terminals
-    terminal_list
-    terminal_productions
-
+    eclQuery
+    expr
+    expr_list
+    fields
+    imports
+    inline_recordset
+    lhs
+    line_of_code
+    module_from
+    module_list
+    module_symbols
+    records
+    recordset
+    rhs
+    set
+    type
 
 %left '.'
+%left '('
 %left '{'
+%left '['
+%left DIVIDE
+%left MINUS
+%left MULTIPLY
+%left PLUS
 
 %%
-//================================== beginning of syntax section ==========================
+//================================== begin of syntax section ==========================
 
-bison_file
-    : grammar_item       { parser->setRoot($1); }
+code
+    : eclQuery                      { parser->setRoot($1); }
     ;
 
-grammar_item
-    : grammar_item grammar_rule     { $$ = $1; $$->addChild($2); }
-    | grammar_rule                  { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+eclQuery
+    : line_of_code ';'              { $$ = $$->createSyntaxTree($2); $$->setLeft($1); }
+    |  eclQuery line_of_code ';'    { $$ = $$->createSyntaxTree($3, $2, $1); }
     ;
 
-grammar_rule
-    : NONTERMINAL grammar_rules ';'
-                                    { $1.setKind(nonTerminalDefKind); $$ = $$->createSyntaxTree($1); $$->transferChildren($2);}
+line_of_code
+    : expr                          { $$ = $1; }
+    | IMPORT imports                { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
+    | lhs ASSIGN rhs                { $$ = $$->createSyntaxTree($2); $$->bifurcate($1, $3); }
     ;
 
-grammar_rules
-    : grammar_rules '|' terminal_productions
+//-----------Listed Alphabetical from here on in------------------------------------------
+
+expr
+    : expr PLUS expr                { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | expr MINUS expr               { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | expr MULTIPLY expr            { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | expr DIVIDE expr              { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | UNSIGNED                      { $$ = $$->createSyntaxTree($1); }
+    | REAL                          { $$ = $$->createSyntaxTree($1); }
+    | ID                            { $$ = $$->createSyntaxTree($1); }
+    | set                           { $$ = $1; }
+    | ID '(' expr_list ')'          { $$ = $$->createSyntaxTree($1, $2, $4); $$->transferChildren($3); }
+    | '(' expr ')'                  { $$ = $2; }
+    ;
+
+expr_list
+    : expr_list ',' expr            { $$ = $1; $$->addChild($3); }
+    | expr                          { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+    ;
+
+fields
+    : fields type ID ';'
                                     {
                                         $$ = $1;
-                                        SyntaxTree * temp = temp->createSyntaxTree($2);
-                                        temp->transferChildren($3);
-                                        $$->addChild(temp);
+                                        SyntaxTree * newField = newField->createSyntaxTree($4, $2, $3);
+                                        $$->addChild( newField );
                                     }
-    | grammar_rules '|'
+    | type ID ';'
                                     {
-                                        $$ = $1;
+                                        $$ = $$->createSyntaxTree();
+                                        SyntaxTree * newField = newField->createSyntaxTree($3, $1, $2);
+                                        $$->addChild( newField );
+                                    }
+    ;
+
+imports
+    : module_list                   { $$ = $1; }
+    | ID AS ID                      {   // folder AS alias
+                                        $$ = $$->createSyntaxTree();
+                                        SyntaxTree * temp = temp->createSyntaxTree($1);
+                                        $$->addChild(temp);
+                                        temp = temp->createSyntaxTree($2);
+                                        temp->setRight($3);
+                                        $$->addChild(temp);
+                                    }
+    | module_list FROM  module_from
+                                    {
+                                        $$ = $$->createSyntaxTree();
                                         SyntaxTree * temp = temp->createSyntaxTree($2);
+                                        temp->setRight($3);
+                                        $$->transferChildren($1);
                                         $$->addChild(temp);
-                                    }
-    | ':' terminal_productions      {
-                                        $$ = $$->createSyntaxTree();
-                                        SyntaxTree * temp = temp->createSyntaxTree($1);
-                                        temp->transferChildren($2);
-                                        $$->addChild(temp);
-                                    }
-    | ':'                           {
-                                        $$ = $$->createSyntaxTree();
-                                        SyntaxTree * temp = temp->createSyntaxTree($1);
-                                        $$->addChild(temp);
-                                    }
+                                     }
+
+//  r/r error with ID in module_list  | ID                            { } // language - can this not be listed in module_list?
     ;
 
-terminal_productions
-    : terminal_list                 { $$ = $1; }
-  //  | terminal_list production      { $$ = $1; $$->addChild($2); }
-  //  | production                    { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+inline_field
+    : ID
+    | INTEGER
     ;
 
-production
-    : CODE                          { $$ = $$->createSyntaxTree($1); /*std::cout << $$->getLexeme() << "\n";*/ }
+inline_fields
+    : records                       { }
+    | inline_field
     ;
 
-terminals
-    : NONTERMINAL                   { $$ = $$->createSyntaxTree($1); }
-    | TERMINAL                      { $$ = $$->createSyntaxTree($1); }
-    | PREC                          { $$ = $$->createSyntaxTree($1); }
-    | production                    { $$ = $1; }
+lhs
+    : ID                            { $$ = $$->createSyntaxTree($1); }
     ;
 
-terminal_list
-    : terminal_list terminals       { $$ = $1; $$->addChild($2); }
-    | terminals                     { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+module_from
+    : ID                            { $$ = $$->createSyntaxTree($1); }
+    | DIR                           { $$ = $$->createSyntaxTree($1); }
+    ;
+
+module_list
+    : module_list ',' module_symbols
+                                    { $$ = $1; $$->addChild( $3 ); }
+    | module_symbols                { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+    ;
+
+module_symbols
+    : ID                            { $$ = $$->createSyntaxTree($1); }
+    | '$'                           { $$ = $$->createSyntaxTree($1); }
+    ;
+
+inline_recordset
+    : '{' inline_fields '}'         { }
+    ;
+
+records
+    :                               { }
+    ;
+
+recordset
+    : RECORD fields END             { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
+    ;
+
+rhs
+    : expr                          { $$ = $1; }
+    | recordset                     { $$ = $1; }
+    | inline_recordset              { $$ = $1; }
+    ;
+
+set
+    : '[' records ']'               { $$ = $$->createSyntaxTree(); $$->transferChildren($2); }
+    ;
+
+type
+    : ID                            { $$ = $$->createSyntaxTree($1); }
     ;
 
 %%

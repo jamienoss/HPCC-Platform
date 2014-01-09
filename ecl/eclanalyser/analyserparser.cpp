@@ -17,21 +17,21 @@
 
 #include "platform.h"
 #include "jfile.hpp"
-#include "eclparser.hpp"
+#include "analyserparser.hpp"
 #include <iostream>
-#include "eclgram.h"
-#include "ecllex.hpp"
+#include "bisongram.h"
+#include "bisonlex.hpp"
 #include "syntaxtree.hpp"
 
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
-EclParser::EclParser(IFileContents * queryContents)
+AnalyserParser::AnalyserParser(IFileContents * queryContents)
 {
     init(queryContents);
 }
 
-EclParser::~EclParser()
+AnalyserParser::~AnalyserParser()
 {
 	if (lexer)
 		delete lexer;
@@ -39,47 +39,77 @@ EclParser::~EclParser()
         delete ast;
 }
 
-int EclParser::parse()
+int AnalyserParser::parse()
 {
 	return lexer->parse(this);
 }
 
-void EclParser::init(IFileContents * queryContents)
+void AnalyserParser::init(IFileContents * queryContents)
 {
-    lexer = new EclLexer(queryContents);
+    lexer = new AnalyserLexer(queryContents);
     ast = ast->createSyntaxTree();
 }
 
-void EclParser::setRoot(SyntaxTree * node)
+void AnalyserParser::setRoot(SyntaxTree * node)
 {
 	ast = node;
+	node = NULL;
 }
 
-bool EclParser::printAST()
+bool AnalyserParser::printAST()
 {
 	return ast->printTree();
 }
 
-SyntaxTree * EclParser::releaseAST()
+SyntaxTree * AnalyserParser::releaseAST()
 {
 	SyntaxTree * temp = ast;
 	ast = NULL;
 	return temp;
 }
-//----------------------------------EclLexer--------------------------------------------------------------------
-EclLexer::EclLexer(IFileContents * queryContents)
+
+void printStringVector(std::vector <std::string> vector);
+
+void AnalyserParser::analyseGrammar()
+{
+    std::vector <std::string> terminalSymbols;
+    createSymbolList(ast, terminalSymbols);
+    printStringVector(terminalSymbols);
+
+
+
+
+}
+
+void AnalyserParser::createSymbolList(SyntaxTree *  tree, std::vector <std::string> & symbolList)
+{
+    tree->extractSymbols(symbolList);
+
+}
+
+void printStringVector(std::vector <std::string> vector)
+{
+    unsigned n = vector.size();
+    for (unsigned i = 0; i < n; ++i)
+    {
+        std::cout << vector[i] << "\n";
+    }
+}
+
+//----------------------------------AnalyserLexer--------------------------------------------------------------------
+AnalyserLexer::AnalyserLexer(IFileContents * queryContents)
 {
     init(queryContents);
 }
 
-EclLexer::~EclLexer()
+AnalyserLexer::~AnalyserLexer()
 {
-    ecl2yylex_destroy(scanner);
+    ecl3yylex_destroy(scanner);
     scanner = NULL;
     delete[] yyBuffer;
 }
 
-void EclLexer::init(IFileContents * _text)
+void AnalyserLexer::init(IFileContents * _text)
 {
     text.set(_text);
     size32_t len = _text->length();
@@ -88,16 +118,16 @@ void EclLexer::init(IFileContents * _text)
     yyBuffer[len] = '\0';
     yyBuffer[len+1] = '\0';
 
-    if (ecl2yylex_init(&scanner) != 0)
+    if (ecl3yylex_init(&scanner) != 0)
         std::cout << "uh-oh\n";
-    ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
+    ecl3yy_scan_buffer(yyBuffer, len+2, scanner);
 
     //std::cout << _text->queryFile()->queryFilename() << "\n";
     //std::cout << _text->querySourcePath()<< "\n";
 
 }
 
-int EclLexer::parse(EclParser * parser)
+int AnalyserLexer::parse(AnalyserParser * parser)
 {
-     return ecl2yyparse(parser, scanner);
+     return ecl3yyparse(parser, scanner);
 }

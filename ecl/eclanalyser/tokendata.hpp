@@ -28,7 +28,11 @@ enum symbolKind
 	integerKind,
 	unsignedKind,
 	realKind,
-	lexemeKind
+	lexemeKind,
+    terminalKind,
+    nonTerminalKind,
+    nonTerminalDefKind,
+    productionKind
 };
 //----------------------------------TokenData--------------------------------------------------------------------
 class TokenData
@@ -46,6 +50,7 @@ public:
 	};
 
 	void cpy(TokenData tok);
+	void setKind(symbolKind kind);
 };
 
 #endif

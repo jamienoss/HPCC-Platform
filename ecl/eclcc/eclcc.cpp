@@ -48,6 +48,7 @@
 #include "hqltrans.ipp"
 
 #include "eclparser.hpp"
+#include "analyserparser.hpp"
 
 #include "build-config.h"
 #include "rmtfile.hpp"
@@ -1003,6 +1004,17 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
 
+    bool analyseGrammar = instance.wu->getDebugValueBool("analysegrammar", false);
+    if (analyseGrammar)
+    {
+        AnalyserParser * parser = new AnalyserParser(queryContents);
+        if (!(parser->parse()))
+        {
+            parser->analyseGrammar();
+        }
+        throwUnexpected();
+    }
+
     bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
     if (printSyntaxTree) {
         EclParser * parser = new EclParser(queryContents);
@@ -1010,7 +1022,6 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
             SyntaxTree * AST = parser->releaseAST();
             delete parser;
             //AST->printTree();
-            parser->analyseGrammar(AST);
         }
         throwUnexpected();
 
@@ -1847,6 +1858,10 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         else if (iter.matchFlag(tempBool, "-printsyntaxtree"))
         {
              setDebugOption("printSyntaxTree", tempBool);
+        }
+        else if (iter.matchFlag(tempBool, "-analysegrammar"))
+        {
+             setDebugOption("analysegrammar", tempBool);
         }
         else if (iter.matchOption(optIniFilename, "-specs"))
         {
