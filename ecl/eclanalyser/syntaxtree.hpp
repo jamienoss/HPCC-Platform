@@ -18,6 +18,9 @@
 #ifndef SYNTAXTREE_HPP
 #define SYNTAXTREE_HPP
 
+//#include "jiface.hpp"
+#include"jlib.hpp"
+
 #include "tokendata.hpp"
 #include <string>
 #include <vector>
@@ -26,7 +29,7 @@ class linkedSTlist;
 
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
-class SyntaxTree
+class SyntaxTree : public CInterface
 {
 
 public:
@@ -74,7 +77,8 @@ private:
 
     SyntaxTree * left;
     SyntaxTree * right;
-    linkedSTlist * children;
+    //linkedSTlist * children;
+    CIArrayOf<SyntaxTree> * children;
 
     static std::vector <std::string> * symbolList;
 };

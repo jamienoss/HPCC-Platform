@@ -158,10 +158,7 @@ bool SyntaxTree::printTree()
 	unsigned parentNodeNum = n+1, nodeNum = n+1; // shifted beyond those reserved for nonTerminalDefKind
 
 	std::cout << "graph \"Abstract Syntax Tree\"\n{\nordering=out\n";
-
-
 	ioStat = printBranch(& parentNodeNum, & nodeNum);
-
 	std::cout << "}\n";
 	return ioStat;
 }
@@ -182,16 +179,11 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 
     if(children)
     {
-        linkedSTlist * temp = children;
-        while(temp->next)
+        ForEachItemIn(i,*children)
         {
-            printEdge(parentNodeNumm, *nodeNum, temp->data);
-            temp->data->printBranch(parentNodeNum, nodeNum);
-            temp = temp->next;
+            printEdge(parentNodeNumm, *nodeNum, &children->item(i));
+            children->item(i).printBranch(parentNodeNum, nodeNum);
         }
-        // print last node
-         printEdge(parentNodeNumm, *nodeNum, temp->data);
-         temp->data->printBranch(parentNodeNum, nodeNum);
     }
 
 	if (right)
@@ -308,10 +300,10 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 void SyntaxTree::addChild(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
     if(!children)
-            children = new linkedSTlist(addition);
-        else
-            children->push(addition);
-        addition = NULL;
+        children = new CIArrayOf<SyntaxTree>;
+
+    children->append(*addition);
+    addition = NULL;
 }
 
 void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
@@ -330,14 +322,8 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, symbolKi
 
     if(children)
     {
-        linkedSTlist * temp = children;
-        while(temp->next)
-        {
-            temp->data->extractSymbols(symbolList, kind);
-            temp = temp->next;
-        }
-        //last node
-        temp->data->extractSymbols(symbolList, kind);
+        ForEachItemIn(i,*children)
+            children->item(i).extractSymbols(symbolList, kind);
     }
 
     // add only new symbols
