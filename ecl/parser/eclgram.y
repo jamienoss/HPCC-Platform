@@ -16,6 +16,7 @@
 
 %define api.pure
 %name-prefix "ecl2yy"
+%error-verbose
 
 %parse-param {EclParser * parser}
 %parse-param {yyscan_t scanner }
@@ -34,9 +35,13 @@ class EclLexer;
 #include "ecllex.hpp"
 #include <iostream>
 
-int yyerror(EclParser * parser, yyscan_t scanner, const char *msg) {
-    //std::cout << *msg << "\n";
-    std::cout << "Doh! Incorrect syntax\n";
+int yyerror(EclParser * parser, yyscan_t scanner, const char *msg);
+int syntaxerror(const char *msg, short yystate, YYSTYPE token);
+#define ecl2yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval)
+
+int syntaxerror(const char *msg, short yystate, YYSTYPE token)
+{
+    std::cout << msg <<  " on line "  << token.returnToken.lineNumber <<  "\n";
     return 0;
 }
 

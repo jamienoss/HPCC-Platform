@@ -16,59 +16,59 @@
     limitations under the License.
 ############################################################################## */
 
-#include "syntaxtree.hpp"
+#include "asyntaxtree.hpp"
 #include "jstring.hpp"
 #include <iostream>
 #include <cstring>
 
-std::vector <std::string> * SyntaxTree::symbolList = NULL;
+std::vector <std::string> * ASyntaxTree::symbolList = NULL;
 
-//----------------------------------SyntaxTree--------------------------------------------------------------------
-SyntaxTree * SyntaxTree::createSyntaxTree()
+//----------------------------------ASyntaxTree--------------------------------------------------------------------
+ASyntaxTree * ASyntaxTree::createASyntaxTree()
 {
-    return new SyntaxTree();
+    return new ASyntaxTree();
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token)
+ASyntaxTree * ASyntaxTree::createASyntaxTree(TokenData & token)
 {
-    return new SyntaxTree(token);
+    return new ASyntaxTree(token);
 }
 
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
+ASyntaxTree * ASyntaxTree::createASyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
 {
-    SyntaxTree * temp = new SyntaxTree(parentTok);
+    ASyntaxTree * temp = new ASyntaxTree(parentTok);
     temp->setLeft(leftTok);
     temp->setRight(rightTok);
     return temp;
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok)
+ASyntaxTree * ASyntaxTree::createASyntaxTree(TokenData & parentTok, ASyntaxTree * leftBranch, TokenData & rightTok)
 {
-    SyntaxTree * temp = new SyntaxTree(parentTok);
+    ASyntaxTree * temp = new ASyntaxTree(parentTok);
     temp->setLeft(leftBranch);
     temp->setRight(rightTok);
     return temp;
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * rightBranch)
+ASyntaxTree * ASyntaxTree::createASyntaxTree(TokenData & parentTok, ASyntaxTree * leftBranch, ASyntaxTree * rightBranch)
 {
-    SyntaxTree * temp =  new SyntaxTree(parentTok);
+    ASyntaxTree * temp =  new ASyntaxTree(parentTok);
     temp->setLeft(leftBranch);
     temp->setRight(rightBranch);
     return temp;
 }
 
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token, SyntaxTree * tempAux)
+ASyntaxTree * ASyntaxTree::createASyntaxTree(TokenData & token, ASyntaxTree * tempAux)
 {
-    SyntaxTree * temp = new SyntaxTree(token);
+    ASyntaxTree * temp = new ASyntaxTree(token);
     temp->transferChildren(tempAux);
     return temp;
 }
 
 
-SyntaxTree::SyntaxTree()
+ASyntaxTree::ASyntaxTree()
 {
 	attributes.lineNumber = 0;
     left = NULL;
@@ -77,7 +77,7 @@ SyntaxTree::SyntaxTree()
     attributes.attributeKind = none;
 }
 
-SyntaxTree::SyntaxTree(TokenData & token)
+ASyntaxTree::ASyntaxTree(TokenData & token)
 {
 	attributes.cpy(token);
 	left = NULL;
@@ -85,7 +85,7 @@ SyntaxTree::SyntaxTree(TokenData & token)
     children = NULL;
 }
 
-SyntaxTree::~SyntaxTree()
+ASyntaxTree::~ASyntaxTree()
 {
      if (left)
          delete left;
@@ -104,54 +104,54 @@ SyntaxTree::~SyntaxTree()
      }
 }
 
-SyntaxTree * SyntaxTree::release()
+ASyntaxTree * ASyntaxTree::release()
 {
-	SyntaxTree * temp = this;
+	ASyntaxTree * temp = this;
 //	this = NULL;
 	return temp;
 }
 
-void SyntaxTree::setLeft(SyntaxTree * node)
+void ASyntaxTree::setLeft(ASyntaxTree * node)
 {
     left = node;
     node = NULL;
 }
 
-void SyntaxTree::setRight(SyntaxTree * node)
+void ASyntaxTree::setRight(ASyntaxTree * node)
 {
     right = node;
     node = NULL;
 }
 
-void SyntaxTree::setLeft(TokenData & token)
+void ASyntaxTree::setLeft(TokenData & token)
 {
-    left = createSyntaxTree(token);
+    left = createASyntaxTree(token);
 }
 
-void SyntaxTree::setRight(TokenData & token)
+void ASyntaxTree::setRight(TokenData & token)
 {
-    right = createSyntaxTree(token);
+    right = createASyntaxTree(token);
 }
 
-void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData & rightTok)
+void ASyntaxTree::bifurcate(ASyntaxTree * leftBranch, TokenData & rightTok)
 {
 	left = leftBranch;
 	setRight(rightTok);
 }
 
-void SyntaxTree::bifurcate(TokenData & leftTok, TokenData & rightTok)
+void ASyntaxTree::bifurcate(TokenData & leftTok, TokenData & rightTok)
 {
 	setLeft(leftTok);
 	setRight(rightTok);
 }
 
-void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
+void ASyntaxTree::bifurcate(ASyntaxTree * leftBranch, ASyntaxTree * rightBranch)
 {
 	left = leftBranch;
 	right = rightBranch;
 }
 
-bool SyntaxTree::printTree()
+bool ASyntaxTree::printTree()
 {
 	int ioStat;
 	unsigned n = symbolList->size();
@@ -163,7 +163,7 @@ bool SyntaxTree::printTree()
 	return ioStat;
 }
 
-bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
+bool  ASyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 {
 	bool ioStatL;
 	bool ioStatR;
@@ -195,7 +195,7 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 	return !(ioStatL && ioStatR);
 }
 
-bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, SyntaxTree * child)
+bool ASyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTree * child)
 {
     int tempParentNodeNum = (int)parentNodeNum;
     int tempNodeNum = (int)nodeNum;
@@ -245,7 +245,7 @@ bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, SyntaxTree 
 	return true;
 }
 
-bool SyntaxTree::printNode(unsigned * nodeNum)
+bool ASyntaxTree::printNode(unsigned * nodeNum)
 {
     symbolKind kind = attributes.attributeKind;
 
@@ -297,23 +297,23 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 	return true;
 }
 
-void SyntaxTree::addChild(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
+void ASyntaxTree::addChild(ASyntaxTree * addition)
 {
     if(!children)
-        children = new CIArrayOf<SyntaxTree>;
+        children = new CIArrayOf<ASyntaxTree>;
 
     children->append(*addition);
     addition = NULL;
 }
 
-void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
+void ASyntaxTree::transferChildren(ASyntaxTree * node) // come up with a better name!!!
 {
     children = node->children;
     node->children = NULL;
     delete node;
 }
 
-void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, symbolKind kind)
+void ASyntaxTree::extractSymbols(std::vector <std::string> & symbolList, symbolKind kind)
 {
     if(left)
         left->extractSymbols(symbolList, kind);
@@ -356,18 +356,18 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, symbolKi
     }
 }
 
-const char * SyntaxTree::getLexeme()
+const char * ASyntaxTree::getLexeme()
 {
     return attributes.lexeme;
 }
 
 
-void SyntaxTree::setSymbolList(std::vector <std::string> & list)
+void ASyntaxTree::setSymbolList(std::vector <std::string> & list)
 {
     symbolList = &list;
 }
 
-void SyntaxTree::printSymbolList()
+void ASyntaxTree::printSymbolList()
 {
     unsigned n = symbolList->size();
     for (unsigned i = 0; i < n; ++i)
@@ -376,7 +376,7 @@ void SyntaxTree::printSymbolList()
     }
 }
 
-symbolKind SyntaxTree::getKind()
+symbolKind ASyntaxTree::getKind()
 {
     return attributes.attributeKind;
 }
@@ -389,17 +389,17 @@ linkedSTlist::linkedSTlist()
     next = NULL;
 }
 
-linkedSTlist::linkedSTlist(SyntaxTree * node)
+linkedSTlist::linkedSTlist(ASyntaxTree * node)
 {
     data = node;
     next = NULL;
 }
 
-SyntaxTree * linkedSTlist::pop()
+ASyntaxTree * linkedSTlist::pop()
 {
    linkedSTlist * temp = this;
    linkedSTlist * tempB4 = NULL;
-   SyntaxTree * toReturn;
+   ASyntaxTree * toReturn;
 
    while(temp->next)
    {
@@ -419,7 +419,7 @@ linkedSTlist::~linkedSTlist()
         delete next;
 }
 
-void linkedSTlist::push(SyntaxTree * node)
+void linkedSTlist::push(ASyntaxTree * node)
 {
     if(next)
        next->push(node);
@@ -442,7 +442,7 @@ unsigned linkedSTlist::size()
     return count=1;
 }
 
-SyntaxTree * linkedSTlist::operator[](unsigned idx)
+ASyntaxTree * linkedSTlist::operator[](unsigned idx)
 {
     if(idx < 0 || idx > size())
         std::cout << "error: subscript out of bounds\n";

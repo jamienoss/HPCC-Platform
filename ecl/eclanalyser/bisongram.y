@@ -24,7 +24,7 @@
 
 %{
 class TokenData;
-class SyntaxTree;
+class ASyntaxTree;
 class AnlayserParser;
 class EclLexer;
 
@@ -50,7 +50,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 %union
 {
     TokenData returnToken;
-    SyntaxTree * treeNode;
+    ASyntaxTree * treeNode;
 }
 
 //=========================================== tokens ====================================
@@ -95,37 +95,37 @@ bison_file
 
 grammar_item
     : grammar_item grammar_rule     { $$ = $1; $$->addChild($2); }
-    | grammar_rule                  { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+    | grammar_rule                  { $$ = $$->createASyntaxTree(); $$->addChild($1); }
     ;
 
 grammar_rule
     : NONTERMINAL grammar_rules ';'
-                                    { $1.setKind(nonTerminalDefKind); $$ = $$->createSyntaxTree($1); $$->transferChildren($2);}
+                                    { $1.setKind(nonTerminalDefKind); $$ = $$->createASyntaxTree($1); $$->transferChildren($2);}
     ;
 
 grammar_rules
     : grammar_rules '|' terminal_productions
                                     {
                                         $$ = $1;
-                                        SyntaxTree * temp = temp->createSyntaxTree($2);
+                                        ASyntaxTree * temp = temp->createASyntaxTree($2);
                                         temp->transferChildren($3);
                                         $$->addChild(temp);
                                     }
     | grammar_rules '|'
                                     {
                                         $$ = $1;
-                                        SyntaxTree * temp = temp->createSyntaxTree($2);
+                                        ASyntaxTree * temp = temp->createASyntaxTree($2);
                                         $$->addChild(temp);
                                     }
     | ':' terminal_productions      {
-                                        $$ = $$->createSyntaxTree();
-                                        SyntaxTree * temp = temp->createSyntaxTree($1);
+                                        $$ = $$->createASyntaxTree();
+                                        ASyntaxTree * temp = temp->createASyntaxTree($1);
                                         temp->transferChildren($2);
                                         $$->addChild(temp);
                                     }
     | ':'                           {
-                                        $$ = $$->createSyntaxTree();
-                                        SyntaxTree * temp = temp->createSyntaxTree($1);
+                                        $$ = $$->createASyntaxTree();
+                                        ASyntaxTree * temp = temp->createASyntaxTree($1);
                                         $$->addChild(temp);
                                     }
     ;
@@ -133,23 +133,23 @@ grammar_rules
 terminal_productions
     : terminal_list                 { $$ = $1; }
   //  | terminal_list production      { $$ = $1; $$->addChild($2); }
-  //  | production                    { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+  //  | production                    { $$ = $$->createASyntaxTree(); $$->addChild($1); }
     ;
 
 production
-    : CODE                          { $$ = $$->createSyntaxTree($1); /*std::cout << $$->getLexeme() << "\n";*/ }
+    : CODE                          { $$ = $$->createASyntaxTree($1); /*std::cout << $$->getLexeme() << "\n";*/ }
     ;
 
 terminals
-    : NONTERMINAL                   { $$ = $$->createSyntaxTree($1); }
-    | TERMINAL                      { $$ = $$->createSyntaxTree($1); }
-    | PREC                          { $$ = $$->createSyntaxTree($1); }
+    : NONTERMINAL                   { $$ = $$->createASyntaxTree($1); }
+    | TERMINAL                      { $$ = $$->createASyntaxTree($1); }
+    | PREC                          { $$ = $$->createASyntaxTree($1); }
     | production                    { $$ = $1; }
     ;
 
 terminal_list
     : terminal_list terminals       { $$ = $1; $$->addChild($2); }
-    | terminals                     { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+    | terminals                     { $$ = $$->createASyntaxTree(); $$->addChild($1); }
     ;
 
 %%

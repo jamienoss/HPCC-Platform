@@ -25,6 +25,7 @@
 
 enum symbolKind
 {
+    none,
 	integerKind,
 	unsignedKind,
 	realKind,

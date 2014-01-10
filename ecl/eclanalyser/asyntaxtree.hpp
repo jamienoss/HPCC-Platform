@@ -15,8 +15,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 ############################################################################## */
-#ifndef SYNTAXTREE_HPP
-#define SYNTAXTREE_HPP
+#ifndef AASyntaxTree_HPP
+#define AASyntaxTree_HPP
 
 //#include "jiface.hpp"
 #include"jlib.hpp"
@@ -28,38 +28,38 @@
 class linkedSTlist;
 
 
-//----------------------------------SyntaxTree--------------------------------------------------------------------
-class SyntaxTree : public CInterface
+//----------------------------------ASyntaxTree--------------------------------------------------------------------
+class ASyntaxTree : public CInterface
 {
 
 public:
-    SyntaxTree * createSyntaxTree();
-    SyntaxTree * createSyntaxTree(TokenData & token);
-    SyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
-    SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
-    SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * righBranch);
-    SyntaxTree * createSyntaxTree(TokenData & token, SyntaxTree * tempAux);
-    ~SyntaxTree();
+    ASyntaxTree * createASyntaxTree();
+    ASyntaxTree * createASyntaxTree(TokenData & token);
+    ASyntaxTree * createASyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
+    ASyntaxTree * createASyntaxTree(TokenData & parentTok, ASyntaxTree * leftBranch, TokenData & rightTok);
+    ASyntaxTree * createASyntaxTree(TokenData & parentTok, ASyntaxTree * leftBranch, ASyntaxTree * righBranch);
+    ASyntaxTree * createASyntaxTree(TokenData & token, ASyntaxTree * tempAux);
+    ~ASyntaxTree();
 
-    SyntaxTree * release();
+    ASyntaxTree * release();
 
     bool printTree();
     bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum);
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, SyntaxTree * child);
+    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTree * child);
     bool printNode(unsigned * nodeNum);
 
-    void bifurcate(SyntaxTree * leftBranch, TokenData & rightTok);
-    void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch);
+    void bifurcate(ASyntaxTree * leftBranch, TokenData & rightTok);
+    void bifurcate(ASyntaxTree * leftBranch, ASyntaxTree * rightBranch);
     void bifurcate(TokenData & leftTok, TokenData & rightTok);
 
     void setLeft(TokenData & token);
-    void setLeft(SyntaxTree * node);
+    void setLeft(ASyntaxTree * node);
     void setRight(TokenData & token);
-    void setRight(SyntaxTree * node);
+    void setRight(ASyntaxTree * node);
 
-    void addChild(SyntaxTree * addition);
-    SyntaxTree ** releaseAux();
-    void transferChildren(SyntaxTree * node);
+    void addChild(ASyntaxTree * addition);
+    ASyntaxTree ** releaseAux();
+    void transferChildren(ASyntaxTree * node);
 
     const char * getLexeme();
     symbolKind getKind();
@@ -69,16 +69,16 @@ public:
     void printSymbolList();
 
 private:
-    SyntaxTree();
-    SyntaxTree(TokenData & token);
+    ASyntaxTree();
+    ASyntaxTree(TokenData & token);
 
 private:
     TokenData attributes;
 
-    SyntaxTree * left;
-    SyntaxTree * right;
+    ASyntaxTree * left;
+    ASyntaxTree * right;
     //linkedSTlist * children;
-    CIArrayOf<SyntaxTree> * children;
+    CIArrayOf<ASyntaxTree> * children;
 
     static std::vector <std::string> * symbolList;
 };
@@ -87,23 +87,23 @@ private:
 class linkedSTlist
 {
 
-    friend class SyntaxTree;
+    friend class ASyntaxTree;
 
 public:
     linkedSTlist();
     ~linkedSTlist();
-    void push(SyntaxTree * addition);
-    SyntaxTree * pop();
+    void push(ASyntaxTree * addition);
+    ASyntaxTree * pop();
     unsigned size();
 
-    SyntaxTree * operator[](unsigned idx);
+    ASyntaxTree * operator[](unsigned idx);
     // const value_type& operator[](index_type idx) const;
 
 private:
-    linkedSTlist(SyntaxTree * node);
+    linkedSTlist(ASyntaxTree * node);
 
 private:
-    SyntaxTree * data;
+    ASyntaxTree * data;
     linkedSTlist * next;
 };
 

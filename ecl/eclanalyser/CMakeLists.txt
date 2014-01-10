@@ -32,8 +32,8 @@ set (   SRCS
 
         tokendata.hpp
         tokendata.cpp
-        syntaxtree.hpp
-        syntaxtree.cpp
+        asyntaxtree.hpp
+        asyntaxtree.cpp
         analyserparser.hpp
         analyserparser.cpp
     )

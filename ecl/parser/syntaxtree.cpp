@@ -68,6 +68,7 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token, SyntaxTree * tempAu
 
 SyntaxTree::SyntaxTree()
 {
+    attributes.attributeKind = none;
 	attributes.lineNumber = 0;
     left = NULL;
     right = NULL;
@@ -206,7 +207,14 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 	default : std::cout << "KIND not yet defined!"; break;
 	}
 
-	std::cout << "\\nLine: " << attributes.lineNumber << "\"]\n";
+	std::cout << "\\nLine: " << attributes.lineNumber << "\" style=filled, color=";//]\n";
+	switch(kind)
+	{
+    case integerKind : std::cout << "\"0.66,0.5,1\""; break;
+	case lexemeKind : std::cout << "\"0.25,0.5,1\""; break;
+	}
+	std::cout << "]\n";
+
 	(*nodeNum)++;
 	return true;
 }

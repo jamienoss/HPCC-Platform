@@ -21,7 +21,7 @@
 #include <iostream>
 #include "bisongram.h"
 #include "bisonlex.hpp"
-#include "syntaxtree.hpp"
+//#include "ASyntaxTree.hpp"
 
 class IFile;
 
@@ -47,10 +47,10 @@ int AnalyserParser::parse()
 void AnalyserParser::init(IFileContents * queryContents)
 {
     lexer = new AnalyserLexer(queryContents);
-    ast = ast->createSyntaxTree();
+    ast = ast->createASyntaxTree();
 }
 
-void AnalyserParser::setRoot(SyntaxTree * node)
+void AnalyserParser::setRoot(ASyntaxTree * node)
 {
 	ast = node;
 	node = NULL;
@@ -61,9 +61,9 @@ bool AnalyserParser::printAST()
 	return ast->printTree();
 }
 
-SyntaxTree * AnalyserParser::releaseAST()
+ASyntaxTree * AnalyserParser::releaseAST()
 {
-	SyntaxTree * temp = ast;
+	ASyntaxTree * temp = ast;
 	ast = NULL;
 	return temp;
 }
@@ -84,7 +84,7 @@ void AnalyserParser::analyseGrammar()
 
 }
 
-void AnalyserParser::createSymbolList(SyntaxTree *  tree, std::vector <std::string> & symbolList, symbolKind kind)
+void AnalyserParser::createSymbolList(ASyntaxTree *  tree, std::vector <std::string> & symbolList, symbolKind kind)
 {
     tree->extractSymbols(symbolList, kind);
 

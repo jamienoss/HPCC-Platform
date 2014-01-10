@@ -21,7 +21,7 @@
 #include "platform.h"
 #include "jhash.hpp"
 #include "hqlexpr.hpp"  // MORE: Split IFileContents out of this file
-#include "syntaxtree.hpp"
+#include "asyntaxtree.hpp"
 #include <vector>
 #include <string>
 
@@ -41,20 +41,20 @@ class AnalyserParser
 public:
     AnalyserParser(IFileContents * queryContents);
     ~AnalyserParser();
-    SyntaxTree * releaseAST();
+    ASyntaxTree * releaseAST();
 
 
-    void setRoot(SyntaxTree * node);
+    void setRoot(ASyntaxTree * node);
     bool printAST();
     int parse();
 
     void analyseGrammar();
-    void createSymbolList(SyntaxTree * tree, std::vector <std::string> & symbolList, symbolKind kind);
+    void createSymbolList(ASyntaxTree * tree, std::vector <std::string> & symbolList, symbolKind kind);
     void printStringVector(std::vector <std::string> vector);
 
 private:
     AnalyserLexer * lexer;
-    SyntaxTree * ast;
+    ASyntaxTree * ast;
 
     void init(IFileContents * queryContents);
 };
