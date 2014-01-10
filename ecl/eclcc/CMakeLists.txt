@@ -38,6 +38,7 @@ include_directories (
          ./../../system/include
          ./../../ecl/hql
          ./../../ecl/parser
+         ./../../ecl/eclanalyser
          ./../../rtl/include
          ./../../system/jlib
          ./../../common/remote
@@ -62,6 +63,7 @@ target_link_libraries ( eclcc
          workunit
          thorhelper
          hql
+         eclanalyser
          parser
          hqlcpp
     )
