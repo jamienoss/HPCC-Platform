@@ -157,7 +157,7 @@ bool SyntaxTree::printTree()
 	unsigned n = symbolList->size();
 	unsigned parentNodeNum = n+1, nodeNum = n+1; // shifted beyond those reserved for nonTerminalDefKind
 
-	std::cout << "graph \"Abstract Syntax Tree\"\n{\n";
+	std::cout << "graph \"Abstract Syntax Tree\"\n{\nordering=out\n";
 
 
 	ioStat = printBranch(& parentNodeNum, & nodeNum);
@@ -244,7 +244,12 @@ bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, SyntaxTree 
         }
     }
     }
-	std::cout << tempParentNodeNum << " -- " << tempNodeNum << " [style = solid]\n";
+
+    if(tempParentNodeNum == tempNodeNum)
+        std::cout << tempParentNodeNum << " -- " << tempNodeNum << " [style = dashed]\n";
+    else
+        std::cout << tempParentNodeNum << " -- " << tempNodeNum << " [style = solid]\n";
+
 	return true;
 }
 
@@ -252,11 +257,9 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 {
     symbolKind kind = attributes.attributeKind;
 
-    if(kind == none)
-        return true;
-
     switch(kind)
     {
+    case none :
     case nonTerminalKind : return true;
     case nonTerminalDefKind :
     {
@@ -289,7 +292,16 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 	default : std::cout << "KIND not yet defined!"; break;
 	}
 
-	std::cout << "\\nLine: " << attributes.lineNumber << "\"]\n";
+	std::cout << "\\nLine: " << attributes.lineNumber << "\"";//]\n";
+	//set color
+	switch(kind)
+	{
+	case nonTerminalDefKind : std::cout << "style=filled, color=\"0.25,0.5,1\"]\n"; break;//green
+	case terminalKind : std::cout << "style=filled, color=\"0,0.5,1\"]\n"; break;//red
+    case productionKind : std::cout << "style=filled, color=\"0.66,0.5,1\", fontcolor=white]\n"; break;//blue
+	default : std::cout << "]\n";
+	}
+
 	return true;
 }
 
