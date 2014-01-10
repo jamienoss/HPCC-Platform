@@ -21,6 +21,7 @@
 #include <iostream>
 #include <cstring>
 
+std::vector <std::string> * SyntaxTree::symbolList = NULL;
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 SyntaxTree * SyntaxTree::createSyntaxTree()
@@ -73,6 +74,7 @@ SyntaxTree::SyntaxTree()
     left = NULL;
     right = NULL;
     children = NULL;
+    attributes.attributeKind = none;
 }
 
 SyntaxTree::SyntaxTree(TokenData & token)
@@ -81,7 +83,6 @@ SyntaxTree::SyntaxTree(TokenData & token)
 	left = NULL;
 	right = NULL;
     children = NULL;
-
 }
 
 SyntaxTree::~SyntaxTree()
@@ -153,10 +154,14 @@ void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
 bool SyntaxTree::printTree()
 {
 	int ioStat;
-	unsigned parentNodeNum = 0, nodeNum = 0;
+	unsigned n = symbolList->size();
+	unsigned parentNodeNum = n+1, nodeNum = n+1; // shifted beyond those reserved for nonTerminalDefKind
 
 	std::cout << "graph \"Abstract Syntax Tree\"\n{\n";
+
+
 	ioStat = printBranch(& parentNodeNum, & nodeNum);
+
 	std::cout << "}\n";
 	return ioStat;
 }
@@ -171,7 +176,7 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 
 	if (left)
 	{
-		printEdge(parentNodeNumm, *nodeNum);
+		printEdge(parentNodeNumm, *nodeNum, left);
 		ioStatL = left->printBranch(parentNodeNum, nodeNum);
 	}
 
@@ -180,49 +185,111 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
         linkedSTlist * temp = children;
         while(temp->next)
         {
-            printEdge(parentNodeNumm, *nodeNum);
+            printEdge(parentNodeNumm, *nodeNum, temp->data);
             temp->data->printBranch(parentNodeNum, nodeNum);
             temp = temp->next;
         }
         // print last node
-         printEdge(parentNodeNumm, *nodeNum);
+         printEdge(parentNodeNumm, *nodeNum, temp->data);
          temp->data->printBranch(parentNodeNum, nodeNum);
     }
 
 	if (right)
 	{
-		printEdge(parentNodeNumm, *nodeNum);
+		printEdge(parentNodeNumm, *nodeNum, right);
 		ioStatR = right->printBranch(parentNodeNum, nodeNum);
 	}
 
 	return !(ioStatL && ioStatR);
 }
 
-bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum)
+bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, SyntaxTree * child)
 {
-	//StringBuffer text;
-	//text.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
-	std::cout << parentNodeNum << " -- " << nodeNum << " [style = solid]\n";
+    int tempParentNodeNum = (int)parentNodeNum;
+    int tempNodeNum = (int)nodeNum;
+
+    if(attributes.attributeKind == none)
+        return true;
+
+    switch(attributes.attributeKind)
+    {
+    case nonTerminalKind :
+    case nonTerminalDefKind :
+    {
+        unsigned n = symbolList->size();
+        for (unsigned i = 0; i < n; ++i)
+        {
+            if(!(*symbolList)[i].compare(attributes.lexeme))
+            {
+                tempParentNodeNum = i;
+                break;
+            }
+        }
+    }
+    }
+
+    switch(child->attributes.attributeKind)
+    {
+    case nonTerminalKind :
+    case nonTerminalDefKind :
+    {
+        unsigned n = symbolList->size();
+        for (unsigned i = 0; i < n; ++i)
+        {
+            if(!(*symbolList)[i].compare(child->attributes.lexeme))
+            {
+                tempNodeNum = i;
+                break;
+            }
+        }
+    }
+    }
+	std::cout << tempParentNodeNum << " -- " << tempNodeNum << " [style = solid]\n";
 	return true;
 }
 
 bool SyntaxTree::printNode(unsigned * nodeNum)
 {
-	std::cout << *nodeNum << " [label = \"";
+    symbolKind kind = attributes.attributeKind;
 
-	symbolKind kind = attributes.attributeKind;
+    if(kind == none)
+        return true;
+
+    switch(kind)
+    {
+    case nonTerminalKind : return true;
+    case nonTerminalDefKind :
+    {
+        unsigned n = symbolList->size();
+        for (unsigned i = 0; i < n; ++i)
+        {
+            if(!(*symbolList)[i].compare(attributes.lexeme))
+            {
+                std::cout << i << " [label = \"";
+                break;
+            }
+        }
+        break;
+    }
+    default :
+    {
+        std::cout << *nodeNum << " [label = \"";
+        (*nodeNum)++;
+    }
+    }
+
 	switch(kind){
 	case integerKind : std::cout << attributes.integer; break;
 	case realKind : std::cout << attributes.real; break;
 	case lexemeKind:
 	case terminalKind :
     case nonTerminalKind :
+    case nonTerminalDefKind :
     case productionKind : std::cout << attributes.lexeme; break;
 	default : std::cout << "KIND not yet defined!"; break;
 	}
 
 	std::cout << "\\nLine: " << attributes.lineNumber << "\"]\n";
-	(*nodeNum)++;
 	return true;
 }
 
@@ -294,6 +361,26 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, symbolKi
 const char * SyntaxTree::getLexeme()
 {
     return attributes.lexeme;
+}
+
+
+void SyntaxTree::setSymbolList(std::vector <std::string> & list)
+{
+    symbolList = &list;
+}
+
+void SyntaxTree::printSymbolList()
+{
+    unsigned n = symbolList->size();
+    for (unsigned i = 0; i < n; ++i)
+    {
+        std::cout << (*symbolList)[i] << "\n";
+    }
+}
+
+symbolKind SyntaxTree::getKind()
+{
+    return attributes.attributeKind;
 }
 
 //----------------------------------linkedSTlist--------------------------------------------------------------------

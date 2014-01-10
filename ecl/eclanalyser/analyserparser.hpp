@@ -50,6 +50,7 @@ public:
 
     void analyseGrammar();
     void createSymbolList(SyntaxTree * tree, std::vector <std::string> & symbolList, symbolKind kind);
+    void printStringVector(std::vector <std::string> vector);
 
 private:
     AnalyserLexer * lexer;

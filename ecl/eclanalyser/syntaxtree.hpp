@@ -42,7 +42,7 @@ public:
 
     bool printTree();
     bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum);
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum);
+    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, SyntaxTree * child);
     bool printNode(unsigned * nodeNum);
 
     void bifurcate(SyntaxTree * leftBranch, TokenData & rightTok);
@@ -59,8 +59,11 @@ public:
     void transferChildren(SyntaxTree * node);
 
     const char * getLexeme();
+    symbolKind getKind();
 
     void extractSymbols(std::vector <std::string> & symbolList, symbolKind kind);
+    void setSymbolList(std::vector <std::string> & list);
+    void printSymbolList();
 
 private:
     SyntaxTree();
@@ -73,8 +76,7 @@ private:
     SyntaxTree * right;
     linkedSTlist * children;
 
-    //SyntaxTree ** aux;
-    //int auxLength;
+    static std::vector <std::string> * symbolList;
 };
 
 //----------------------------------linkeSTlist--------------------------------------------------------------------

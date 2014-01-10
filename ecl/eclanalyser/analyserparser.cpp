@@ -68,15 +68,17 @@ SyntaxTree * AnalyserParser::releaseAST()
 	return temp;
 }
 
-void printStringVector(std::vector <std::string> vector);
-
 void AnalyserParser::analyseGrammar()
 {
     std::vector <std::string> terminalSymbols;
     createSymbolList(ast, terminalSymbols, nonTerminalDefKind);
-    printStringVector(terminalSymbols);
+    //printStringVector(terminalSymbols);
 
-    //ast->printTree();
+    ast->setSymbolList(terminalSymbols);
+    //ast->printSymbolList();
+
+
+    ast->printTree();
 
 
 

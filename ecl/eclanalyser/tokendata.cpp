@@ -17,8 +17,9 @@ void TokenData::cpy(TokenData tok) // Discuss with Gavin. At present this is imp
 		memcpy(lexeme, tok.lexeme, txtLen);
 		break;
 	}
-	case integerKind : integer = tok.integer;
-	case realKind : real = tok.real;
+	case integerKind : integer = tok.integer; break;
+	case realKind : real = tok.real; break;
+	default : { }
 	}
 
 	lineNumber = tok.lineNumber;
