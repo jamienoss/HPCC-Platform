@@ -19,11 +19,12 @@
 #define SYNTAXTREE_HPP
 
 #include "tokendata.hpp"
+#include"jlib.hpp"
 
 class linkedSTlist;
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
-class SyntaxTree
+class SyntaxTree : public CInterface
 {
 
 
@@ -69,35 +70,7 @@ private:
     SyntaxTree * left;
     SyntaxTree * right;
 
-    //SyntaxTree ** aux;
-    linkedSTlist * children;
-    //int auxLength;
+    CIArrayOf<SyntaxTree> * children;
 };
-
-//----------------------------------linkeSTlist--------------------------------------------------------------------
-class linkedSTlist
-{
-
-    friend class SyntaxTree;
-
-public:
-    linkedSTlist();
-    ~linkedSTlist();
-    void push(SyntaxTree * addition);
-    SyntaxTree * pop();
-    unsigned size();
-
-    SyntaxTree * operator[](unsigned idx);
-    // const value_type& operator[](index_type idx) const;
-
-private:
-    linkedSTlist(SyntaxTree * node);
-
-private:
-    SyntaxTree * data;
-    linkedSTlist * next;
-};
-
-
 
 #endif

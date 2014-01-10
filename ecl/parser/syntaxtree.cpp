@@ -71,9 +71,6 @@ SyntaxTree::SyntaxTree()
 	attributes.lineNumber = 0;
     left = NULL;
     right = NULL;
-    //aux = NULL;
-    //auxLength = 0;
-
     children = NULL;
 }
 
@@ -82,9 +79,6 @@ SyntaxTree::SyntaxTree(TokenData & token)
 	attributes.cpy(token);
 	left = NULL;
 	right = NULL;
-    //aux = NULL;
-    //auxLength = 0;
-
     children = NULL;
 }
 
@@ -94,15 +88,7 @@ SyntaxTree::~SyntaxTree()
          delete left;
      if (right)
          delete right;
-     /*if (aux)
-     {
-         for ( int i = 0; i < auxLength; ++i)
-         {
-             delete aux[i];
-         }
-         delete[] aux;
-     }
-*/
+
      if(children)
          delete children;
 
@@ -184,29 +170,12 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 
 	if(children)
 	{
-	    linkedSTlist * temp = children;
-	    while(temp->next)
-	    {
-            printEdge(parentNodeNumm, *nodeNum);
-            temp->data->printBranch(parentNodeNum, nodeNum);
-            temp = temp->next;
-	    }
-	    // print last node
-	     printEdge(parentNodeNumm, *nodeNum);
-	     temp->data->printBranch(parentNodeNum, nodeNum);
+	    ForEachItemIn(i,*children)
+	            {
+	               printEdge(parentNodeNumm, *nodeNum);
+	               children->item(i).printBranch(parentNodeNum, nodeNum);
+	            }
 	}
-
-
-	/*
-	if (aux)
-	    {
-	        for (int i = 0; i < auxLength; ++i)
-	        {
-	            printEdge(parentNodeNumm, *nodeNum);
-	            aux[i]->printBranch(parentNodeNum, nodeNum);
-	        }
-	    }
-    */
 
 	if (right)
 	{
@@ -245,29 +214,10 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 void SyntaxTree::addChild(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
     if(!children)
-        children = new linkedSTlist(addition);
-    else
-        children->push(addition);
+            children = new CIArrayOf<SyntaxTree>;
+
+    children->append(*addition);
     addition = NULL;
-    return;
-
-
-	/*if (!aux) {
-		aux = new SyntaxTree * [1];
-	} else	{
-		SyntaxTree ** temp;
-		temp = new SyntaxTree * [auxLength + 1];
-		for(int i = 0; i < auxLength; ++i)
-		{
-			temp[i] = aux[i];
-		}
-		delete[] aux; //MORE: maybe recycle these?
-		aux = temp;
-		temp = NULL;
-	}
-
-	aux[auxLength++] = addition;//->release();
-	addition = NULL;*/
 }
 
 /*
@@ -298,79 +248,4 @@ void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better na
     aux = node->releaseAux();
     delete node;
     */
-}
-
-//----------------------------------linkedSTlist--------------------------------------------------------------------
-
-linkedSTlist::linkedSTlist()
-{
-    data = NULL;
-    next = NULL;
-}
-
-linkedSTlist::linkedSTlist(SyntaxTree * node)
-{
-    data = node;
-    next = NULL;
-}
-
-SyntaxTree * linkedSTlist::pop()
-{
-   linkedSTlist * temp = this;
-   linkedSTlist * tempB4 = NULL;
-   SyntaxTree * toReturn;
-
-   while(temp->next)
-   {
-       tempB4 = temp;
-       temp = temp->next;
-   }
-   toReturn = temp->data;
-   if(tempB4)
-       tempB4->next = NULL;
-   delete temp;
-   return toReturn;
-}
-
-linkedSTlist::~linkedSTlist()
-{
-    if(next)
-        delete next;
-}
-
-void linkedSTlist::push(SyntaxTree * node)
-{
-    if(next)
-       next->push(node);
-    else
-        next = new linkedSTlist(node);
-}
-
-unsigned linkedSTlist::size()
-{
-    if(!this)
-        return 0;
-
-    unsigned count = 0;
-    linkedSTlist * temp = this;
-    while(temp->next)
-    {
-        count++;
-        temp = temp->next;
-    }
-    return count=1;
-}
-
-SyntaxTree * linkedSTlist::operator[](unsigned idx)
-{
-    if(idx < 0 || idx > size())
-        std::cout << "error: subscript out of bounds\n";
-        return NULL;
-
-    linkedSTlist* temp = this;
-    for ( unsigned i = 0; i < idx; ++i)
-    {
-        temp = temp->next;
-    }
-    return temp->data;
 }
