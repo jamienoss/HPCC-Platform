@@ -19,6 +19,7 @@
 #ifndef TOKENDATA_HPP
 #define TOKENDATA_HPP
 
+#include "hql.hpp"
 //#include "eclgram.h"
 
 //extern YYTOKENTYPE;
@@ -35,7 +36,7 @@ enum symbolKind
 class TokenData
 {
 public:
-    //ECLlocation pos;
+    ECLlocation * pos;
 	unsigned lineNumber;
 	symbolKind attributeKind;
 	//yytokentype attributeKind;
@@ -47,6 +48,7 @@ public:
 	};
 
 	void cpy(TokenData tok);
+	void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 };
 
 #endif

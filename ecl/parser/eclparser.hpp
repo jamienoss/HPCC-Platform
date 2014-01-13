@@ -60,12 +60,17 @@ public:
     ~EclLexer();
 
     int parse(EclParser * parser);
+    void updatePos(unsigned delta);
+
+    int yyColumn;
+    int yyPosition;
+    Linked<ISourcePath> sourcePath;
 
 private:
     yyscan_t scanner;
     Owned<IFileContents> text;
     char *yyBuffer;
-    TokenData token;
+    //TokenData token;
 
     void init(IFileContents * queryContents);
 };

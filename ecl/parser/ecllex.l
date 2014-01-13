@@ -45,10 +45,15 @@ tokenVal->returnToken.attributeKind = lexemeKind;
 unsigned txtLen = strlen(tokenText)+1;
 tokenVal->returnToken.lexeme = new char [txtLen];
 memcpy(tokenVal->returnToken.lexeme, tokenText, txtLen);
-}
 
+
+//updatePos(txtLen);
+//tokenVal->returnToken.setEclLocations(lineno, yyColumn, yyPosition, sourcePath);
+
+}
 #define setInt setInt(yylval, yytext, yylineno)
 #define setLex setLex(yylval, yytext, yylineno)
+#define updatepos int i//updatePos(yyleng)
 
 %}
 
@@ -75,14 +80,14 @@ xpathseq      ([^}\r\n])+
 
 %%
 
-"/*"                     { BEGIN(COMMENT); }
-<COMMENT>[^*\n]+         { }
-<COMMENT>\n              { }
-<COMMENT>"*"             { }
-<COMMENT>"*/"            { BEGIN(0); }
+"/*"                     { updatepos; BEGIN(COMMENT); }
+<COMMENT>[^*\n]+         { updatepos; }
+<COMMENT>\n              { updatepos; }
+<COMMENT>"*"             { updatepos; }
+<COMMENT>"*/"            { updatepos; BEGIN(0); }
 
-"//"                     { BEGIN(SLCOMMENT); }
-<SLCOMMENT>[^\n]+        { BEGIN(0); }
+"//"                     { updatepos; BEGIN(SLCOMMENT); }
+<SLCOMMENT>[^\n]+        { updatepos; BEGIN(0); }
 
 AS                       { setLex; return AS; }
 END                      { setLex; return END; }
@@ -101,10 +106,10 @@ RECORD                   { setLex; return RECORD; }
 "("                      { setLex; return '('; }
 ")"                      { setLex; return ')'; }
 ":="                     { setLex; return ASSIGN; }
-\n                       { }
-{blank}+                 { }
+\n                       { updatepos; }
+{blank}+                 { updatepos; }
 
-.                        { }
+.                        { updatepos; }
 %%
 
 int yyerror(const char *msg) {
