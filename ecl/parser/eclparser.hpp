@@ -45,6 +45,7 @@ public:
     void setRoot(SyntaxTree * node);
     bool printAST();
     int parse();
+    EclLexer & getLexer();
 
 private:
     EclLexer * lexer;
@@ -61,6 +62,7 @@ public:
 
     int parse(EclParser * parser);
     void updatePos(unsigned delta);
+    void resetPos();
 
     int yyColumn;
     int yyPosition;
@@ -70,7 +72,6 @@ private:
     yyscan_t scanner;
     Owned<IFileContents> text;
     char *yyBuffer;
-    //TokenData token;
 
     void init(IFileContents * queryContents);
 };

@@ -58,7 +58,8 @@ public:
     void transferChildren(SyntaxTree * node);
     bool isAux();
 
-    unsigned getAuxLength();
+    const char * getLexeme();
+    symbolKind getKind();
 
 private:
     SyntaxTree();

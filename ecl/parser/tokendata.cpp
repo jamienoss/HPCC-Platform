@@ -1,7 +1,8 @@
 #include "tokendata.hpp"
 #include <cstring>
+#include <iostream>
 
-void TokenData::cpy(TokenData tok) // Discuss with Gavin. At present this is implemented to allow for char * lexeme
+void TokenData::cpy(TokenData &tok) // Discuss with Gavin. At present this is implemented to allow for char * lexeme
 {
 	switch (tok.attributeKind) {
 	case (lexemeKind) : {
@@ -14,8 +15,10 @@ void TokenData::cpy(TokenData tok) // Discuss with Gavin. At present this is imp
 	case (realKind) : real = tok.real; break;
 	}
 
-	lineNumber = tok.lineNumber;
 	attributeKind = tok.attributeKind;
+
+    pos = new ECLlocation();
+    pos->set(*tok.pos);
 }
 
 void TokenData::setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath)
@@ -24,5 +27,4 @@ void TokenData::setEclLocations(int lineNo, int column, int position, ISourcePat
         pos = new ECLlocation();
 
     pos->set(lineNo, column, position, sourcePath);
-    lineNumber = lineNo;
 }

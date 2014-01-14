@@ -37,7 +37,6 @@ class TokenData
 {
 public:
     ECLlocation * pos;
-	unsigned lineNumber;
 	symbolKind attributeKind;
 	//yytokentype attributeKind;
 	union
@@ -47,7 +46,7 @@ public:
 		char * lexeme;
 	};
 
-	void cpy(TokenData tok);
+	void cpy(TokenData &tok);
 	void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 };
 

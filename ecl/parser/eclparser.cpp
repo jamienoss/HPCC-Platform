@@ -66,6 +66,11 @@ SyntaxTree * EclParser::releaseAST()
 	ast = NULL;
 	return temp;
 }
+
+EclLexer & EclParser::getLexer()
+{
+    return *lexer;
+}
 //----------------------------------EclLexer--------------------------------------------------------------------
 EclLexer::EclLexer(IFileContents * queryContents)
 {
@@ -104,11 +109,17 @@ void EclLexer::init(IFileContents * _text)
 
 int EclLexer::parse(EclParser * parser)
 {
-     return ecl2yyparse(parser, scanner);
+     return ecl2yyparse(parser,  scanner);
 }
 
 void EclLexer::updatePos(unsigned delta)
 {
     yyPosition += delta;
     yyColumn += delta;
+}
+
+void EclLexer::resetPos()
+{
+    //yyPosition = 0;
+    yyColumn = 0;
 }

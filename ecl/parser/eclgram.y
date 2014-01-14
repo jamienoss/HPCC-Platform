@@ -18,10 +18,7 @@
 %name-prefix "ecl2yy"
 %error-verbose
 
-%parse-param {EclParser * parser}
-%parse-param {yyscan_t scanner }
-%lex-param {yyscan_t scanner}
-
+%param {EclParser * parser} {yyscan_t scanner}
 
 %{
 class TokenData;
@@ -32,8 +29,10 @@ class EclLexer;
 #include "platform.h"
 #include "eclparser.hpp"
 #include "eclgram.h"
-#include "ecllex.hpp"
+//#include "ecllex.hpp"
 #include <iostream>
+
+extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner);
 
 int yyerror(EclParser * parser, yyscan_t scanner, const char *msg);
 int syntaxerror(const char *msg, short yystate, YYSTYPE token);
@@ -41,9 +40,11 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token);
 
 int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 {
-    std::cout << msg <<  " on line "  << token.returnToken.lineNumber <<  "\n";
+    std::cout << msg <<  " near line "  << token.returnToken.pos->lineno << \
+                     ", nearcol: token.returnToken.pos->column <<  "\n";
     return 0;
 }
+
 
 %}
 
@@ -139,7 +140,7 @@ expr
     | REAL                          { $$ = $$->createSyntaxTree($1); }
     | ID                            { $$ = $$->createSyntaxTree($1); }
     | set                           { $$ = $1; }
-    | ID '(' expr_list ')'          { $$ = $$->createSyntaxTree($1, $2, $4); $$->transferChildren($3); }
+    | ID '(' expr_list ')'          { $$ = $$->createSyntaxTree($1, $2, $4); $$->transferChildren($3);}
     | '(' expr ')'                  { $$ = $2; }
     ;
 
