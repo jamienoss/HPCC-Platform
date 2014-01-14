@@ -24,31 +24,44 @@
 %option yylineno
 %option stack
 %option nodefault
+
+
 %{
 #include "eclparser.hpp"
 #include "eclgram.h"
 #include <iostream>
 #include <cstring>
 
-static inline void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
+#define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
+
+  //--------------------------------------------------------------------------------
+static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-tokenVal->returnToken.lineNumber = lineno + 1;
-tokenVal->returnToken.attributeKind = integerKind;
-tokenVal->returnToken.integer = atoi(tokenText);
-}
+yylval->returnToken.attributeKind = integerKind;
+yylval->returnToken.integer = atoi(tokenText);
 
-static inline void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
+lexer.updatePos(txtLen);
+yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+}
+  //--------------------------------------------------------------------------------
+static inline void setLex(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-tokenVal->returnToken.lineNumber = lineno + 1;
-tokenVal->returnToken.attributeKind = lexemeKind;
+yylval->returnToken.attributeKind = lexemeKind;
+lexer.updatePos(txtLen);
+yylval->returnToken.setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
 
-unsigned txtLen = strlen(tokenText)+1;
-tokenVal->returnToken.lexeme = new char [txtLen];
-memcpy(tokenVal->returnToken.lexeme, tokenText, txtLen);
+yylval->returnToken.lexeme = new char [++txtLen];
+memcpy(yylval->returnToken.lexeme, tokenText, txtLen);
+
+lexer.updatePos(txtLen);
+yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
 }
+  //--------------------------------------------------------------------------------
 
-#define setInt setInt(yylval, yytext, yylineno)
-#define setLex setLex(yylval, yytext, yylineno)
+#define setInt setInt(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define setLex setLex(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define updatepos parser->getLexer().updatePos(yyleng)
+#define resetpos parser->getLexer().resetPos()
 
 %}
 
@@ -75,14 +88,14 @@ xpathseq      ([^}\r\n])+
 
 %%
 
-"/*"                     { BEGIN(COMMENT); }
-<COMMENT>[^*\n]+         { }
-<COMMENT>\n              { }
-<COMMENT>"*"             { }
-<COMMENT>"*/"            { BEGIN(0); }
+"/*"                     { updatepos; BEGIN(COMMENT); }
+<COMMENT>[^*\n]+         { updatepos; }
+<COMMENT>\n              { resetpos; }
+<COMMENT>"*"             { updatepos; }
+<COMMENT>"*/"            { updatepos; BEGIN(0); }
 
-"//"                     { BEGIN(SLCOMMENT); }
-<SLCOMMENT>[^\n]+        { BEGIN(0); }
+"//"                     { updatepos; BEGIN(SLCOMMENT); }
+<SLCOMMENT>[^\n]+        { updatepos; BEGIN(0); }
 
 AS                       { setLex; return AS; }
 END                      { setLex; return END; }
@@ -101,10 +114,10 @@ RECORD                   { setLex; return RECORD; }
 "("                      { setLex; return '('; }
 ")"                      { setLex; return ')'; }
 ":="                     { setLex; return ASSIGN; }
-\n                       { }
-{blank}+                 { }
+\n                       { resetpos; }
+{blank}+                 { updatepos; }
 
-.                        { }
+.                        { updatepos; }
 %%
 
 int yyerror(const char *msg) {

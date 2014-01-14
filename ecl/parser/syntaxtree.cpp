@@ -69,7 +69,7 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token, SyntaxTree * tempAu
 SyntaxTree::SyntaxTree()
 {
     attributes.attributeKind = none;
-	attributes.lineNumber = 0;
+    attributes.pos = NULL;
     left = NULL;
     right = NULL;
     children = NULL;
@@ -95,6 +95,7 @@ SyntaxTree::~SyntaxTree()
 
      if (attributes.attributeKind == lexemeKind)
         delete[] attributes.lexeme;
+
 }
 
 SyntaxTree * SyntaxTree::release()
@@ -207,7 +208,9 @@ bool SyntaxTree::printNode(unsigned * nodeNum)
 	default : std::cout << "KIND not yet defined!"; break;
 	}
 
-	std::cout << "\\nLine: " << attributes.lineNumber << "\" style=filled, color=";//]\n";
+	std::cout << "\\nLine: " << attributes.pos->lineno;
+	std::cout << "\\nCol: " <<  attributes.pos->column;
+	std::cout << "\\nPos: " <<  attributes.pos->position << "\" style=filled, color=";//]\n";
 	switch(kind)
 	{
     case integerKind : std::cout << "\"0.66,0.5,1\""; break;
@@ -256,4 +259,9 @@ void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better na
     aux = node->releaseAux();
     delete node;
     */
+}
+
+symbolKind SyntaxTree::getKind()
+{
+    return attributes.attributeKind;
 }

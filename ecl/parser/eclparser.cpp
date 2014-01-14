@@ -66,6 +66,11 @@ SyntaxTree * EclParser::releaseAST()
 	ast = NULL;
 	return temp;
 }
+
+EclLexer & EclParser::getLexer()
+{
+    return *lexer;
+}
 //----------------------------------EclLexer--------------------------------------------------------------------
 EclLexer::EclLexer(IFileContents * queryContents)
 {
@@ -92,6 +97,11 @@ void EclLexer::init(IFileContents * _text)
         std::cout << "uh-oh\n";
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 
+    yyPosition = 0;
+    yyColumn = 0;
+    //sourcePath =
+
+
     //std::cout << _text->queryFile()->queryFilename() << "\n";
     //std::cout << _text->querySourcePath()<< "\n";
 
@@ -99,5 +109,17 @@ void EclLexer::init(IFileContents * _text)
 
 int EclLexer::parse(EclParser * parser)
 {
-     return ecl2yyparse(parser, scanner);
+     return ecl2yyparse(parser,  scanner);
+}
+
+void EclLexer::updatePos(unsigned delta)
+{
+    yyPosition += delta;
+    yyColumn += delta;
+}
+
+void EclLexer::resetPos()
+{
+    //yyPosition = 0;
+    yyColumn = 0;
 }
