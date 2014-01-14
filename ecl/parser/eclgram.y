@@ -18,7 +18,11 @@
 %name-prefix "ecl2yy"
 %error-verbose
 
-%param {EclParser * parser} {yyscan_t scanner}
+//%param {EclParser * parser} {yyscan_t scanner}
+%parse-param {EclParser * parser}
+%parse-param {yyscan_t scanner}
+%lex-param {EclParser * parser}
+%lex-param {yyscan_t scanner}
 
 %{
 class TokenData;
