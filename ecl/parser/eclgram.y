@@ -41,7 +41,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token);
 int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 {
     std::cout << msg <<  " near line "  << token.returnToken.pos->lineno << \
-                     ", nearcol: token.returnToken.pos->column <<  "\n";
+                     ", nearcol:" <<  token.returnToken.pos->column <<  "\n";
     return 0;
 }
 
