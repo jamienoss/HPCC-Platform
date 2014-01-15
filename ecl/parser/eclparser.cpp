@@ -23,6 +23,8 @@
 #include "ecllex.hpp"
 #include "syntaxtree.hpp"
 
+#include <cstring>
+
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
@@ -84,10 +86,10 @@ EclLexer::~EclLexer()
     delete[] yyBuffer;
 }
 
-void EclLexer::init(IFileContents * _text)
+void EclLexer::init(IFileContents * queryContents)
 {
-    text.set(_text);
-    size32_t len = _text->length();
+    text.set(queryContents);
+    size32_t len = queryContents->length();
     yyBuffer = new char[len+2]; // Include room for \0 and another \0 that we write beyond the end null while parsing
     memcpy(yyBuffer, text->getText(), len);
     yyBuffer[len] = '\0';
@@ -99,12 +101,10 @@ void EclLexer::init(IFileContents * _text)
 
     yyPosition = 0;
     yyColumn = 0;
-    //sourcePath =
+    sourcePath = queryContents->querySourcePath();
 
-
-    //std::cout << _text->queryFile()->queryFilename() << "\n";
-    //std::cout << _text->querySourcePath()<< "\n";
-
+    //std::cout << ((std::string)sourcePath->str()).append(".dot").c_str() << "\n";
+    //std::cout << queryContents->queryFile()->queryFilename() << "\n";
 }
 
 int EclLexer::parse(EclParser * parser)

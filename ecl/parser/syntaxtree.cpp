@@ -19,6 +19,7 @@
 #include "syntaxtree.hpp"
 #include "jstring.hpp"
 #include <iostream>
+#include <fstream>
 #include <cstring>
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
@@ -150,9 +151,18 @@ bool SyntaxTree::printTree()
 	int ioStat;
 	unsigned parentNodeNum = 0, nodeNum = 0;
 
-	std::cout << "graph \"Abstract Syntax Tree\"\n{\n";
+	std::ofstream fout;
+	fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
+
+	fout << "graph \"Abstract Syntax Tree\"\n{\n";
+    fout.close();
+
 	ioStat = printBranch(& parentNodeNum, & nodeNum);
-	std::cout << "}\n";
+
+	fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
+	fout << "}\n";
+	fout.close();
+
 	return ioStat;
 }
 
@@ -190,35 +200,44 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
 
 bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum)
 {
+
+    std::ofstream fout;
+    fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
 	//StringBuffer text;
 	//text.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
-	std::cout << parentNodeNum << " -- " << nodeNum << " [style = solid]\n";
+	fout << parentNodeNum << " -- " << nodeNum << " [style = solid]\n";
+	fout.close();
 	return true;
 }
 
 bool SyntaxTree::printNode(unsigned * nodeNum)
 {
-	std::cout << *nodeNum << " [label = \"";
+
+    std::ofstream fout;
+    fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
+
+	fout << *nodeNum << " [label = \"";
 
 	symbolKind kind = attributes.attributeKind;
 	switch(kind){
-	case integerKind : std::cout << attributes.integer; break;
-	case realKind : std::cout << attributes.real; break;
-	case lexemeKind : std::cout << attributes.lexeme; break;
-	default : std::cout << "KIND not yet defined!"; break;
+	case integerKind : fout << attributes.integer; break;
+	case realKind : fout << attributes.real; break;
+	case lexemeKind : fout << attributes.lexeme; break;
+	default : fout << "KIND not yet defined!"; break;
 	}
 
-	std::cout << "\\nLine: " << attributes.pos->lineno;
-	std::cout << "\\nCol: " <<  attributes.pos->column;
-	std::cout << "\\nPos: " <<  attributes.pos->position << "\" style=filled, color=";//]\n";
+	fout << "\\nLine: " << attributes.pos->lineno;
+	fout << "\\nCol: " <<  attributes.pos->column;
+	fout << "\\nPos: " <<  attributes.pos->position << "\" style=filled, color=";//]\n";
 	switch(kind)
 	{
-    case integerKind : std::cout << "\"0.66,0.5,1\""; break;
-	case lexemeKind : std::cout << "\"0.25,0.5,1\""; break;
+    case integerKind : fout << "\"0.66,0.5,1\""; break;
+	case lexemeKind : fout << "\"0.25,0.5,1\""; break;
 	}
-	std::cout << "]\n";
+	fout << "]\n";
 
 	(*nodeNum)++;
+	fout.close();
 	return true;
 }
 

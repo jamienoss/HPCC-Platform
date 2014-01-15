@@ -66,7 +66,7 @@ public:
 
     int yyColumn;
     int yyPosition;
-    Linked<ISourcePath> sourcePath;
+    ISourcePath * sourcePath;
 
 private:
     yyscan_t scanner;
