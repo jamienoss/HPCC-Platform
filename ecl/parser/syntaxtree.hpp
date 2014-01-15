@@ -40,9 +40,9 @@ public:
     SyntaxTree * release();
 
     bool printTree();
-    bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum);
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum);
-    bool printNode(unsigned * nodeNum);
+    bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out);
+    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out);
+    bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
 
     void bifurcate(SyntaxTree * leftBranch, TokenData & rightTok);
     void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch);

@@ -156,52 +156,61 @@ bool ASyntaxTree::printTree()
 	int ioStat;
 	unsigned n = symbolList->size();
 	unsigned parentNodeNum = n+1, nodeNum = n+1; // shifted beyond those reserved for nonTerminalDefKind
+	StringBuffer str;
+	Owned<IFile> treeFile = createIFile("grammarAnalysis.dot");
+	Owned<IFileIO> io = treeFile->open(IFOcreaterw);
+	Owned<IFileIOStream> out = createIOStream(io);
 
-	std::cout << "graph \"Abstract Syntax Tree\"\n{\nordering=out\n";
-	ioStat = printBranch(& parentNodeNum, & nodeNum);
-	std::cout << "}\n";
+	str = ("graph \"Abstract Syntax Tree\"\n{\nordering=out\n");
+	out->write(str.length(), str.str());
+
+	ioStat = printBranch(& parentNodeNum, & nodeNum, out);
+
+	str = "}\n";
+    out->write(str.length(), str.str());
+    io->close();
 	return ioStat;
 }
 
-bool  ASyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
+bool  ASyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out)
 {
 	bool ioStatL;
 	bool ioStatR;
 	unsigned parentNodeNumm = *nodeNum;
 
-	printNode(nodeNum);
+	printNode(nodeNum, out);
 
 	if (left)
 	{
-		printEdge(parentNodeNumm, *nodeNum, left);
-		ioStatL = left->printBranch(parentNodeNum, nodeNum);
+		printEdge(parentNodeNumm, *nodeNum, left, out);
+		ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
 	}
 
     if(children)
     {
         ForEachItemIn(i,*children)
         {
-            printEdge(parentNodeNumm, *nodeNum, &children->item(i));
-            children->item(i).printBranch(parentNodeNum, nodeNum);
+            printEdge(parentNodeNumm, *nodeNum, &children->item(i), out);
+            children->item(i).printBranch(parentNodeNum, nodeNum, out);
         }
     }
 
 	if (right)
 	{
-		printEdge(parentNodeNumm, *nodeNum, right);
-		ioStatR = right->printBranch(parentNodeNum, nodeNum);
+		printEdge(parentNodeNumm, *nodeNum, right, out);
+		ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
 	}
 
 	return !(ioStatL && ioStatR);
 }
 
-bool ASyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTree * child)
+bool ASyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTree * child, Owned<IFileIOStream> & out)
 {
-    int tempParentNodeNum = (int)parentNodeNum;
-    int tempNodeNum = (int)nodeNum;
-
     if(attributes.attributeKind == none)
         return true;
+
+    int tempParentNodeNum = (int)parentNodeNum;
+    int tempNodeNum = (int)nodeNum;
 
     switch(attributes.attributeKind)
     {
@@ -237,17 +246,20 @@ bool ASyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTre
     }
     }
 
+    StringBuffer str;
     if(tempParentNodeNum == tempNodeNum)
-        std::cout << tempParentNodeNum << " -- " << tempNodeNum << " [style = dashed]\n";
+        str.append(tempParentNodeNum).append(" -- ").append(tempNodeNum).append(" [style = dashed]\n");
     else
-        std::cout << tempParentNodeNum << " -- " << tempNodeNum << " [style = solid]\n";
+        str.append(tempParentNodeNum).append(" -- ").append(tempNodeNum).append(" [style = solid]\n");
+    out->write(str.length(), str.str());
 
 	return true;
 }
 
-bool ASyntaxTree::printNode(unsigned * nodeNum)
+bool ASyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
 {
     symbolKind kind = attributes.attributeKind;
+    StringBuffer str;
 
     switch(kind)
     {
@@ -260,7 +272,7 @@ bool ASyntaxTree::printNode(unsigned * nodeNum)
         {
             if(!(*symbolList)[i].compare(attributes.lexeme))
             {
-                std::cout << i << " [label = \"";
+                str.append(i).append(" [label = \"");
                 break;
             }
         }
@@ -268,32 +280,32 @@ bool ASyntaxTree::printNode(unsigned * nodeNum)
     }
     default :
     {
-        std::cout << *nodeNum << " [label = \"";
+        str.append(*nodeNum).append(" [label = \"");
         (*nodeNum)++;
     }
     }
 
 	switch(kind){
-	case integerKind : std::cout << attributes.integer; break;
-	case realKind : std::cout << attributes.real; break;
+	case integerKind : str.append(attributes.integer); break;
+	case realKind : str.append(attributes.real); break;
 	case lexemeKind:
 	case terminalKind :
     case nonTerminalKind :
     case nonTerminalDefKind :
-    case productionKind : std::cout << attributes.lexeme; break;
-	default : std::cout << "KIND not yet defined!"; break;
+    case productionKind : str.append(attributes.lexeme); break;
+	default : str.append("KIND not yet defined!"); break;
 	}
 
-	std::cout << "\\nLine: " << attributes.lineNumber << "\"";//]\n";
-	//set color
+	str.append("\\nLine: ").append(attributes.lineNumber).append("\"");
 	switch(kind)
 	{
-	case nonTerminalDefKind : std::cout << "style=filled, color=\"0.25,0.5,1\"]\n"; break;//green
-	case terminalKind : std::cout << "style=filled, color=\"0,0.5,1\"]\n"; break;//red
-    case productionKind : std::cout << "style=filled, color=\"0.66,0.5,1\", fontcolor=white]\n"; break;//blue
-	default : std::cout << "]\n";
+	case nonTerminalDefKind : str.append("style=filled, color=\"0.25,0.5,1\"]\n"); break;//green
+	case terminalKind : str.append("style=filled, color=\"0,0.5,1\"]\n"); break;//red
+    case productionKind : str.append("style=filled, color=\"0.66,0.5,1\", fontcolor=white]\n"); break;//blue
+	default : str.append("]\n");
 	}
 
+	out->write(str.length(), str.str());
 	return true;
 }
 
@@ -370,10 +382,17 @@ void ASyntaxTree::setSymbolList(std::vector <std::string> & list)
 void ASyntaxTree::printSymbolList()
 {
     unsigned n = symbolList->size();
+    StringBuffer str;
+    Owned<IFile> treeFile = createIFile("symbolList.txt");
+    Owned<IFileIO> io = treeFile->open(IFOcreaterw);
+    Owned<IFileIOStream> out = createIOStream(io);
+
     for (unsigned i = 0; i < n; ++i)
     {
-        std::cout << (*symbolList)[i] << "\n";
+        str.append(((*symbolList)[i]).c_str()).append("\n");
     }
+    out->write(str.length(), str.str());
+    io->close();
 }
 
 symbolKind ASyntaxTree::getKind()

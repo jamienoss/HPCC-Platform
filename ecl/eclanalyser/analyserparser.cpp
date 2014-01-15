@@ -75,7 +75,7 @@ void AnalyserParser::analyseGrammar()
     //printStringVector(terminalSymbols);
 
     ast->setSymbolList(terminalSymbols);
-    //ast->printSymbolList();
+    ast->printSymbolList();
 
 
     ast->printTree();
@@ -87,7 +87,6 @@ void AnalyserParser::analyseGrammar()
 void AnalyserParser::createSymbolList(ASyntaxTree *  tree, std::vector <std::string> & symbolList, symbolKind kind)
 {
     tree->extractSymbols(symbolList, kind);
-
 }
 
 void printStringVector(std::vector <std::string> vector)
@@ -114,20 +113,16 @@ AnalyserLexer::~AnalyserLexer()
 
 void AnalyserLexer::init(IFileContents * _text)
 {
-    text.set(_text);
+    fileIn.set(_text);
     size32_t len = _text->length();
     yyBuffer = new char[len+2]; // Include room for \0 and another \0 that we write beyond the end null while parsing
-    memcpy(yyBuffer, text->getText(), len);
+    memcpy(yyBuffer, fileIn->getText(), len);
     yyBuffer[len] = '\0';
     yyBuffer[len+1] = '\0';
 
     if (ecl3yylex_init(&scanner) != 0)
         std::cout << "uh-oh\n";
     ecl3yy_scan_buffer(yyBuffer, len+2, scanner);
-
-    //std::cout << _text->queryFile()->queryFilename() << "\n";
-    //std::cout << _text->querySourcePath()<< "\n";
-
 }
 
 int AnalyserLexer::parse(AnalyserParser * parser)

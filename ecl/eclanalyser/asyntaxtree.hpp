@@ -19,7 +19,8 @@
 #define AASyntaxTree_HPP
 
 //#include "jiface.hpp"
-#include"jlib.hpp"
+#include "jlib.hpp"
+#include "jfile.hpp"
 
 #include "tokendata.hpp"
 #include <string>
@@ -44,9 +45,9 @@ public:
     ASyntaxTree * release();
 
     bool printTree();
-    bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum);
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTree * child);
-    bool printNode(unsigned * nodeNum);
+    bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out);
+    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTree * child, Owned<IFileIOStream> & out);
+    bool printNode(unsigned * nodeNum, Owned<IFileIOStream> & out);
 
     void bifurcate(ASyntaxTree * leftBranch, TokenData & rightTok);
     void bifurcate(ASyntaxTree * leftBranch, ASyntaxTree * rightBranch);

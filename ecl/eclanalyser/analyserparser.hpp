@@ -69,9 +69,8 @@ public:
 
 private:
     yyscan_t scanner;
-    Owned<IFileContents> text;
+    Owned<IFileContents> fileIn;
     char *yyBuffer;
-    TokenData token;
 
     void init(IFileContents * queryContents);
 };

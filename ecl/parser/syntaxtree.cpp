@@ -18,6 +18,8 @@
 
 #include "syntaxtree.hpp"
 #include "jstring.hpp"
+#include "jlib.hpp"
+#include "jfile.hpp"
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -150,94 +152,88 @@ bool SyntaxTree::printTree()
 {
 	int ioStat;
 	unsigned parentNodeNum = 0, nodeNum = 0;
+	StringBuffer str;
+	Owned<IFile> treeFile = createIFile(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str());
+	Owned<IFileIO> io = treeFile->open(IFOcreaterw);
+	Owned<IFileIOStream> out = createIOStream(io);
 
-	std::ofstream fout;
-	fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
+	str = "graph \"Abstract Syntax Tree\"\n{\n";
+	out->write(str.length(), str.str());
 
-	fout << "graph \"Abstract Syntax Tree\"\n{\n";
-    fout.close();
+	ioStat = printBranch(& parentNodeNum, & nodeNum, out);
 
-	ioStat = printBranch(& parentNodeNum, & nodeNum);
-
-	fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
-	fout << "}\n";
-	fout.close();
-
+	str = "}\n";
+	out->write(str.length(), str.str());
+	io->close();
 	return ioStat;
 }
 
-bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum)
+bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out)
 {
 	bool ioStatL;
 	bool ioStatR;
 	unsigned parentNodeNumm = *nodeNum;
 
-	printNode(nodeNum);
+	printNode(nodeNum, out);
 
 	if (left)
 	{
-		printEdge(parentNodeNumm, *nodeNum);
-		ioStatL = left->printBranch(parentNodeNum, nodeNum);
+		printEdge(parentNodeNumm, *nodeNum, out);
+		ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
 	}
 
 	if(children)
 	{
 	    ForEachItemIn(i,*children)
 	            {
-	               printEdge(parentNodeNumm, *nodeNum);
-	               children->item(i).printBranch(parentNodeNum, nodeNum);
+	               printEdge(parentNodeNumm, *nodeNum, out);
+	               children->item(i).printBranch(parentNodeNum, nodeNum, out);
 	            }
 	}
 
 	if (right)
 	{
-		printEdge(parentNodeNumm, *nodeNum);
-		ioStatR = right->printBranch(parentNodeNum, nodeNum);
+		printEdge(parentNodeNumm, *nodeNum, out);
+		ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
 	}
 
 	return !(ioStatL && ioStatR);
 }
 
-bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum)
+bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out)
 {
-
-    std::ofstream fout;
-    fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
-	//StringBuffer text;
-	//text.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
-	fout << parentNodeNum << " -- " << nodeNum << " [style = solid]\n";
-	fout.close();
+    StringBuffer str;
+    str.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
+    out->write(str.length(), str.str());
 	return true;
 }
 
-bool SyntaxTree::printNode(unsigned * nodeNum)
+bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
 {
 
-    std::ofstream fout;
-    fout.open(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str(), std::ios::app);
-
-	fout << *nodeNum << " [label = \"";
+    StringBuffer str;
+    str.append(*nodeNum).append(" [label = \"");
 
 	symbolKind kind = attributes.attributeKind;
 	switch(kind){
-	case integerKind : fout << attributes.integer; break;
-	case realKind : fout << attributes.real; break;
-	case lexemeKind : fout << attributes.lexeme; break;
-	default : fout << "KIND not yet defined!"; break;
+	case integerKind : str.append(attributes.integer); break;
+	case realKind : str.append(attributes.real); break;
+	case lexemeKind : str.append(attributes.lexeme); break;
+	default : str.append("KIND not yet defined!"); break;
 	}
 
-	fout << "\\nLine: " << attributes.pos->lineno;
-	fout << "\\nCol: " <<  attributes.pos->column;
-	fout << "\\nPos: " <<  attributes.pos->position << "\" style=filled, color=";//]\n";
+	str.append("\\nLine: ").append(attributes.pos->lineno);
+	str.append("\\nCol: ").append(attributes.pos->column);
+	str.append("\\nPos: ").append(attributes.pos->position).append("\" style=filled, color=");
 	switch(kind)
 	{
-    case integerKind : fout << "\"0.66,0.5,1\""; break;
-	case lexemeKind : fout << "\"0.25,0.5,1\""; break;
+    case integerKind : str.append("\"0.66,0.5,1\""); break;
+	case lexemeKind : str.append("\"0.25,0.5,1\""); break;
 	}
-	fout << "]\n";
+	str.append("]\n");
+	out->write(str.length(), str.str());
 
 	(*nodeNum)++;
-	fout.close();
 	return true;
 }
 
@@ -249,17 +245,6 @@ void SyntaxTree::addChild(SyntaxTree * addition) //MORE: Should maybe use vector
     children->append(*addition);
     addition = NULL;
 }
-
-/*
-SyntaxTree ** SyntaxTree::releaseAux()
-
-{
-    SyntaxTree ** temp = aux;
-    auxLength = 0;
-    aux = NULL;
-    return temp;
-}
-*/
 
 void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
 {
