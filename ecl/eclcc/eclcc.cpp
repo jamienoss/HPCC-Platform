@@ -334,8 +334,9 @@ protected:
     StringBuffer libraryPath;
 
     StringBuffer cclogFilename;
-    StringAttr optLogfile;
+    StringAttr optGrammarFilename;
     StringAttr optIniFilename;
+    StringAttr optLogfile;
     StringAttr optManifestFilename;
     StringAttr optOutputDirectory;
     StringAttr optOutputFilename;
@@ -1007,12 +1008,16 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     bool analyseGrammar = instance.wu->getDebugValueBool("grammaranalysis", false);
     if (analyseGrammar)
     {
-        AnalyserParser * parser = new AnalyserParser(queryContents);
+        const char * grammarFileName = optGrammarFilename.get();
+        Owned<ISourcePath> grammarSourcePath = createSourcePath(grammarFileName);
+        Owned<IFileContents> grammarText = createFileContentsFromFile(grammarFileName, grammarSourcePath);
+
+        AnalyserParser * parser = new AnalyserParser(grammarText);
         if (!(parser->parse()))
         {
             parser->analyseGrammar();
         }
-        throwUnexpected();
+        //throwUnexpected();
     }
 
     bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
@@ -1860,9 +1865,14 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         {
              setDebugOption("printSyntaxTree", tempBool);
         }
-        else if (iter.matchFlag(tempBool, "-grammaranalysis"))
+        else if (iter.matchOption(optGrammarFilename, "-grammaranalysis"))
         {
-             setDebugOption("grammaranalysis", tempBool);
+            if (!checkFileExists(optGrammarFilename))
+            {
+                ERRLOG("Error: grammar file to be analysed '%s' does not exist",optGrammarFilename.get());
+                return false;
+            }
+            setDebugOption("grammaranalysis", true);
         }
         else if (iter.matchOption(optIniFilename, "-specs"))
         {

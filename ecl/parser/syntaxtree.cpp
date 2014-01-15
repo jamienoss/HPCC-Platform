@@ -148,6 +148,10 @@ void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
 	right = rightBranch;
 }
 
+
+
+
+
 bool SyntaxTree::printTree()
 {
 	int ioStat;
