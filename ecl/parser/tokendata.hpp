@@ -30,6 +30,7 @@ enum symbolKind
 	integerKind,
 	unsignedKind,
 	realKind,
+    idKind,
 	lexemeKind
 };
 //----------------------------------TokenData--------------------------------------------------------------------
@@ -41,13 +42,15 @@ public:
 	//yytokentype attributeKind;
 	union
 	{
-		int integer;
-		float real;
-		char * lexeme;
+        int integer;
+        float real;
+        IIdAtom * name;
 	};
 
-	void cpy(TokenData &tok);
 	void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 };
+
+class StringBuffer;
+void appendParserTokenText(StringBuffer & target, unsigned tok);
 
 #endif

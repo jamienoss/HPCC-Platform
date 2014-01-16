@@ -70,18 +70,18 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
     ','
     '$'
     ';'
+    '+'
+    '-'
+    '*'
+    '/'
     AS
     ASSIGN
     DIR
-    DIVIDE
     END
     FROM
     ID
     IMPORT
     INTEGER
-    PLUS
-    MINUS
-    MULTIPLY
     REAL
     RECORD
     UNSIGNED
@@ -110,10 +110,10 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 %left '('
 %left '{'
 %left '['
-%left DIVIDE
-%left MINUS
-%left MULTIPLY
-%left PLUS
+%left '/'
+%left '-'
+%left '*'
+%left '+'
 
 %%
 //================================== begin of syntax section ==========================
@@ -129,22 +129,22 @@ eclQuery
 
 line_of_code
     : expr                          { $$ = $1; }
-    | IMPORT imports                { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
-    | lhs ASSIGN rhs                { $$ = $$->createSyntaxTree($2); $$->bifurcate($1, $3); }
+    | IMPORT imports                { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); $2->Release(); }
+    | lhs ASSIGN rhs                { $$ = $$->createSyntaxTree($2, $1, $3); }
     ;
 
 //-----------Listed Alphabetical from here on in------------------------------------------
 
 expr
-    : expr PLUS expr                { $$ = $$->createSyntaxTree($2, $1, $3); }
-    | expr MINUS expr               { $$ = $$->createSyntaxTree($2, $1, $3); }
-    | expr MULTIPLY expr            { $$ = $$->createSyntaxTree($2, $1, $3); }
-    | expr DIVIDE expr              { $$ = $$->createSyntaxTree($2, $1, $3); }
+    : expr '+' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | expr '-' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | expr '*' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | expr '/' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
     | UNSIGNED                      { $$ = $$->createSyntaxTree($1); }
     | REAL                          { $$ = $$->createSyntaxTree($1); }
     | ID                            { $$ = $$->createSyntaxTree($1); }
     | set                           { $$ = $1; }
-    | ID '(' expr_list ')'          { $$ = $$->createSyntaxTree($1, $2, $4); $$->transferChildren($3);}
+    | ID '(' expr_list ')'          { $$ = $$->createSyntaxTree($1, $2, $4); $$->transferChildren($3); $3->Release(); }
     | '(' expr ')'                  { $$ = $2; }
     ;
 
@@ -184,6 +184,7 @@ imports
                                         SyntaxTree * temp = temp->createSyntaxTree($2);
                                         temp->setRight($3);
                                         $$->transferChildren($1);
+                                        $1->Release();
                                         $$->addChild(temp);
                                      }
 
@@ -229,7 +230,7 @@ records
     ;
 
 recordset
-    : RECORD fields END             { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); }
+    : RECORD fields END             { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); $2->Release(); }
     ;
 
 rhs
@@ -239,7 +240,7 @@ rhs
     ;
 
 set
-    : '[' records ']'               { $$ = $$->createSyntaxTree(); $$->transferChildren($2); }
+    : '[' records ']'               { $$ = $$->createSyntaxTree(); $$->transferChildren($2); $2->Release(); }
     ;
 
 type
@@ -247,3 +248,11 @@ type
     ;
 
 %%
+
+void appendParserTokenText(StringBuffer & target, unsigned tok)
+{
+    if (tok < 256)
+        target.append((char)tok);
+    else
+        target.append(yytname[tok-256]);
+}

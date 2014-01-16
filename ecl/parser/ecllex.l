@@ -37,29 +37,32 @@
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-yylval->returnToken.attributeKind = integerKind;
-yylval->returnToken.integer = atoi(tokenText);
+    yylval->returnToken.attributeKind = integerKind;
+    yylval->returnToken.integer = atoi(tokenText);
 
-lexer.updatePos(txtLen);
-yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-yylval->returnToken.attributeKind = lexemeKind;
-lexer.updatePos(txtLen);
-yylval->returnToken.setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->returnToken.attributeKind = lexemeKind;
+    yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    lexer.updatePos(txtLen);
+}
 
-yylval->returnToken.lexeme = new char [++txtLen];
-memcpy(yylval->returnToken.lexeme, tokenText, txtLen);
-
-lexer.updatePos(txtLen);
-yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+{
+    yylval->returnToken.attributeKind = idKind;
+    yylval->returnToken.setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->returnToken.name = createIdAtom(tokenText, txtLen);
+    lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
 
 #define setInt setInt(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define setLex setLex(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define setId setId(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define updatepos parser->getLexer().updatePos(yyleng)
 #define resetpos parser->getLexer().resetPos()
 
@@ -104,20 +107,13 @@ IMPORT                   { setLex; return IMPORT; }
 RECORD                   { setLex; return RECORD; }
 
 {digit}+                 { setInt; return UNSIGNED; } /* complete for UNSIGNED[n]*/
-(\$|{letter}){alphanum}* { setLex; return ID; }
-","                      { setLex; return ','; }
-";"                      { setLex; return ';'; }
-"+"                      { setLex; return PLUS; }
-"-"                      { setLex; return MINUS; }
-"*"                      { setLex; return MULTIPLY; }
-"/"                      { setLex; return DIVIDE; }
-"("                      { setLex; return '('; }
-")"                      { setLex; return ')'; }
+(\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex; return ASSIGN; }
 \n                       { resetpos; }
 {blank}+                 { updatepos; }
 
-.                        { updatepos; }
+.                        { updatepos; return (yytext[0]); }
+
 %%
 
 int yyerror(const char *msg) {

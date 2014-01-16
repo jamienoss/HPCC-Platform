@@ -23,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include "eclgram.h"
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 SyntaxTree * SyntaxTree::createSyntaxTree()
@@ -61,94 +62,51 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * le
 }
 
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token, SyntaxTree * tempAux)
-{
-    SyntaxTree * temp = new SyntaxTree(token);
-    temp->transferChildren(tempAux);
-    return temp;
-}
-
-
 SyntaxTree::SyntaxTree()
 {
-    attributes.attributeKind = none;
-    attributes.pos = NULL;
-    left = NULL;
+    token = none;
     right = NULL;
-    children = NULL;
 }
 
-SyntaxTree::SyntaxTree(TokenData & token)
+SyntaxTree::SyntaxTree(TokenData & tok)
 {
-	attributes.cpy(token);
-	left = NULL;
+    switch (tok.attributeKind) {
+    case idKind: name = tok.name; break;
+    case integerKind: integer = tok.integer; break;
+    case realKind: real = tok.real; break;
+    }
+
+    token = tok.attributeKind;
+    pos.set(*tok.pos);
+    delete tok.pos;
 	right = NULL;
-    children = NULL;
 }
 
 SyntaxTree::~SyntaxTree()
 {
-     if (left)
-         delete left;
      if (right)
          delete right;
-
-     if(children)
-         delete children;
-
-     if (attributes.attributeKind == lexemeKind)
-        delete[] attributes.lexeme;
-
-}
-
-SyntaxTree * SyntaxTree::release()
-{
-	SyntaxTree * temp = this;
-//	this = NULL;
-	return temp;
 }
 
 void SyntaxTree::setLeft(SyntaxTree * node)
 {
-    left = node;
-    node = NULL;
+    left.setown(node);
 }
 
 void SyntaxTree::setRight(SyntaxTree * node)
 {
     right = node;
-    node = NULL;
 }
 
 void SyntaxTree::setLeft(TokenData & token)
 {
-    left = createSyntaxTree(token);
+    left.setown(createSyntaxTree(token));
 }
 
 void SyntaxTree::setRight(TokenData & token)
 {
     right = createSyntaxTree(token);
 }
-
-void SyntaxTree::bifurcate(SyntaxTree * leftBranch, TokenData & rightTok)
-{
-	left = leftBranch;
-	setRight(rightTok);
-}
-
-void SyntaxTree::bifurcate(TokenData & leftTok, TokenData & rightTok)
-{
-	setLeft(leftTok);
-	setRight(rightTok);
-}
-
-void SyntaxTree::bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch)
-{
-	left = leftBranch;
-	right = rightBranch;
-}
-
-
 
 
 
@@ -157,9 +115,9 @@ bool SyntaxTree::printTree()
 	int ioStat;
 	unsigned parentNodeNum = 0, nodeNum = 0;
 	StringBuffer str;
-	Owned<IFile> treeFile = createIFile(((std::string)attributes.pos->sourcePath->str()).append(".dot").c_str());
-	Owned<IFileIO> io = treeFile->open(IFOcreaterw);
-	Owned<IFileIOStream> out = createIOStream(io);
+    Owned<IFile> treeFile = createIFile(((std::string)pos.sourcePath->str()).append(".dot").c_str());
+    Owned<IFileIO> io = treeFile->open(IFOcreaterw);
+    Owned<IFileIOStream> out = createIOStream(io);
 
 	str = "graph \"Abstract Syntax Tree\"\n{\n";
 	out->write(str.length(), str.str());
@@ -186,14 +144,11 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owne
 		ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
 	}
 
-	if(children)
-	{
-	    ForEachItemIn(i,*children)
-	            {
-	               printEdge(parentNodeNumm, *nodeNum, out);
-	               children->item(i).printBranch(parentNodeNum, nodeNum, out);
-	            }
-	}
+    ForEachItemIn(i,children)
+    {
+       printEdge(parentNodeNumm, *nodeNum, out);
+       children.item(i).printBranch(parentNodeNum, nodeNum, out);
+    }
 
 	if (right)
 	{
@@ -218,17 +173,17 @@ bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
     StringBuffer str;
     str.append(*nodeNum).append(" [label = \"");
 
-	symbolKind kind = attributes.attributeKind;
+    TokenKind kind = token;
 	switch(kind){
-	case integerKind : str.append(attributes.integer); break;
-	case realKind : str.append(attributes.real); break;
-	case lexemeKind : str.append(attributes.lexeme); break;
-	default : str.append("KIND not yet defined!"); break;
+    case INTEGER : str.append(integer); break;
+    case REAL: str.append(real); break;
+    case ID : str.append(name->str()); break;
+    default: appendParserTokenText(str, kind); break;
 	}
 
-	str.append("\\nLine: ").append(attributes.pos->lineno);
-	str.append("\\nCol: ").append(attributes.pos->column);
-	str.append("\\nPos: ").append(attributes.pos->position).append("\" style=filled, color=");
+    str.append("\\nLine: ").append(pos.lineno);
+    str.append("\\nCol: ").append(pos.column);
+    str.append("\\nPos: ").append(pos.position).append("\" style=filled, color=");
 	switch(kind)
 	{
     case integerKind : str.append("\"0.66,0.5,1\""); break;
@@ -243,19 +198,14 @@ bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
 
 void SyntaxTree::addChild(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
-    if(!children)
-            children = new CIArrayOf<SyntaxTree>;
-
-    children->append(*addition);
+    children.append(*addition);
     addition = NULL;
 }
 
 void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
 {
-    children = node->children;
-    node->children = NULL;
-    delete node;
-    return;
+    ForEachItemIn(i,node->children)
+        children.append(*LINK(&node->children.item(i)));
 
 /*
     if(aux) {
@@ -269,7 +219,7 @@ void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better na
     */
 }
 
-symbolKind SyntaxTree::getKind()
+TokenKind SyntaxTree::getKind()
 {
-    return attributes.attributeKind;
+    return token;
 }

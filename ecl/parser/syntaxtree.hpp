@@ -24,6 +24,10 @@
 class linkedSTlist;
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
+class SyntaxTree;
+typedef CIArrayOf<SyntaxTree> SyntaxTreeArray;
+
+typedef unsigned short TokenKind;
 class SyntaxTree : public CInterface
 {
 
@@ -34,19 +38,12 @@ public:
     SyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
     SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
     SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * righBranch);
-    SyntaxTree * createSyntaxTree(TokenData & token, SyntaxTree * tempAux);
     ~SyntaxTree();
-
-    SyntaxTree * release();
 
     bool printTree();
     bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out);
     bool printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out);
     bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
-
-    void bifurcate(SyntaxTree * leftBranch, TokenData & rightTok);
-    void bifurcate(SyntaxTree * leftBranch, SyntaxTree * rightBranch);
-    void bifurcate(TokenData & leftTok, TokenData & rightTok);
 
     void setLeft(TokenData & token);
     void setLeft(SyntaxTree * node);
@@ -54,24 +51,29 @@ public:
     void setRight(SyntaxTree * node);
 
     void addChild(SyntaxTree * addition);
-    SyntaxTree ** releaseAux();
     void transferChildren(SyntaxTree * node);
-    bool isAux();
 
     const char * getLexeme();
-    symbolKind getKind();
+
+    virtual TokenKind getKind();
 
 private:
     SyntaxTree();
     SyntaxTree(TokenData & token);
 
 private:
-    TokenData attributes;
+    TokenKind token;
+    union
+    {
+        int integer;
+        float real;
+        IIdAtom * name;
+    };
+    ECLlocation pos;
 
-    SyntaxTree * left;
+    Owned<SyntaxTree> left;
     SyntaxTree * right;
-
-    CIArrayOf<SyntaxTree> * children;
+    SyntaxTreeArray children;
 };
 
 #endif
