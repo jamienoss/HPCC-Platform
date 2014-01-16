@@ -48,7 +48,7 @@
 #include "hqltrans.ipp"
 
 #include "eclparser.hpp"
-#include "analyserparser.hpp"
+//#include "analyserparser.hpp"
 
 #include "build-config.h"
 #include "rmtfile.hpp"
@@ -1005,6 +1005,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
 
+#if 0
     bool analyseGrammar = instance.wu->getDebugValueBool("grammaranalysis", false);
     if (analyseGrammar)
     {
@@ -1019,6 +1020,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         }
         //throwUnexpected();
     }
+#endif
 
     bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
     if (printSyntaxTree) {

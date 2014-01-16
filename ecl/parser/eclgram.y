@@ -52,6 +52,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 
 %}
 
+//GCH May need to rethink this so that position can be a member of the attribute class instead of a pointer.
 %union
 {
     TokenData returnToken;

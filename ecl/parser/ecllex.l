@@ -37,23 +37,23 @@
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    yylval->returnToken.attributeKind = integerKind;
+    yylval->returnToken.tokenKind = INTEGER;
     yylval->returnToken.integer = atoi(tokenText);
 
     yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
-static inline void setLex(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    yylval->returnToken.attributeKind = lexemeKind;
+    yylval->returnToken.tokenKind = tokenKind;
     yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
 
 static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    yylval->returnToken.attributeKind = idKind;
+    yylval->returnToken.tokenKind = ID;
     yylval->returnToken.setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     yylval->returnToken.name = createIdAtom(tokenText, txtLen);
     lexer.updatePos(txtLen);
@@ -61,7 +61,7 @@ static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, in
   //--------------------------------------------------------------------------------
 
 #define setInt setInt(yylval, yytext, yyleng, yylineno, parser->getLexer())
-#define setLex setLex(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
 #define setId setId(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define updatepos parser->getLexer().updatePos(yyleng)
 #define resetpos parser->getLexer().resetPos()
@@ -100,15 +100,15 @@ xpathseq      ([^}\r\n])+
 "//"                     { updatepos; BEGIN(SLCOMMENT); }
 <SLCOMMENT>[^\n]+        { updatepos; BEGIN(0); }
 
-AS                       { setLex; return AS; }
-END                      { setLex; return END; }
-FROM                     { setLex; return FROM; }
-IMPORT                   { setLex; return IMPORT; }
-RECORD                   { setLex; return RECORD; }
+AS                       { setLex(AS); return AS; }
+END                      { setLex(END); return END; }
+FROM                     { setLex(FROM); return FROM; }
+IMPORT                   { setLex(IMPORT); return IMPORT; }
+RECORD                   { setLex(RECORD); return RECORD; }
 
 {digit}+                 { setInt; return UNSIGNED; } /* complete for UNSIGNED[n]*/
 (\$|{letter}){alphanum}* { setId; return ID; }
-":="                     { setLex; return ASSIGN; }
+":="                     { setLex(ASSIGN); return ASSIGN; }
 \n                       { resetpos; }
 {blank}+                 { updatepos; }
 

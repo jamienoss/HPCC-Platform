@@ -64,19 +64,19 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * le
 
 SyntaxTree::SyntaxTree()
 {
-    token = none;
+    token = 0;
     right = NULL;
 }
 
 SyntaxTree::SyntaxTree(TokenData & tok)
 {
-    switch (tok.attributeKind) {
-    case idKind: name = tok.name; break;
-    case integerKind: integer = tok.integer; break;
-    case realKind: real = tok.real; break;
+    switch (tok.tokenKind) {
+    case ID: name = tok.name; break;
+    case INTEGER: integer = tok.integer; break;
+    case REAL: real = tok.real; break;
     }
 
-    token = tok.attributeKind;
+    token = tok.tokenKind;
     pos.set(*tok.pos);
     delete tok.pos;
 	right = NULL;
@@ -184,10 +184,16 @@ bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
     str.append("\\nLine: ").append(pos.lineno);
     str.append("\\nCol: ").append(pos.column);
     str.append("\\nPos: ").append(pos.position).append("\" style=filled, color=");
-	switch(kind)
+
+    switch(kind)
 	{
-    case integerKind : str.append("\"0.66,0.5,1\""); break;
-	case lexemeKind : str.append("\"0.25,0.5,1\""); break;
+    case INTEGER:
+    case REAL:
+        str.append("\"0.66,0.5,1\"");
+        break;
+    default:
+        str.append("\"0.25,0.5,1\"");
+        break;
 	}
 	str.append("]\n");
 	out->write(str.length(), str.str());

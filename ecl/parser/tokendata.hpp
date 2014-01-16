@@ -20,26 +20,15 @@
 #define TOKENDATA_HPP
 
 #include "hql.hpp"
-//#include "eclgram.h"
 
 //extern YYTOKENTYPE;
 
-enum symbolKind
-{
-    none,
-	integerKind,
-	unsignedKind,
-	realKind,
-    idKind,
-	lexemeKind
-};
 //----------------------------------TokenData--------------------------------------------------------------------
 class TokenData
 {
 public:
     ECLlocation * pos;
-	symbolKind attributeKind;
-	//yytokentype attributeKind;
+    unsigned tokenKind;
 	union
 	{
         int integer;

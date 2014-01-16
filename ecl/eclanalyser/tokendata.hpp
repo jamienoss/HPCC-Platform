@@ -16,8 +16,8 @@
     limitations under the License.
 ############################################################################## */
 
-#ifndef TOKENDATA_HPP
-#define TOKENDATA_HPP
+#ifndef TOKENDATAX_HPP
+#define TOKENDATAX_HPP
 
 //#include "eclgram.h"
 

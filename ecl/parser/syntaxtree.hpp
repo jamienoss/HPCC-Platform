@@ -30,8 +30,6 @@ typedef CIArrayOf<SyntaxTree> SyntaxTreeArray;
 typedef unsigned short TokenKind;
 class SyntaxTree : public CInterface
 {
-
-
 public:
     SyntaxTree * createSyntaxTree();
     SyntaxTree * createSyntaxTree(TokenData & token);
@@ -52,8 +50,6 @@ public:
 
     void addChild(SyntaxTree * addition);
     void transferChildren(SyntaxTree * node);
-
-    const char * getLexeme();
 
     virtual TokenKind getKind();
 
