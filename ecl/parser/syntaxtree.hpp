@@ -24,18 +24,26 @@
 class linkedSTlist;
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
+typedef unsigned short TokenKind;
+
+interface ISyntaxTree : public IInterface
+{
+    virtual TokenKind getKind() = 0;
+};
+
 class SyntaxTree;
 typedef CIArrayOf<SyntaxTree> SyntaxTreeArray;
 
-typedef unsigned short TokenKind;
 class SyntaxTree : public CInterface
 {
 public:
-    SyntaxTree * createSyntaxTree();
-    SyntaxTree * createSyntaxTree(TokenData & token);
-    SyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
-    SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
-    SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * righBranch);
+    static SyntaxTree * createSyntaxTree();
+    static SyntaxTree * createSyntaxTree(TokenKind token, const ECLlocation & pos);
+    static SyntaxTree * createSyntaxTree(TokenData & token);
+    static SyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
+    static SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch);
+    static SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
+    static SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * righBranch);
     ~SyntaxTree();
 
     bool printTree();
@@ -43,19 +51,21 @@ public:
     bool printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out);
     bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
 
-    void setLeft(TokenData & token);
-    void setLeft(SyntaxTree * node);
-    void setRight(TokenData & token);
-    void setRight(SyntaxTree * node);
-
     void addChild(SyntaxTree * addition);
     void transferChildren(SyntaxTree * node);
 
     virtual TokenKind getKind();
+    virtual const ECLlocation & queryPosition() const { return pos; }
 
 private:
     SyntaxTree();
     SyntaxTree(TokenData & token);
+    SyntaxTree(TokenKind token, const ECLlocation & pos);
+
+    void setLeft(TokenData & token);
+    void setLeft(SyntaxTree * node);
+    void setRight(TokenData & token);
+    void setRight(SyntaxTree * node);
 
 private:
     TokenKind token;

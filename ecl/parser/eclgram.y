@@ -124,34 +124,34 @@ code
     ;
 
 eclQuery
-    : line_of_code ';'              { $$ = $$->createSyntaxTree($2); $$->setLeft($1); }
-    |  eclQuery line_of_code ';'    { $$ = $$->createSyntaxTree($3, $2, $1); }
+    : line_of_code ';'              { $$ = SyntaxTree::createSyntaxTree($2, $1); }
+    |  eclQuery line_of_code ';'    { $$ = SyntaxTree::createSyntaxTree($3, $2, $1); }
     ;
 
 line_of_code
     : expr                          { $$ = $1; }
-    | IMPORT imports                { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); $2->Release(); }
-    | lhs ASSIGN rhs                { $$ = $$->createSyntaxTree($2, $1, $3); }
+    | IMPORT imports                { $$ = SyntaxTree::createSyntaxTree($1); $$->transferChildren($2); $2->Release(); }
+    | lhs ASSIGN rhs                { $$ = SyntaxTree::createSyntaxTree($2, $1, $3); }
     ;
 
 //-----------Listed Alphabetical from here on in------------------------------------------
 
 expr
-    : expr '+' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
-    | expr '-' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
-    | expr '*' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
-    | expr '/' expr                 { $$ = $$->createSyntaxTree($2, $1, $3); }
-    | UNSIGNED                      { $$ = $$->createSyntaxTree($1); }
-    | REAL                          { $$ = $$->createSyntaxTree($1); }
-    | ID                            { $$ = $$->createSyntaxTree($1); }
+    : expr '+' expr                 { $$ = SyntaxTree::createSyntaxTree($2, $1, $3); }
+    | expr '-' expr                 { $$ = SyntaxTree::createSyntaxTree($2, $1, $3); }
+    | expr '*' expr                 { $$ = SyntaxTree::createSyntaxTree($2, $1, $3); }
+    | expr '/' expr                 { $$ = SyntaxTree::createSyntaxTree($2, $1, $3); }
+    | UNSIGNED                      { $$ = SyntaxTree::createSyntaxTree($1); }
+    | REAL                          { $$ = SyntaxTree::createSyntaxTree($1); }
+    | ID                            { $$ = SyntaxTree::createSyntaxTree($1); }
     | set                           { $$ = $1; }
-    | ID '(' expr_list ')'          { $$ = $$->createSyntaxTree($1, $2, $4); $$->transferChildren($3); $3->Release(); }
+    | ID '(' expr_list ')'          { $$ = SyntaxTree::createSyntaxTree($1, $2, $4); $$->transferChildren($3); $3->Release(); }
     | '(' expr ')'                  { $$ = $2; }
     ;
 
 expr_list
     : expr_list ',' expr            { $$ = $1; $$->addChild($3); }
-    | expr                          { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+    | expr                          { $$ = SyntaxTree::createSyntaxTree(); $$->addChild($1); }
     ;
 
 fields
@@ -163,7 +163,7 @@ fields
                                     }
     | type ID ';'
                                     {
-                                        $$ = $$->createSyntaxTree();
+                                        $$ = SyntaxTree::createSyntaxTree();
                                         SyntaxTree * newField = newField->createSyntaxTree($3, $1, $2);
                                         $$->addChild( newField );
                                     }
@@ -172,21 +172,11 @@ fields
 imports
     : module_list                   { $$ = $1; }
     | ID AS ID                      {   // folder AS alias
-                                        $$ = $$->createSyntaxTree();
-                                        SyntaxTree * temp = temp->createSyntaxTree($1);
-                                        $$->addChild(temp);
-                                        temp = temp->createSyntaxTree($2);
-                                        temp->setRight($3);
-                                        $$->addChild(temp);
+                                        $$ = SyntaxTree::createSyntaxTree($2, $1, $3);
                                     }
     | module_list FROM  module_from
                                     {
-                                        $$ = $$->createSyntaxTree();
-                                        SyntaxTree * temp = temp->createSyntaxTree($2);
-                                        temp->setRight($3);
-                                        $$->transferChildren($1);
-                                        $1->Release();
-                                        $$->addChild(temp);
+                                        $$ = SyntaxTree::createSyntaxTree($2, $1, $3);
                                      }
 
 //  r/r error with ID in module_list  | ID                            { } // language - can this not be listed in module_list?
@@ -203,23 +193,23 @@ inline_fields
     ;
 
 lhs
-    : ID                            { $$ = $$->createSyntaxTree($1); }
+    : ID                            { $$ = SyntaxTree::createSyntaxTree($1); }
     ;
 
 module_from
-    : ID                            { $$ = $$->createSyntaxTree($1); }
-    | DIR                           { $$ = $$->createSyntaxTree($1); }
+    : ID                            { $$ = SyntaxTree::createSyntaxTree($1); }
+    | DIR                           { $$ = SyntaxTree::createSyntaxTree($1); }
     ;
 
 module_list
     : module_list ',' module_symbols
                                     { $$ = $1; $$->addChild( $3 ); }
-    | module_symbols                { $$ = $$->createSyntaxTree(); $$->addChild($1); }
+    | module_symbols                { $$ = SyntaxTree::createSyntaxTree(',', $1->queryPosition()); $$->addChild($1); }
     ;
 
 module_symbols
-    : ID                            { $$ = $$->createSyntaxTree($1); }
-    | '$'                           { $$ = $$->createSyntaxTree($1); }
+    : ID                            { $$ = SyntaxTree::createSyntaxTree($1); }
+    | '$'                           { $$ = SyntaxTree::createSyntaxTree($1); }
     ;
 
 inline_recordset
@@ -231,7 +221,7 @@ records
     ;
 
 recordset
-    : RECORD fields END             { $$ = $$->createSyntaxTree($1); $$->transferChildren($2); $2->Release(); }
+    : RECORD fields END             { $$ = SyntaxTree::createSyntaxTree($1); $$->transferChildren($2); $2->Release(); }
     ;
 
 rhs
@@ -241,11 +231,11 @@ rhs
     ;
 
 set
-    : '[' records ']'               { $$ = $$->createSyntaxTree(); $$->transferChildren($2); $2->Release(); }
+    : '[' records ']'               { $$ = SyntaxTree::createSyntaxTree(); $$->transferChildren($2); $2->Release(); }
     ;
 
 type
-    : ID                            { $$ = $$->createSyntaxTree($1); }
+    : ID                            { $$ = SyntaxTree::createSyntaxTree($1); }
     ;
 
 %%

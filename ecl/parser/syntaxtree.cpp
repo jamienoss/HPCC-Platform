@@ -37,6 +37,11 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token)
 }
 
 
+SyntaxTree * SyntaxTree::createSyntaxTree(TokenKind token, const ECLlocation & pos)
+{
+    return new SyntaxTree(token, pos);
+}
+
 SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
 {
     SyntaxTree * temp = new SyntaxTree(parentTok);
@@ -53,6 +58,13 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * le
     return temp;
 }
 
+SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch)
+{
+    SyntaxTree * temp = new SyntaxTree(parentTok);
+    temp->setLeft(leftBranch);
+    return temp;
+}
+
 SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * rightBranch)
 {
     SyntaxTree * temp =  new SyntaxTree(parentTok);
@@ -65,6 +77,13 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * le
 SyntaxTree::SyntaxTree()
 {
     token = 0;
+    right = NULL;
+}
+
+SyntaxTree::SyntaxTree(TokenKind _token, const ECLlocation & _pos)
+{
+    token = _token;
+    pos.set(_pos);
     right = NULL;
 }
 

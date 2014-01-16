@@ -49,7 +49,7 @@ int EclParser::parse()
 void EclParser::init(IFileContents * queryContents)
 {
     lexer = new EclLexer(queryContents);
-    ast = ast->createSyntaxTree();
+    ast = SyntaxTree::createSyntaxTree();
 }
 
 void EclParser::setRoot(SyntaxTree * node)
