@@ -130,6 +130,12 @@ void SyntaxTree::setRight(TokenData & token)
 }
 
 
+SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
+{
+    //This is valid because all implementations of ISyntaxTree are implemented by the SyntaxTree class
+    return static_cast<SyntaxTree *>(queryChild(i));
+}
+
 
 bool SyntaxTree::printTree()
 {
@@ -138,7 +144,7 @@ bool SyntaxTree::printTree()
     StringBuffer str;
     Owned<IFile> treeFile = createIFile(((std::string)pos.sourcePath->str()).append(".dot").c_str());
     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
-    Owned<IFileIOStream> out = createIOStream(io);
+    Owned<IIOStream> out = createIOStream(io);
 
     str = "graph \"Abstract Syntax Tree\"\n{\n";
     out->write(str.length(), str.str());
@@ -151,7 +157,7 @@ bool SyntaxTree::printTree()
     return ioStat;
 }
 
-bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out)
+bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
 {
     bool ioStatL;
     bool ioStatR;
@@ -162,25 +168,25 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owne
     if (left)
     {
         printEdge(parentNodeNumm, *nodeNum, out);
-        ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
+        ioStatL = (static_cast<SyntaxTree *>(left.get()))->printBranch(parentNodeNum, nodeNum, out); // yuk!
     }
 
     ForEachItemIn(i,children)
     {
        printEdge(parentNodeNumm, *nodeNum, out);
-       children.item(i).printBranch(parentNodeNum, nodeNum, out);
+       queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
     }
 
     if (right)
     {
         printEdge(parentNodeNumm, *nodeNum, out);
-        ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
+        ioStatR = (static_cast<SyntaxTree *>(right))->printBranch(parentNodeNum, nodeNum, out);
     }
 
     return !(ioStatL && ioStatR);
 }
 
-bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out)
+bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out)
 {
     StringBuffer str;
     str.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
@@ -188,7 +194,7 @@ bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFile
     return true;
 }
 
-bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out, const char * text, const char * colour)
+bool SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour)
 {
     StringBuffer str;
     str.append(*nodeNum).append(" [label = \"");
@@ -204,7 +210,7 @@ bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out, const
     return true;
 }
 
-bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
+bool SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
     switch(token){
@@ -228,10 +234,33 @@ bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
     return printNode(nodeNum, out, text, colour);
 }
 
+void SyntaxTree::printXml(StringBuffer & out)
+{
+    const char * type = "?";
+    out.append("<st kind=\'").append(type).append("\' ");
+
+    if (children.ordinality())
+    {
+        out.append(">").newline();
+        ForEachItemIn(i, children)
+            children.item(i).printXml(out);
+        out.append("</st>");
+    }
+    else
+        out.append("/>").newline();
+}
+
 void SyntaxTree::addChild(ISyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
     children.append(*addition);
     addition = NULL;
+}
+
+ISyntaxTree * SyntaxTree::queryChild(unsigned i)
+{
+    if (children.isItem(i))
+        return & children.item(i);
+    return NULL;
 }
 
 void SyntaxTree::transferChildren(ISyntaxTree * _node) // come up with a better name!!!
@@ -265,7 +294,7 @@ IntegerSyntaxTree::IntegerSyntaxTree(TokenData & tok) : SyntaxTree(tok)
 }
 
 
-bool IntegerSyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
+bool IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
     text.append(value);

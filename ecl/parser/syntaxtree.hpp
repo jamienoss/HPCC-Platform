@@ -31,7 +31,8 @@ interface ISyntaxTree : public IInterface
     virtual TokenKind getKind() = 0;
     virtual const ECLlocation & queryPosition() const = 0;
     virtual bool printTree() = 0;
-    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out) = 0;
+    virtual void printXml(StringBuffer & out) = 0;
+    virtual ISyntaxTree * queryChild(unsigned i) = 0;
 
     virtual void setLeft(ISyntaxTree * node) = 0;
     virtual void setRight(ISyntaxTree * node) = 0;
@@ -56,7 +57,8 @@ public:
 
 //Implementation of ISyntaxTree
     virtual bool printTree();
-    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out);
+    virtual void printXml(StringBuffer & out);
+    virtual ISyntaxTree * queryChild(unsigned i);
 
     virtual void addChild(ISyntaxTree * addition);
     virtual void transferChildren(ISyntaxTree * node);
@@ -71,12 +73,15 @@ protected:
     SyntaxTree(TokenData & token);
     SyntaxTree(TokenKind token, const ECLlocation & pos);
 
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out);
-    virtual bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
-    bool printNode(unsigned * nodeNum, Owned<IFileIOStream> & out, const char * text, const char * colour);
+    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out);
+    virtual bool printNode(unsigned * nodeNum,  IIOStream * out);
+    bool printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour);
 
     void setLeft(TokenData & token);
     void setRight(TokenData & token);
+
+    SyntaxTree * queryPrivateChild(unsigned i);
+    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
 protected:
     TokenKind token;
@@ -97,7 +102,7 @@ class IntegerSyntaxTree : public SyntaxTree
 public:
     IntegerSyntaxTree(TokenData & token);
 
-    virtual bool printNode(unsigned * nodeNum, Owned<IFileIOStream> & out);
+    virtual bool printNode(unsigned * nodeNum, IIOStream * out);
 
 private:
     int value;
