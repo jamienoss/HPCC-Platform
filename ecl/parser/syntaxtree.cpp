@@ -26,23 +26,26 @@
 #include "eclgram.h"
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
-SyntaxTree * SyntaxTree::createSyntaxTree()
+
+ISyntaxTree * SyntaxTree::createSyntaxTree()
 {
     return new SyntaxTree();
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token)
+ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token)
 {
+    if (token.tokenKind == INTEGER)
+        return new IntegerSyntaxTree(token);
     return new SyntaxTree(token);
 }
 
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenKind token, const ECLlocation & pos)
+ISyntaxTree * SyntaxTree::createSyntaxTree(TokenKind token, const ECLlocation & pos)
 {
     return new SyntaxTree(token, pos);
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
+ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
 {
     SyntaxTree * temp = new SyntaxTree(parentTok);
     temp->setLeft(leftTok);
@@ -50,7 +53,7 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & lef
     return temp;
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok)
+ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok)
 {
     SyntaxTree * temp = new SyntaxTree(parentTok);
     temp->setLeft(leftBranch);
@@ -58,14 +61,14 @@ SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * le
     return temp;
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch)
+ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch)
 {
     SyntaxTree * temp = new SyntaxTree(parentTok);
     temp->setLeft(leftBranch);
     return temp;
 }
 
-SyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * rightBranch)
+ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * rightBranch)
 {
     SyntaxTree * temp =  new SyntaxTree(parentTok);
     temp->setLeft(leftBranch);
@@ -91,7 +94,6 @@ SyntaxTree::SyntaxTree(TokenData & tok)
 {
     switch (tok.tokenKind) {
     case ID: name = tok.name; break;
-    case INTEGER: integer = tok.integer; break;
     case REAL: real = tok.real; break;
     }
 
@@ -107,12 +109,12 @@ SyntaxTree::~SyntaxTree()
          delete right;
 }
 
-void SyntaxTree::setLeft(SyntaxTree * node)
+void SyntaxTree::setLeft(ISyntaxTree * node)
 {
     left.setown(node);
 }
 
-void SyntaxTree::setRight(SyntaxTree * node)
+void SyntaxTree::setRight(ISyntaxTree * node)
 {
     right = node;
 }
@@ -194,7 +196,6 @@ bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
 
     TokenKind kind = token;
 	switch(kind){
-    case INTEGER : str.append(integer); break;
     case REAL: str.append(real); break;
     case ID : str.append(name->str()); break;
     default: appendParserTokenText(str, kind); break;
@@ -221,14 +222,15 @@ bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
 	return true;
 }
 
-void SyntaxTree::addChild(SyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
+void SyntaxTree::addChild(ISyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
     children.append(*addition);
     addition = NULL;
 }
 
-void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better name!!!
+void SyntaxTree::transferChildren(ISyntaxTree * _node) // come up with a better name!!!
 {
+    SyntaxTree * node = static_cast<SyntaxTree *>(_node);   // justification is that interface is being used to implement an opaque type
     ForEachItemIn(i,node->children)
         children.append(*LINK(&node->children.item(i)));
 
@@ -247,4 +249,35 @@ void SyntaxTree::transferChildren(SyntaxTree * node) // come up with a better na
 TokenKind SyntaxTree::getKind()
 {
     return token;
+}
+
+//----------------------------------SyntaxTree--------------------------------------------------------------------
+
+IntegerSyntaxTree::IntegerSyntaxTree(TokenData & tok) : SyntaxTree(tok)
+{
+    value = tok.integer;
+}
+
+
+bool IntegerSyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
+{
+
+    StringBuffer str;
+    str.append(*nodeNum).append(" [label = \"");
+
+    TokenKind kind = token;
+    str.append(value);
+
+    str.append("\\nLine: ").append(pos.lineno);
+    str.append("\\nCol: ").append(pos.column);
+    str.append("\\nPos: ").append(pos.position).append("\" style=filled, color=");
+
+    str.append("\"0.66,0.5,1\"");
+
+    str.append("]\n");
+    out->write(str.length(), str.str());
+
+    (*nodeNum)++;
+
+    return true;
 }

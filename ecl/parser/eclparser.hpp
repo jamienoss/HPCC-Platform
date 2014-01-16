@@ -39,17 +39,17 @@ class EclParser
 public:
     EclParser(IFileContents * queryContents);
     ~EclParser();
-    SyntaxTree * releaseAST();
+    ISyntaxTree * releaseAST();
 
 
-    void setRoot(SyntaxTree * node);
+    void setRoot(ISyntaxTree * node);
     bool printAST();
     int parse();
     EclLexer & getLexer();
 
 private:
     EclLexer * lexer;
-    SyntaxTree * ast;
+    ISyntaxTree * ast;
 
     void init(IFileContents * queryContents);
 };

@@ -56,7 +56,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 %union
 {
     TokenData returnToken;
-    SyntaxTree * treeNode;
+    ISyntaxTree * treeNode;
 }
 
 //=========================================== tokens ====================================
@@ -158,13 +158,13 @@ fields
     : fields type ID ';'
                                     {
                                         $$ = $1;
-                                        SyntaxTree * newField = newField->createSyntaxTree($4, $2, $3);
+                                        ISyntaxTree * newField = SyntaxTree::createSyntaxTree($4, $2, $3);
                                         $$->addChild( newField );
                                     }
     | type ID ';'
                                     {
                                         $$ = SyntaxTree::createSyntaxTree();
-                                        SyntaxTree * newField = newField->createSyntaxTree($3, $1, $2);
+                                        ISyntaxTree * newField = SyntaxTree::createSyntaxTree($3, $1, $2);
                                         $$->addChild( newField );
                                     }
     ;

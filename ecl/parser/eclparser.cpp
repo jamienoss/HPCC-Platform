@@ -35,15 +35,15 @@ EclParser::EclParser(IFileContents * queryContents)
 
 EclParser::~EclParser()
 {
-	if (lexer)
-		delete lexer;
+    if (lexer)
+        delete lexer;
     if (ast)
         delete ast;
 }
 
 int EclParser::parse()
 {
-	return lexer->parse(this);
+    return lexer->parse(this);
 }
 
 void EclParser::init(IFileContents * queryContents)
@@ -52,21 +52,21 @@ void EclParser::init(IFileContents * queryContents)
     ast = SyntaxTree::createSyntaxTree();
 }
 
-void EclParser::setRoot(SyntaxTree * node)
+void EclParser::setRoot(ISyntaxTree * node)
 {
-	ast = node;
+    ast = node;
 }
 
 bool EclParser::printAST()
 {
-	return ast->printTree();
+    return ast->printTree();
 }
 
-SyntaxTree * EclParser::releaseAST()
+ISyntaxTree * EclParser::releaseAST()
 {
-	SyntaxTree * temp = ast;
-	ast = NULL;
-	return temp;
+    ISyntaxTree * temp = ast;
+    ast = NULL;
+    return temp;
 }
 
 EclLexer & EclParser::getLexer()

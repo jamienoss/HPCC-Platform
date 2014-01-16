@@ -29,57 +29,77 @@ typedef unsigned short TokenKind;
 interface ISyntaxTree : public IInterface
 {
     virtual TokenKind getKind() = 0;
+    virtual const ECLlocation & queryPosition() const = 0;
+    virtual bool printTree() = 0;
+    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out) = 0;
+
+    virtual void setLeft(ISyntaxTree * node) = 0;
+    virtual void setRight(ISyntaxTree * node) = 0;
+    virtual void addChild(ISyntaxTree * addition) = 0;
+    virtual void transferChildren(ISyntaxTree * node) = 0;
 };
 
-class SyntaxTree;
-typedef CIArrayOf<SyntaxTree> SyntaxTreeArray;
+typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
 
-class SyntaxTree : public CInterface
+/// The following code can now be moved and hidden ---
+class SyntaxTree : public CInterfaceOf<ISyntaxTree>
 {
 public:
-    static SyntaxTree * createSyntaxTree();
-    static SyntaxTree * createSyntaxTree(TokenKind token, const ECLlocation & pos);
-    static SyntaxTree * createSyntaxTree(TokenData & token);
-    static SyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
-    static SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch);
-    static SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, TokenData & rightTok);
-    static SyntaxTree * createSyntaxTree(TokenData & parentTok, SyntaxTree * leftBranch, SyntaxTree * righBranch);
+    static ISyntaxTree * createSyntaxTree();
+    static ISyntaxTree * createSyntaxTree(TokenKind token, const ECLlocation & pos);
+    static ISyntaxTree * createSyntaxTree(TokenData & token);
+    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
+    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch);
+    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok);
+    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * righBranch);
     ~SyntaxTree();
 
-    bool printTree();
-    bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out);
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out);
-    bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
+//Implementation of ISyntaxTree
+    virtual bool printTree();
+    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out);
 
-    void addChild(SyntaxTree * addition);
-    void transferChildren(SyntaxTree * node);
+    virtual void addChild(ISyntaxTree * addition);
+    virtual void transferChildren(ISyntaxTree * node);
 
     virtual TokenKind getKind();
     virtual const ECLlocation & queryPosition() const { return pos; }
+    virtual void setLeft(ISyntaxTree * node);
+    virtual void setRight(ISyntaxTree * node);
 
-private:
+protected:
     SyntaxTree();
     SyntaxTree(TokenData & token);
     SyntaxTree(TokenKind token, const ECLlocation & pos);
 
-    void setLeft(TokenData & token);
-    void setLeft(SyntaxTree * node);
-    void setRight(TokenData & token);
-    void setRight(SyntaxTree * node);
+    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out);
+    bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
 
-private:
+    void setLeft(TokenData & token);
+    void setRight(TokenData & token);
+
+protected:
     TokenKind token;
     union
     {
-        int integer;
         float real;
         IIdAtom * name;
     };
     ECLlocation pos;
 
-    Owned<SyntaxTree> left;
-    SyntaxTree * right;
+    Owned<ISyntaxTree> left;
+    ISyntaxTree * right;
     SyntaxTreeArray children;
+};
+
+class IntegerSyntaxTree : public SyntaxTree
+{
+public:
+    IntegerSyntaxTree(TokenData & token);
+
+    virtual bool printNode(unsigned * nodeNum, Owned<IFileIOStream> & out);
+
+private:
+    int value;
 };
 
 #endif

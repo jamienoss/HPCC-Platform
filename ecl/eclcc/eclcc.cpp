@@ -1026,7 +1026,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     if (printSyntaxTree) {
         EclParser * parser = new EclParser(queryContents);
         if (!(parser->parse())) { // Check persistence of AST
-            SyntaxTree * AST = parser->releaseAST();
+            ISyntaxTree * AST = parser->releaseAST();
             delete parser;
             AST->printTree();
             //parser->printAST();
