@@ -100,7 +100,7 @@ SyntaxTree::SyntaxTree(TokenData & tok)
     token = tok.tokenKind;
     pos.set(*tok.pos);
     delete tok.pos;
-	right = NULL;
+    right = NULL;
 }
 
 SyntaxTree::~SyntaxTree()
@@ -133,37 +133,37 @@ void SyntaxTree::setRight(TokenData & token)
 
 bool SyntaxTree::printTree()
 {
-	int ioStat;
-	unsigned parentNodeNum = 0, nodeNum = 0;
-	StringBuffer str;
+    int ioStat;
+    unsigned parentNodeNum = 0, nodeNum = 0;
+    StringBuffer str;
     Owned<IFile> treeFile = createIFile(((std::string)pos.sourcePath->str()).append(".dot").c_str());
     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
     Owned<IFileIOStream> out = createIOStream(io);
 
-	str = "graph \"Abstract Syntax Tree\"\n{\n";
-	out->write(str.length(), str.str());
+    str = "graph \"Abstract Syntax Tree\"\n{\n";
+    out->write(str.length(), str.str());
 
-	ioStat = printBranch(& parentNodeNum, & nodeNum, out);
+    ioStat = printBranch(& parentNodeNum, & nodeNum, out);
 
-	str = "}\n";
-	out->write(str.length(), str.str());
-	io->close();
-	return ioStat;
+    str = "}\n";
+    out->write(str.length(), str.str());
+    io->close();
+    return ioStat;
 }
 
 bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out)
 {
-	bool ioStatL;
-	bool ioStatR;
-	unsigned parentNodeNumm = *nodeNum;
+    bool ioStatL;
+    bool ioStatR;
+    unsigned parentNodeNumm = *nodeNum;
 
-	printNode(nodeNum, out);
+    printNode(nodeNum, out);
 
-	if (left)
-	{
-		printEdge(parentNodeNumm, *nodeNum, out);
-		ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
-	}
+    if (left)
+    {
+        printEdge(parentNodeNumm, *nodeNum, out);
+        ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
+    }
 
     ForEachItemIn(i,children)
     {
@@ -171,13 +171,13 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owne
        children.item(i).printBranch(parentNodeNum, nodeNum, out);
     }
 
-	if (right)
-	{
-		printEdge(parentNodeNumm, *nodeNum, out);
-		ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
-	}
+    if (right)
+    {
+        printEdge(parentNodeNumm, *nodeNum, out);
+        ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
+    }
 
-	return !(ioStatL && ioStatR);
+    return !(ioStatL && ioStatR);
 }
 
 bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out)
@@ -185,41 +185,47 @@ bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFile
     StringBuffer str;
     str.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
     out->write(str.length(), str.str());
-	return true;
+    return true;
+}
+
+bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out, const char * text, const char * colour)
+{
+    StringBuffer str;
+    str.append(*nodeNum).append(" [label = \"");
+    str.append(text);
+    str.append("\\nLine: ").append(pos.lineno);
+    str.append("\\nCol: ").append(pos.column);
+    str.append("\\nPos: ").append(pos.position).append("\" style=filled, color=");
+    str.append(colour);
+    str.append("]\n");
+    out->write(str.length(), str.str());
+
+    (*nodeNum)++;
+    return true;
 }
 
 bool SyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
 {
+    StringBuffer text;
+    switch(token){
+    case REAL: text.append(real); break;
+    case ID : text.append(name->str()); break;
+    default: appendParserTokenText(text, token); break;
+    }
 
-    StringBuffer str;
-    str.append(*nodeNum).append(" [label = \"");
-
-    TokenKind kind = token;
-	switch(kind){
-    case REAL: str.append(real); break;
-    case ID : str.append(name->str()); break;
-    default: appendParserTokenText(str, kind); break;
-	}
-
-    str.append("\\nLine: ").append(pos.lineno);
-    str.append("\\nCol: ").append(pos.column);
-    str.append("\\nPos: ").append(pos.position).append("\" style=filled, color=");
-
-    switch(kind)
-	{
+    const char * colour = NULL;
+    switch(token)
+    {
     case INTEGER:
     case REAL:
-        str.append("\"0.66,0.5,1\"");
+        colour = "\"0.66,0.5,1\"";
         break;
     default:
-        str.append("\"0.25,0.5,1\"");
+        colour = "\"0.25,0.5,1\"";
         break;
-	}
-	str.append("]\n");
-	out->write(str.length(), str.str());
+    }
 
-	(*nodeNum)++;
-	return true;
+    return printNode(nodeNum, out, text, colour);
 }
 
 void SyntaxTree::addChild(ISyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
@@ -261,23 +267,7 @@ IntegerSyntaxTree::IntegerSyntaxTree(TokenData & tok) : SyntaxTree(tok)
 
 bool IntegerSyntaxTree::printNode(unsigned * nodeNum, Owned<IFileIOStream> & out)
 {
-
-    StringBuffer str;
-    str.append(*nodeNum).append(" [label = \"");
-
-    TokenKind kind = token;
-    str.append(value);
-
-    str.append("\\nLine: ").append(pos.lineno);
-    str.append("\\nCol: ").append(pos.column);
-    str.append("\\nPos: ").append(pos.position).append("\" style=filled, color=");
-
-    str.append("\"0.66,0.5,1\"");
-
-    str.append("]\n");
-    out->write(str.length(), str.str());
-
-    (*nodeNum)++;
-
-    return true;
+    StringBuffer text;
+    text.append(value);
+    return SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
 }

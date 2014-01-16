@@ -72,7 +72,8 @@ protected:
     SyntaxTree(TokenKind token, const ECLlocation & pos);
 
     bool printEdge(unsigned parentNodeNum, unsigned nodeNum, Owned<IFileIOStream> & out);
-    bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
+    virtual bool printNode(unsigned * nodeNum,  Owned<IFileIOStream> & out);
+    bool printNode(unsigned * nodeNum, Owned<IFileIOStream> & out, const char * text, const char * colour);
 
     void setLeft(TokenData & token);
     void setRight(TokenData & token);
