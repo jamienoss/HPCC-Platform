@@ -20,14 +20,19 @@
 #define TOKENDATA_HPP
 
 #include "hql.hpp"
-
 //extern YYTOKENTYPE;
+
+class ISyntaxTree;
+class SyntaxTree;
+typedef unsigned short TokenKind;
 
 //----------------------------------TokenData--------------------------------------------------------------------
 class TokenData
 {
 public:
-    ECLlocation * pos;
+
+public:
+    ECLlocation pos;
     unsigned tokenKind;
 	union
 	{
@@ -36,7 +41,20 @@ public:
         IIdAtom * name;
 	};
 
+	Owned<ISyntaxTree> node;
 	void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
+
+public:
+    void createSyntaxTree();
+    void createSyntaxTree(TokenKind token, const ECLlocation & pos);
+    void createSyntaxTree(TokenData & token);
+    void createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
+    void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch);
+    void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok);
+    void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * righBranch);
+
+
+
 };
 
 class StringBuffer;

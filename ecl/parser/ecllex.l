@@ -23,7 +23,7 @@
 %option bison-bridge
 %option yylineno
 %option stack
-%option nodefault
+  //%option nodefault
 
 
 %{
@@ -34,28 +34,34 @@
 
 #define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
 
+class TokenData;
+
+#ifndef YYSTYPE
+    #define YYSTYPE TokenData
+#endif
+
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    yylval->returnToken.tokenKind = INTEGER;
-    yylval->returnToken.integer = atoi(tokenText);
+    yylval->tokenKind = INTEGER;
+    yylval->integer = atoi(tokenText);
 
-    yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    yylval->returnToken.tokenKind = tokenKind;
-    yylval->returnToken.setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->tokenKind = tokenKind;
+    yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
-
+  //--------------------------------------------------------------------------------
 static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    yylval->returnToken.tokenKind = ID;
-    yylval->returnToken.setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
-    yylval->returnToken.name = createIdAtom(tokenText, txtLen);
+    yylval->tokenKind = ID;
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->name = createIdAtom(tokenText, txtLen);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------

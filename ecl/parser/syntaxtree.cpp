@@ -98,8 +98,7 @@ SyntaxTree::SyntaxTree(TokenData & tok)
     }
 
     token = tok.tokenKind;
-    pos.set(*tok.pos);
-    delete tok.pos;
+    pos.set(tok.pos);
     right = NULL;
 }
 

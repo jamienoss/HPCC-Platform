@@ -21,10 +21,9 @@
 #include "tokendata.hpp"
 #include"jlib.hpp"
 
-class linkedSTlist;
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
-typedef unsigned short TokenKind;
+//typedef unsigned short TokenKind;
 
 interface ISyntaxTree : public IInterface
 {
