@@ -80,14 +80,12 @@ ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, ISyntaxTree * 
 SyntaxTree::SyntaxTree()
 {
     token = 0;
-    right = NULL;
 }
 
 SyntaxTree::SyntaxTree(TokenKind _token, const ECLlocation & _pos)
 {
     token = _token;
     pos.set(_pos);
-    right = NULL;
 }
 
 SyntaxTree::SyntaxTree(TokenData & tok)
@@ -99,14 +97,9 @@ SyntaxTree::SyntaxTree(TokenData & tok)
 
     token = tok.tokenKind;
     pos.set(tok.pos);
-    right = NULL;
 }
 
-SyntaxTree::~SyntaxTree()
-{
-     if (right)
-         delete right;
-}
+SyntaxTree::~SyntaxTree() {}
 
 void SyntaxTree::setLeft(ISyntaxTree * node)
 {
@@ -115,7 +108,7 @@ void SyntaxTree::setLeft(ISyntaxTree * node)
 
 void SyntaxTree::setRight(ISyntaxTree * node)
 {
-    right = node;
+    right.setown(node);
 }
 
 void SyntaxTree::setLeft(TokenData & token)
@@ -125,7 +118,7 @@ void SyntaxTree::setLeft(TokenData & token)
 
 void SyntaxTree::setRight(TokenData & token)
 {
-    right = createSyntaxTree(token);
+    right.setown(createSyntaxTree(token));
 }
 
 
@@ -167,7 +160,8 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOS
     if (left)
     {
         printEdge(parentNodeNumm, *nodeNum, out);
-        ioStatL = (static_cast<SyntaxTree *>(left.get()))->printBranch(parentNodeNum, nodeNum, out); // yuk!
+        //ioStatL = (static_cast<SyntaxTree *>(left.get()))->printBranch(parentNodeNum, nodeNum, out); // yuk!
+        ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
     }
 
     ForEachItemIn(i,children)
@@ -179,7 +173,8 @@ bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOS
     if (right)
     {
         printEdge(parentNodeNumm, *nodeNum, out);
-        ioStatR = (static_cast<SyntaxTree *>(right))->printBranch(parentNodeNum, nodeNum, out);
+        //ioStatR = (static_cast<SyntaxTree *>(right.get()))->printBranch(parentNodeNum, nodeNum, out);
+        ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
     }
 
     return !(ioStatL && ioStatR);
@@ -267,17 +262,6 @@ void SyntaxTree::transferChildren(ISyntaxTree * _node) // come up with a better 
     SyntaxTree * node = static_cast<SyntaxTree *>(_node);   // justification is that interface is being used to implement an opaque type
     ForEachItemIn(i,node->children)
         children.append(*LINK(&node->children.item(i)));
-
-/*
-    if(aux) {
-        std::cout << "hmmm, aux is already pointing to something. Maybe you meant to use add2Aux?\n";
-        return;
-    }
-
-    auxLength = node->getAuxLength();
-    aux = node->releaseAux();
-    delete node;
-    */
 }
 
 TokenKind SyntaxTree::getKind()
@@ -298,4 +282,36 @@ bool IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     StringBuffer text;
     text.append(value);
     return SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+
+bool  IntegerSyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
+{
+    bool ioStatL;
+    bool ioStatR;
+    unsigned parentNodeNumm = *nodeNum;
+
+    printNode(nodeNum, out);
+
+    if (left)
+    {
+        printEdge(parentNodeNumm, *nodeNum, out);
+        //ioStatL = (static_cast<SyntaxTree *>(left.get()))->printBranch(parentNodeNum, nodeNum, out); // yuk!
+        ioStatL = left->printBranch(parentNodeNum, nodeNum, out); // yuk!
+
+    }
+
+    ForEachItemIn(i,children)
+    {
+       printEdge(parentNodeNumm, *nodeNum, out);
+       queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
+    }
+
+    if (right)
+    {
+        printEdge(parentNodeNumm, *nodeNum, out);
+        //ioStatR = (static_cast<SyntaxTree *>(right.get()))->printBranch(parentNodeNum, nodeNum, out);
+        ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
+    }
+
+    return !(ioStatL && ioStatR);
 }

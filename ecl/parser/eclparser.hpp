@@ -28,9 +28,14 @@
 typedef void* yyscan_t;
 #endif
 
+//#define YYSTYPE TokenData
+
 class EclParser;
 class EclLexer;
 
+typedef class TokenData YYSTYPE;
+#undef YYSTYPE_IS_DECLARED
+#define YYSTYPE_IS_DECLARED 1
 //----------------------------------EclParser--------------------------------------------------------------------
 class EclParser
 {
@@ -42,14 +47,14 @@ public:
     ISyntaxTree * releaseAST();
 
 
-    void setRoot(ISyntaxTree * node);
+    void setRoot(TokenData & token);
     bool printAST();
     int parse();
     EclLexer & getLexer();
 
 private:
     EclLexer * lexer;
-    ISyntaxTree * ast;
+    Owned<ISyntaxTree> ast;
 
     void init(IFileContents * queryContents);
 };

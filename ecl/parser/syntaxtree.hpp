@@ -37,6 +37,8 @@ interface ISyntaxTree : public IInterface
     virtual void setRight(ISyntaxTree * node) = 0;
     virtual void addChild(ISyntaxTree * addition) = 0;
     virtual void transferChildren(ISyntaxTree * node) = 0;
+    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
+
 };
 
 typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
@@ -66,6 +68,7 @@ public:
     virtual const ECLlocation & queryPosition() const { return pos; }
     virtual void setLeft(ISyntaxTree * node);
     virtual void setRight(ISyntaxTree * node);
+    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
 protected:
     SyntaxTree();
@@ -80,9 +83,8 @@ protected:
     void setRight(TokenData & token);
 
     SyntaxTree * queryPrivateChild(unsigned i);
-    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
-protected:
+public:
     TokenKind token;
     union
     {
@@ -92,7 +94,7 @@ protected:
     ECLlocation pos;
 
     Owned<ISyntaxTree> left;
-    ISyntaxTree * right;
+    Owned<ISyntaxTree> right;
     SyntaxTreeArray children;
 };
 
@@ -102,8 +104,10 @@ public:
     IntegerSyntaxTree(TokenData & token);
 
     virtual bool printNode(unsigned * nodeNum, IIOStream * out);
+    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
-private:
+
+public:
     int value;
 };
 

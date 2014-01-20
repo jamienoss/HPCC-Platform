@@ -32,13 +32,14 @@
 #include <iostream>
 #include <cstring>
 
-#define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
 
 class TokenData;
 
 #ifndef YYSTYPE
     #define YYSTYPE TokenData
 #endif
+
+#define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
 
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
@@ -112,13 +113,13 @@ FROM                     { setLex(FROM); return FROM; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 RECORD                   { setLex(RECORD); return RECORD; }
 
-{digit}+                 { setInt; return UNSIGNED; } /* complete for UNSIGNED[n]*/
+{digit}+                 { setInt; return INTEGER; } /* complete for UNSIGNED[n]*/
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
 \n                       { resetpos; }
 {blank}+                 { updatepos; }
 
-.                        { updatepos; return (yytext[0]); }
+.                        { updatepos; setLex(yytext[0]); return (yytext[0]); }
 
 %%
 

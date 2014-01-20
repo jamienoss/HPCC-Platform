@@ -30,6 +30,8 @@ typedef unsigned short TokenKind;
 class TokenData
 {
 public:
+    TokenData();
+    ~TokenData();
 
 public:
     ECLlocation pos;
@@ -42,7 +44,6 @@ public:
 	};
 
 	Owned<ISyntaxTree> node;
-	void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 
 public:
     void createSyntaxTree();
@@ -53,8 +54,7 @@ public:
     void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok);
     void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * righBranch);
 
-
-
+    void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 };
 
 class StringBuffer;

@@ -44,11 +44,13 @@
 #include "hqlerror.hpp"
 #include "hqlcerrors.hpp"
 
+#include "eclparser.hpp"
+//#include "analyserparser.hpp"
+
 #include "hqlgram.hpp"
 #include "hqltrans.ipp"
 
-#include "eclparser.hpp"
-//#include "analyserparser.hpp"
+
 
 #include "build-config.h"
 #include "rmtfile.hpp"
@@ -1026,10 +1028,10 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     if (printSyntaxTree) {
         EclParser * parser = new EclParser(queryContents);
         if (!(parser->parse())) { // Check persistence of AST
-            ISyntaxTree * AST = parser->releaseAST();
-            delete parser;
-            AST->printTree();
-            //parser->printAST();
+            //ISyntaxTree * AST = parser->releaseAST();
+            //delete parser;
+            //AST->printTree();
+            parser->printAST();
         }
         throwUnexpected();
 
