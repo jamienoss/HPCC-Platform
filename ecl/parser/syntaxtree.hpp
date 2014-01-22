@@ -22,6 +22,9 @@
 #include"jlib.hpp"
 
 
+
+
+
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 //typedef unsigned short TokenKind;
 
@@ -29,16 +32,12 @@ interface ISyntaxTree : public IInterface
 {
     virtual TokenKind getKind() = 0;
     virtual const ECLlocation & queryPosition() const = 0;
-    virtual bool printTree() = 0;
+    virtual void printTree() = 0;
     virtual void printXml(StringBuffer & out) = 0;
     virtual ISyntaxTree * queryChild(unsigned i) = 0;
 
-    virtual void setLeft(ISyntaxTree * node) = 0;
-    virtual void setRight(ISyntaxTree * node) = 0;
     virtual void addChild(ISyntaxTree * addition) = 0;
-    virtual void transferChildren(ISyntaxTree * node) = 0;
-    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
-
+    virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
 };
 
 typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
@@ -50,37 +49,27 @@ public:
     static ISyntaxTree * createSyntaxTree();
     static ISyntaxTree * createSyntaxTree(TokenKind token, const ECLlocation & pos);
     static ISyntaxTree * createSyntaxTree(TokenData & token);
-    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
-    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch);
-    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok);
-    static ISyntaxTree * createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * righBranch);
     ~SyntaxTree();
 
 //Implementation of ISyntaxTree
-    virtual bool printTree();
+    virtual void printTree();
     virtual void printXml(StringBuffer & out);
-    virtual ISyntaxTree * queryChild(unsigned i);
+    virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
+    virtual ISyntaxTree * queryChild(unsigned i);
     virtual void addChild(ISyntaxTree * addition);
-    virtual void transferChildren(ISyntaxTree * node);
 
     virtual TokenKind getKind();
     virtual const ECLlocation & queryPosition() const { return pos; }
-    virtual void setLeft(ISyntaxTree * node);
-    virtual void setRight(ISyntaxTree * node);
-    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
 protected:
     SyntaxTree();
     SyntaxTree(TokenData & token);
     SyntaxTree(TokenKind token, const ECLlocation & pos);
 
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out);
-    virtual bool printNode(unsigned * nodeNum,  IIOStream * out);
-    bool printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour);
-
-    void setLeft(TokenData & token);
-    void setRight(TokenData & token);
+    void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out);
+    virtual void printNode(unsigned * nodeNum,  IIOStream * out);
+    void printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour);
 
     SyntaxTree * queryPrivateChild(unsigned i);
 
@@ -93,8 +82,6 @@ public:
     };
     ECLlocation pos;
 
-    Owned<ISyntaxTree> left;
-    Owned<ISyntaxTree> right;
     SyntaxTreeArray children;
 };
 
@@ -103,12 +90,16 @@ class IntegerSyntaxTree : public SyntaxTree
 public:
     IntegerSyntaxTree(TokenData & token);
 
-    virtual bool printNode(unsigned * nodeNum, IIOStream * out);
-    virtual bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
+    virtual void printNode(unsigned * nodeNum, IIOStream * out);
+    virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
 
 public:
     int value;
 };
+
+inline ISyntaxTree * createSyntaxTree() { return SyntaxTree::createSyntaxTree(); }
+inline ISyntaxTree * createSyntaxTree(TokenKind token, const ECLlocation & pos) { return SyntaxTree::createSyntaxTree(token, pos); }
+inline ISyntaxTree * createSyntaxTree(TokenData & token) { return SyntaxTree::createSyntaxTree(token); }
 
 #endif

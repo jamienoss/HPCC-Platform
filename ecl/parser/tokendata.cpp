@@ -8,42 +8,65 @@ void TokenData::setEclLocations(int lineNo, int column, int position, ISourcePat
     pos.set(lineNo, column, position, sourcePath);
 }
 
-void TokenData::createSyntaxTree()
+TokenData::TokenData()
 {
-    node.set(SyntaxTree::createSyntaxTree());
+    pos.clear();
+    tokenKind = 0;
+    integer = 0;
 }
-
-void TokenData::createSyntaxTree(TokenData & token)
-{
-    node.set(SyntaxTree::createSyntaxTree(token));
-}
-
-
-void TokenData::createSyntaxTree(TokenKind token, const ECLlocation & _pos)
-{
-    node.set(SyntaxTree::createSyntaxTree(token, _pos));
-}
-
-void TokenData::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
-{
-    node.set(SyntaxTree::createSyntaxTree(parentTok, leftTok, rightTok));
-}
-
-void TokenData::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok)
-{
-    node.set(SyntaxTree::createSyntaxTree(parentTok, leftBranch, rightTok));
-}
-
-void TokenData::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch)
-{
-    node.set(SyntaxTree::createSyntaxTree(parentTok, leftBranch));
-}
-
-void TokenData::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * rightBranch)
-{
-    node.set(SyntaxTree::createSyntaxTree(parentTok, leftBranch, rightBranch));
-}
-
-TokenData::TokenData() {}
 
 TokenData::~TokenData() {}
+
+TokenData & TokenData::clear()
+{
+    pos.clear();
+    tokenKind = 0;
+    integer = 0;
+    node.set(NULL);
+    return *this;
+}
+
+TokenData & TokenData::clear(TokenData & token)
+{
+    clear();
+    return add(token);
+}
+
+TokenData & TokenData::clear(TokenKind token, const ECLlocation & _pos)
+{
+    clear();
+    return add(token, _pos);
+}
+
+TokenData & TokenData::add(TokenKind token, const ECLlocation & _pos)
+{
+    if(!node)
+        node.set(createSyntaxTree(token, _pos));
+    else
+        node->addChild(createSyntaxTree(token, _pos));
+
+    return *this;
+}
+
+TokenData & TokenData::add(TokenData & token)
+{
+    if(!token.node && !node)
+    {
+        node.set(createSyntaxTree(token));
+    }
+    else if(token.node && node)
+    {
+        node->addChild(token.node);
+    }
+    else if(token.node && !node)
+    {
+        //node.set(SyntaxTree::createSyntaxTree(token));//not sure about this (token) vs ()???
+        //node->addChild(token.node);
+        node.set(token.node);
+    }
+    else if(!token.node && node)
+    {
+        node->addChild(createSyntaxTree(token));
+    }
+    return *this;
+}

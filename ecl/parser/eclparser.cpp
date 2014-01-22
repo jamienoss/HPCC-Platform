@@ -57,9 +57,9 @@ void EclParser::setRoot(TokenData & token)
     ast.setown(token.node.getClear());
 }
 
-bool EclParser::printAST()
+void EclParser::printAST()
 {
-    return ast->printTree();
+    ast->printTree();
 }
 
 ISyntaxTree * EclParser::releaseAST()

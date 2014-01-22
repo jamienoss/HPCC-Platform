@@ -25,6 +25,7 @@
 #include <cstring>
 #include "eclgram.h"
 
+
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 
 ISyntaxTree * SyntaxTree::createSyntaxTree()
@@ -44,38 +45,6 @@ ISyntaxTree * SyntaxTree::createSyntaxTree(TokenKind token, const ECLlocation & 
 {
     return new SyntaxTree(token, pos);
 }
-
-ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok)
-{
-    SyntaxTree * temp = new SyntaxTree(parentTok);
-    temp->setLeft(leftTok);
-    temp->setRight(rightTok);
-    return temp;
-}
-
-ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok)
-{
-    SyntaxTree * temp = new SyntaxTree(parentTok);
-    temp->setLeft(leftBranch);
-    temp->setRight(rightTok);
-    return temp;
-}
-
-ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch)
-{
-    SyntaxTree * temp = new SyntaxTree(parentTok);
-    temp->setLeft(leftBranch);
-    return temp;
-}
-
-ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * rightBranch)
-{
-    SyntaxTree * temp =  new SyntaxTree(parentTok);
-    temp->setLeft(leftBranch);
-    temp->setRight(rightBranch);
-    return temp;
-}
-
 
 SyntaxTree::SyntaxTree()
 {
@@ -101,94 +70,69 @@ SyntaxTree::SyntaxTree(TokenData & tok)
 
 SyntaxTree::~SyntaxTree() {}
 
-void SyntaxTree::setLeft(ISyntaxTree * node)
-{
-    left.setown(node);
-}
-
-void SyntaxTree::setRight(ISyntaxTree * node)
-{
-    right.setown(node);
-}
-
-void SyntaxTree::setLeft(TokenData & token)
-{
-    left.setown(createSyntaxTree(token));
-}
-
-void SyntaxTree::setRight(TokenData & token)
-{
-    right.setown(createSyntaxTree(token));
-}
-
-
 SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
 {
     //This is valid because all implementations of ISyntaxTree are implemented by the SyntaxTree class
     return static_cast<SyntaxTree *>(queryChild(i));
 }
 
-
-bool SyntaxTree::printTree()
+void SyntaxTree::printTree()
 {
-    int ioStat;
+    bool XML = 0;
+
     unsigned parentNodeNum = 0, nodeNum = 0;
     StringBuffer str;
-    Owned<IFile> treeFile = createIFile(((std::string)pos.sourcePath->str()).append(".dot").c_str());
+    StringBuffer fileName;
+
+    fileName.append(pos.sourcePath->str());
+    if(XML)
+        fileName.append(".xml");
+    else
+        fileName.append(".dot");
+
+    Owned<IFile> treeFile = createIFile(fileName.str());
     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
     Owned<IIOStream> out = createIOStream(io);
+
+    if(XML)
+    {
+        printXml(str);
+        out->write(str.length(), str.str());
+        io->close();
+        return;
+    }
 
     str = "graph \"Abstract Syntax Tree\"\n{\n";
     out->write(str.length(), str.str());
 
-    ioStat = printBranch(& parentNodeNum, & nodeNum, out);
+    printBranch(& parentNodeNum, & nodeNum, out);
 
     str = "}\n";
     out->write(str.length(), str.str());
     io->close();
-    return ioStat;
 }
 
-bool  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
+void  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
 {
-    bool ioStatL;
-    bool ioStatR;
     unsigned parentNodeNumm = *nodeNum;
 
     printNode(nodeNum, out);
-
-    if (left)
-    {
-        printEdge(parentNodeNumm, *nodeNum, out);
-        //ioStatL = (static_cast<SyntaxTree *>(left.get()))->printBranch(parentNodeNum, nodeNum, out); // yuk!
-        ioStatL = left->printBranch(parentNodeNum, nodeNum, out);
-    }
 
     ForEachItemIn(i,children)
     {
        printEdge(parentNodeNumm, *nodeNum, out);
        queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
     }
-
-    if (right)
-    {
-        printEdge(parentNodeNumm, *nodeNum, out);
-        //ioStatR = (static_cast<SyntaxTree *>(right.get()))->printBranch(parentNodeNum, nodeNum, out);
-        ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
-    }
-
-    return !(ioStatL && ioStatR);
 }
 
-bool SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out)
+void SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out)
 {
     StringBuffer str;
     str.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
     out->write(str.length(), str.str());
-    return true;
 }
 
-bool SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour)
+void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour)
 {
     StringBuffer str;
     str.append(*nodeNum).append(" [label = \"");
@@ -201,10 +145,9 @@ bool SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out, const char * tex
     out->write(str.length(), str.str());
 
     (*nodeNum)++;
-    return true;
 }
 
-bool SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
     switch(token){
@@ -225,13 +168,15 @@ bool SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
         break;
     }
 
-    return printNode(nodeNum, out, text, colour);
+    printNode(nodeNum, out, text, colour);
 }
 
 void SyntaxTree::printXml(StringBuffer & out)
 {
-    const char * type = "?";
-    out.append("<st kind=\'").append(type).append("\' ");
+    StringBuffer str;
+    appendParserTokenText(str, token);
+    //const char * type = "?";
+    out.append("<st kind=\'").append(str).append("\' ");
 
     if (children.ordinality())
     {
@@ -257,19 +202,12 @@ ISyntaxTree * SyntaxTree::queryChild(unsigned i)
     return NULL;
 }
 
-void SyntaxTree::transferChildren(ISyntaxTree * _node) // come up with a better name!!!
-{
-    SyntaxTree * node = static_cast<SyntaxTree *>(_node);   // justification is that interface is being used to implement an opaque type
-    ForEachItemIn(i,node->children)
-        children.append(*LINK(&node->children.item(i)));
-}
-
 TokenKind SyntaxTree::getKind()
 {
     return token;
 }
 
-//----------------------------------SyntaxTree--------------------------------------------------------------------
+//----------------------------------IntegerSyntaxTree--------------------------------------------------------------------
 
 IntegerSyntaxTree::IntegerSyntaxTree(TokenData & tok) : SyntaxTree(tok)
 {
@@ -277,14 +215,14 @@ IntegerSyntaxTree::IntegerSyntaxTree(TokenData & tok) : SyntaxTree(tok)
 }
 
 
-bool IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+void IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
     text.append(value);
-    return SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
 }
 
-bool  IntegerSyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
+void  IntegerSyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
 {
     bool ioStatL;
     bool ioStatR;
@@ -292,26 +230,9 @@ bool  IntegerSyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNu
 
     printNode(nodeNum, out);
 
-    if (left)
-    {
-        printEdge(parentNodeNumm, *nodeNum, out);
-        //ioStatL = (static_cast<SyntaxTree *>(left.get()))->printBranch(parentNodeNum, nodeNum, out); // yuk!
-        ioStatL = left->printBranch(parentNodeNum, nodeNum, out); // yuk!
-
-    }
-
     ForEachItemIn(i,children)
     {
        printEdge(parentNodeNumm, *nodeNum, out);
        queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
     }
-
-    if (right)
-    {
-        printEdge(parentNodeNumm, *nodeNum, out);
-        //ioStatR = (static_cast<SyntaxTree *>(right.get()))->printBranch(parentNodeNum, nodeNum, out);
-        ioStatR = right->printBranch(parentNodeNum, nodeNum, out);
-    }
-
-    return !(ioStatL && ioStatR);
 }

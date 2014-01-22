@@ -20,7 +20,6 @@
 #define TOKENDATA_HPP
 
 #include "hql.hpp"
-//extern YYTOKENTYPE;
 
 class ISyntaxTree;
 class SyntaxTree;
@@ -46,13 +45,11 @@ public:
 	Owned<ISyntaxTree> node;
 
 public:
-    void createSyntaxTree();
-    void createSyntaxTree(TokenKind token, const ECLlocation & pos);
-    void createSyntaxTree(TokenData & token);
-    void createSyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
-    void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch);
-    void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, TokenData & rightTok);
-    void createSyntaxTree(TokenData & parentTok, ISyntaxTree * leftBranch, ISyntaxTree * righBranch);
+	TokenData & clear();
+    TokenData & clear(TokenData & token);
+    TokenData & clear(TokenKind token, const ECLlocation & _pos);
+    TokenData & add(TokenData & token);
+    TokenData & add(TokenKind token, const ECLlocation & _pos);
 
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 };
