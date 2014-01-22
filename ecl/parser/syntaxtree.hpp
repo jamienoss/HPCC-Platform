@@ -21,7 +21,26 @@
 #include "tokendata.hpp"
 #include"jlib.hpp"
 
+class print
+{
+public :
+    int id;
+    int indent;
+    StringBuffer * str;
 
+    print() { indent = 0; id = 0; str = NULL; }
+    print(int _indent, StringBuffer * _str) { indent = _indent; id = 0; str = _str; }
+    ~print() {}
+
+    StringBuffer & indentation()
+    {
+        for (unsigned short i = 0; i < indent; ++i)
+            str->append("  ");
+        return *str;
+    }
+    inline void tabIncrease() { ++indent; ++id; }
+    inline void tabDecrease() { --indent; }
+};
 
 
 
@@ -33,7 +52,9 @@ interface ISyntaxTree : public IInterface
     virtual TokenKind getKind() = 0;
     virtual const ECLlocation & queryPosition() const = 0;
     virtual void printTree() = 0;
-    virtual void printXml(StringBuffer & out) = 0;
+    virtual void printXml(print * printer) = 0;
+    virtual void printGEXF(print * printer) = 0;
+
     virtual ISyntaxTree * queryChild(unsigned i) = 0;
 
     virtual void addChild(ISyntaxTree * addition) = 0;
@@ -53,7 +74,8 @@ public:
 
 //Implementation of ISyntaxTree
     virtual void printTree();
-    virtual void printXml(StringBuffer & out);
+    virtual void printXml(print * printer);
+    virtual void printGEXF(print * printer);
     virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
     virtual ISyntaxTree * queryChild(unsigned i);

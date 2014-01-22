@@ -78,7 +78,7 @@ SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
 
 void SyntaxTree::printTree()
 {
-    bool XML = 0;
+    bool XML = 1;
 
     unsigned parentNodeNum = 0, nodeNum = 0;
     StringBuffer str;
@@ -86,7 +86,7 @@ void SyntaxTree::printTree()
 
     fileName.append(pos.sourcePath->str());
     if(XML)
-        fileName.append(".xml");
+        fileName.append(".xgmml");
     else
         fileName.append(".dot");
 
@@ -96,9 +96,15 @@ void SyntaxTree::printTree()
 
     if(XML)
     {
-        printXml(str);
-        out->write(str.length(), str.str());
+        print * printer = new print(0, &str);
+        printer->str->append("<graph>").newline();
+        printXml(printer);
+        //printGEXF(printer);
+        printer->str->append("</graph>");
+
+        out->write(printer->str->length(), printer->str->str());
         io->close();
+        delete printer;
         return;
     }
 
@@ -171,23 +177,54 @@ void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     printNode(nodeNum, out, text, colour);
 }
 
-void SyntaxTree::printXml(StringBuffer & out)
+void SyntaxTree::printXml(print * printer)
 {
-    StringBuffer str;
-    appendParserTokenText(str, token);
-    //const char * type = "?";
-    out.append("<st kind=\'").append(str).append("\' ");
+
+    printer->indentation().append("<node id=\"").append(printer->id).append("\" label=\"");
+    appendParserTokenText(*printer->str, token);
+    printer->str->append("\" "); // add extra details here
 
     if (children.ordinality())
     {
-        out.append(">").newline();
+        printer->str->append(">").newline();
         ForEachItemIn(i, children)
-            children.item(i).printXml(out);
-        out.append("</st>");
+        {
+            printer->tabIncrease();
+            children.item(i).printXml(printer);
+            printer->tabDecrease();
+        }
+        printer->indentation().append("</node>").newline();
     }
     else
-        out.append("/>").newline();
+    {
+        printer->str->append("/>").newline();
+    }
 }
+
+void SyntaxTree::printGEXF(print * printer)
+{
+
+    printer->indentation().append("<Node id=\"").append(printer->id).append("\" label=\"");
+    appendParserTokenText(*printer->str, token);
+    printer->str->append("\" "); // add extra details here
+
+    if (children.ordinality())
+    {
+        printer->str->append(">").newline();
+        ForEachItemIn(i, children)
+        {
+            printer->tabIncrease();
+            children.item(i).printXml(printer);
+            printer->tabDecrease();
+        }
+        printer->indentation().append("</Node>").newline();
+    }
+    else
+    {
+        printer->str->append("/>").newline();
+    }
+}
+
 
 void SyntaxTree::addChild(ISyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
