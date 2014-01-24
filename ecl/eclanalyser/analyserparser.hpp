@@ -33,6 +33,8 @@ typedef void* yyscan_t;
 class AnalyserParser;
 class AnalyserLexer;
 
+//extern int ecl3yyparse(AnalyserParser * parser, yyscan_t scanner);
+
 //----------------------------------AnalyserParser--------------------------------------------------------------------
 class AnalyserParser
 {
@@ -41,22 +43,22 @@ class AnalyserParser
 public:
     AnalyserParser(IFileContents * queryContents);
     ~AnalyserParser();
-    ASyntaxTree * releaseAST();
 
-
-    void setRoot(ASyntaxTree * node);
-    bool printAST();
+    void setRoot(ISyntaxTree * node);
+    void printAST();
     int parse();
+    AnalyserLexer & getLexer();
 
     void analyseGrammar();
-    void createSymbolList(ASyntaxTree * tree, std::vector <std::string> & symbolList, symbolKind kind);
+    void createSymbolList(AnalyserST * tree, std::vector <std::string> & symbolList, TokenKind kind);
     void printStringVector(std::vector <std::string> vector);
 
-private:
-    AnalyserLexer * lexer;
-    ASyntaxTree * ast;
-
+protected:
     void init(IFileContents * queryContents);
+
+private:
+    Owned<AnalyserST> ast;
+    AnalyserLexer * lexer;
 };
 //----------------------------------AnalyserLexer--------------------------------------------------------------------
 class AnalyserLexer
@@ -66,25 +68,24 @@ public:
     ~AnalyserLexer();
 
     int parse(AnalyserParser * parser);
+    void updatePos(unsigned delta);
+    void resetPos();
 
-private:
+    int yyColumn;
+    int yyPosition;
+    ISourcePath * sourcePath;
+
+    unsigned nestCounter;
+    unsigned productionLineNo;
+    StringBuffer productionText;
+
+protected:
     yyscan_t scanner;
-    Owned<IFileContents> fileIn;
+    Owned<IFileContents> text;
     char *yyBuffer;
 
-    void init(IFileContents * queryContents);
+    virtual void init(IFileContents * queryContents);
 };
 //--------------------------------------------------------------------------------------------------------------
-
-//Next stages:
-// Separate or same dll? Up to you.
-// Fill in EclLexer with code from HqlLex
-// Go through and make sure class names, file names etc. are as meaningful as possible.
-// rename symTree
-// modify EclCC::processSingleQuery to conditionally call the new parser, and return xml/dot/json
-// get a very simple query - a single id working.
-// Add constants and '+' operator, brackets (1) (1+2)
-// Flesh out symTree - members, position, handling constants, types, generating xml
-
 
 #endif

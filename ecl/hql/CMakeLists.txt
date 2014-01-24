@@ -58,11 +58,7 @@ set (   SRCS
 
         hqlgram.y
         hqllex.l
-        
-        #eclgram.y
-        #ecllex.l
-        #eclparser.cpp
-         
+
         hqlerror.hpp
         hqlerrors.hpp
         hql.hpp
@@ -73,7 +69,6 @@ set (   SRCS
         hqlesp.hpp
         hqlexpr.hpp
         hqlfold.hpp
-        #eclparser.hpp
         hqlgram.hpp
         hqlmeta.hpp
         hqlopt.hpp

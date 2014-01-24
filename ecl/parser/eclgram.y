@@ -18,30 +18,22 @@
 %name-prefix "ecl2yy"
 %error-verbose
 
-//%param {EclParser * parser} {yyscan_t scanner}
 %parse-param {EclParser * parser}
 %parse-param {yyscan_t scanner}
 %lex-param {EclParser * parser}
 %lex-param {yyscan_t scanner}
 
-
-
 %{
-class TokenData;
-class SyntaxTree;
 class EclParser;
-class EclLexer;
 
 #include "platform.h"
 #include "eclparser.hpp"
 #include "eclgram.h"
-//#include "ecllex.hpp"
 #include <iostream>
 
-//#define YYSTYPE TokenData
+#define YYSTYPE ParserData
 
-
-extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner);
+//extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner);
 
 int yyerror(EclParser * parser, yyscan_t scanner, const char *msg);
 int syntaxerror(const char *msg, short yystate, YYSTYPE token);
@@ -56,16 +48,9 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 
 %}
 
-//GCH May need to rethink this so that position can be a member of the attribute class instead of a pointer.
-/*%union
-{
-    TokenData returnToken;
-    ISyntaxTree * treeNode;
-}
-*/
 //=========================================== tokens ====================================
 
-%token /*<YYSTYPE>*/
+%token
     AS
     ASSIGN
     DIR
@@ -111,7 +96,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 //================================== begin of syntax section ==========================
 
 code
-    : eclQuery                      { parser->setRoot($1); }
+    : eclQuery                      { parser->setRoot($1.node.get()); }
     ;
 
 eclQuery

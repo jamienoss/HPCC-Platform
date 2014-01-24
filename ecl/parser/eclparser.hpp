@@ -31,29 +31,30 @@ typedef void* yyscan_t;
 class EclParser;
 class EclLexer;
 
-typedef class TokenData YYSTYPE;
-#undef YYSTYPE_IS_DECLARED
-#define YYSTYPE_IS_DECLARED 1
+//typedef class TokenData YYSTYPE;
+//#undef YYSTYPE_IS_DECLARED
+//#define YYSTYPE_IS_DECLARED 1
 //----------------------------------EclParser--------------------------------------------------------------------
 class EclParser
 {
-    friend int ecl2yyparse(EclParser * parser, yyscan_t scanner);
+     friend int ecl2yyparse(EclParser * parser, yyscan_t scanner);
 
 public:
     EclParser(IFileContents * queryContents);
     ~EclParser();
     ISyntaxTree * releaseAST();
 
-    void setRoot(TokenData & token);
+    void setRoot(ISyntaxTree * node);
     void printAST();
     int parse();
     EclLexer & getLexer();
 
-private:
-    EclLexer * lexer;
-    Owned<ISyntaxTree> ast;
-
+protected:
     void init(IFileContents * queryContents);
+
+private:
+    Owned<ISyntaxTree> ast;
+    EclLexer * lexer;
 };
 //----------------------------------EclLexer--------------------------------------------------------------------
 class EclLexer
@@ -70,12 +71,12 @@ public:
     int yyPosition;
     ISourcePath * sourcePath;
 
-private:
+protected:
     yyscan_t scanner;
     Owned<IFileContents> text;
     char *yyBuffer;
 
-    void init(IFileContents * queryContents);
+    virtual void init(IFileContents * queryContents);
 };
 //--------------------------------------------------------------------------------------------------------------
 

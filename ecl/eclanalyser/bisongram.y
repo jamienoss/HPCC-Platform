@@ -20,49 +20,43 @@
 
 %parse-param {AnalyserParser * parser}
 %parse-param {yyscan_t scanner }
+%lex-param {AnalyserParser * parser}
 %lex-param {yyscan_t scanner}
 
 %{
-class TokenData;
-class ASyntaxTree;
-class AnlayserParser;
-class EclLexer;
+class AnalyserParser;
 
 #include "platform.h"
 #include "analyserparser.hpp"
 #include "bisongram.h"
-#include "bisonlex.hpp"
+//#include "bisonlex.hpp"
 #include <iostream>
 
-int yyerror(AnlayserParser * parser, yyscan_t scanner, const char *msg);
+//typedef class AnalyserTD YYSTYPE;
+//#undef YYSTYPE_IS_DECLARED
+//#define YYSTYPE_IS_DECLARED 1
+
+#define YYSTYPE AnalyserPD
+
+//extern int ecl3yylex(YYSTYPE * yylval_param, AnalyserParser * parser, yyscan_t yyscanner);
+
+int yyerror(AnalyserParser * parser, yyscan_t scanner, const char *msg);
 int syntaxerror(const char *msg, short yystate, YYSTYPE token);
 #define ecl3yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval)
 
 int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 {
-    std::cout << msg <<  " on line "  << token.returnToken.lineNumber <<  "\n";
+    std::cout << msg <<  " near line "  << token.pos.lineno << \
+                     ", nearcol:" <<  token.pos.column <<  "\n";
     return 0;
 }
 
-
 %}
 
-%union
-{
-    TokenData returnToken;
-    ASyntaxTree * treeNode;
-}
 
 //=========================================== tokens ====================================
 
-%token <returnToken>
-    '{'
-    '}'
-    ','
-    ':'
-    ';'
-    '|'
-
+%token
     CODE
     DOUBLE_PERCENT
     NONTERMINAL
@@ -70,10 +64,9 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
     STUFF
     TERMINAL
 
-
     YY_LAST_TOKEN
 
-%type <treeNode>
+/*%type <treeNode>
     grammar_item
     grammar_rule
     grammar_rules
@@ -81,7 +74,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
     terminals
     terminal_list
     terminal_productions
-
+*/
 
 %left '.'
 %left '{'
@@ -90,66 +83,66 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 //================================== beginning of syntax section ==========================
 
 bison_file
-    : grammar_item       { parser->setRoot($1); }
+    : grammar_item                  { parser->setRoot($1); }
     ;
 
 grammar_item
-    : grammar_item grammar_rule     { $$ = $1; $$->addChild($2); }
-    | grammar_rule                  { $$ = $$->createASyntaxTree(); $$->addChild($1); }
+    : grammar_item grammar_rule     { $$.clear($1).add($2); }
+    | grammar_rule                  { $$.clear(',', $1.pos).add($1); }
     ;
 
 grammar_rule
     : NONTERMINAL grammar_rules ';'
-                                    { $1.setKind(nonTerminalDefKind); $$ = $$->createASyntaxTree($1); $$->transferChildren($2);}
+                                    { $1.tokenKind = 300;/*nonTerminalDefKind*/ $$.clear($1).add($2);}
     ;
 
 grammar_rules
     : grammar_rules '|' terminal_productions
-                                    {
-                                        $$ = $1;
+                                    { $$.clear($2).add($3).add($1); }/*
+                                        /*$$ = $1;
                                         ASyntaxTree * temp = temp->createASyntaxTree($2);
                                         temp->transferChildren($3);
                                         $$->addChild(temp);
-                                    }
+                                    }*/
     | grammar_rules '|'
-                                    {
-                                        $$ = $1;
+                                    { $$.clear($2).add($1); }/*
+                                        /*$$ = $1;
                                         ASyntaxTree * temp = temp->createASyntaxTree($2);
                                         $$->addChild(temp);
-                                    }
-    | ':' terminal_productions      {
-                                        $$ = $$->createASyntaxTree();
+                                    }*/
+    | ':' terminal_productions      { $$.clear($1).add($2); }/*
+                                        /*$$ = $$->createASyntaxTree();
                                         ASyntaxTree * temp = temp->createASyntaxTree($1);
                                         temp->transferChildren($2);
                                         $$->addChild(temp);
-                                    }
-    | ':'                           {
-                                        $$ = $$->createASyntaxTree();
+                                    }*/
+    | ':'                           { $$.clear($1); }/*
+                                        /*$$ = $$->createASyntaxTree();
                                         ASyntaxTree * temp = temp->createASyntaxTree($1);
                                         $$->addChild(temp);
-                                    }
+                                    }*/
     ;
 
 terminal_productions
-    : terminal_list                 { $$ = $1; }
+    : terminal_list                 { $$.clear($1); }
   //  | terminal_list production      { $$ = $1; $$->addChild($2); }
   //  | production                    { $$ = $$->createASyntaxTree(); $$->addChild($1); }
     ;
 
 production
-    : CODE                          { $$ = $$->createASyntaxTree($1); /*std::cout << $$->getLexeme() << "\n";*/ }
+    : CODE                          { $$.clear($1); }
     ;
 
 terminals
-    : NONTERMINAL                   { $$ = $$->createASyntaxTree($1); }
-    | TERMINAL                      { $$ = $$->createASyntaxTree($1); }
-    | PREC                          { $$ = $$->createASyntaxTree($1); }
-    | production                    { $$ = $1; }
+    : NONTERMINAL                   { $$.clear($1); }
+    | TERMINAL                      { $$.clear($1); }
+    | PREC                          { $$.clear($1); }
+    | production                    { $$.clear($1); }
     ;
 
 terminal_list
-    : terminal_list terminals       { $$ = $1; $$->addChild($2); }
-    | terminals                     { $$ = $$->createASyntaxTree(); $$->addChild($1); }
+    : terminal_list terminals       { $$.clear($1).add($2); }
+    | terminals                     { $$.clear(',', $1.pos).add($1); }
     ;
 
 %%

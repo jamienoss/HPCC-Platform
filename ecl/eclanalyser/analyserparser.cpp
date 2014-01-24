@@ -23,55 +23,51 @@
 #include "bisonlex.hpp"
 //#include "ASyntaxTree.hpp"
 
+#include "eclparser.hpp"
+
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
-AnalyserParser::AnalyserParser(IFileContents * queryContents)
+AnalyserParser::AnalyserParser(IFileContents * queryContents) : EclParser(queryContents)
 {
     init(queryContents);
-}
-
-AnalyserParser::~AnalyserParser()
-{
-	if (lexer)
-		delete lexer;
-    if (ast)
-        delete ast;
-}
-
-int AnalyserParser::parse()
-{
-	return lexer->parse(this);
 }
 
 void AnalyserParser::init(IFileContents * queryContents)
 {
     lexer = new AnalyserLexer(queryContents);
-    ast = ast->createASyntaxTree();
 }
 
-void AnalyserParser::setRoot(ASyntaxTree * node)
+AnalyserParser::~AnalyserParser()
 {
-	ast = node;
-	node = NULL;
+    if(lexer)
+        delete lexer;
 }
 
-bool AnalyserParser::printAST()
+int AnalyserParser::parse()
 {
-	return ast->printTree();
+    return lexer->parse(this);
 }
 
-ASyntaxTree * AnalyserParser::releaseAST()
+AnalyserLexer & AnalyserParser::getLexer()
 {
-	ASyntaxTree * temp = ast;
-	ast = NULL;
-	return temp;
+    return *lexer;
+}
+
+void AnalyserParser::printAST()
+{
+    ast->printTree();
+}
+
+void AnalyserParser::setRoot(ISyntaxTree * node)
+{
+    ast.setown(node);
 }
 
 void AnalyserParser::analyseGrammar()
 {
     std::vector <std::string> terminalSymbols;
-    createSymbolList(ast, terminalSymbols, nonTerminalDefKind);
+    createSymbolList(ast, terminalSymbols, 300);
     //printStringVector(terminalSymbols);
 
     ast->setSymbolList(terminalSymbols);
@@ -84,7 +80,7 @@ void AnalyserParser::analyseGrammar()
 
 }
 
-void AnalyserParser::createSymbolList(ASyntaxTree *  tree, std::vector <std::string> & symbolList, symbolKind kind)
+void AnalyserParser::createSymbolList(AnalyserST *  tree, std::vector <std::string> & symbolList, TokenKind kind)
 {
     tree->extractSymbols(symbolList, kind);
 }
@@ -97,7 +93,6 @@ void printStringVector(std::vector <std::string> vector)
         std::cout << vector[i] << "\n";
     }
 }
-
 //----------------------------------AnalyserLexer--------------------------------------------------------------------
 AnalyserLexer::AnalyserLexer(IFileContents * queryContents)
 {
@@ -111,18 +106,25 @@ AnalyserLexer::~AnalyserLexer()
     delete[] yyBuffer;
 }
 
-void AnalyserLexer::init(IFileContents * _text)
+void AnalyserLexer::init(IFileContents * queryContents)
 {
-    fileIn.set(_text);
-    size32_t len = _text->length();
+    text.set(queryContents);
+    size32_t len = queryContents->length();
     yyBuffer = new char[len+2]; // Include room for \0 and another \0 that we write beyond the end null while parsing
-    memcpy(yyBuffer, fileIn->getText(), len);
+    memcpy(yyBuffer, text->getText(), len);
     yyBuffer[len] = '\0';
     yyBuffer[len+1] = '\0';
 
     if (ecl3yylex_init(&scanner) != 0)
         std::cout << "uh-oh\n";
     ecl3yy_scan_buffer(yyBuffer, len+2, scanner);
+
+    yyPosition = 0;
+    yyColumn = 0;
+    sourcePath = queryContents->querySourcePath();
+
+    nestCounter = 0;
+    productionLineNo = 0;
 }
 
 int AnalyserLexer::parse(AnalyserParser * parser)

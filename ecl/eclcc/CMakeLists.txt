@@ -63,7 +63,7 @@ target_link_libraries ( eclcc
          workunit
          thorhelper
          hql
-         eclanalyser
          parser
+         eclanalyser
          hqlcpp
     )

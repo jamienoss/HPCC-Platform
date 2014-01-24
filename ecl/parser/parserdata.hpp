@@ -16,25 +16,24 @@
     limitations under the License.
 ############################################################################## */
 
-#ifndef TOKENDATA_HPP
-#define TOKENDATA_HPP
+#ifndef PARSERDATA_HPP
+#define PARSERDATA_HPP
 
-#include "hql.hpp"
+#include "hql.hpp" //for ECLlocations
 
 class ISyntaxTree;
-class SyntaxTree;
 typedef unsigned short TokenKind;
 
-//----------------------------------TokenData--------------------------------------------------------------------
-class TokenData
+//----------------------------------ParserData--------------------------------------------------------------------
+class ParserData
 {
 public:
-    TokenData();
-    ~TokenData();
+    ParserData();
+    ~ParserData();
 
 public:
     ECLlocation pos;
-    unsigned tokenKind;
+    unsigned kind;
 	union
 	{
         int integer;
@@ -42,14 +41,17 @@ public:
         IIdAtom * name;
 	};
 
-	Owned<ISyntaxTree> node;
+    Owned<ISyntaxTree> node;
 
-public:
-	TokenData & clear();
-    TokenData & clear(TokenData & token);
-    TokenData & clear(TokenKind token, const ECLlocation & _pos);
-    TokenData & add(TokenData & token);
-    TokenData & add(TokenKind token, const ECLlocation & _pos);
+public: // NOTE: Could call newToken = token2add
+	ParserData & clear();
+    ParserData & clear(const ParserData & token2add);
+    ParserData & clear(const TokenKind & _kind, const ECLlocation & _pos);
+    virtual ParserData & add(const ParserData & token2add);
+    virtual ParserData & add(const TokenKind & _kind, const ECLlocation & _pos);
+
+    ISyntaxTree * createSyntaxTree(const ParserData & token2add);
+    ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
 
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 };

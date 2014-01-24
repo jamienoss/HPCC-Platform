@@ -32,12 +32,9 @@
 #include <iostream>
 #include <cstring>
 
+class ParserData;
 
-class TokenData;
-
-#ifndef YYSTYPE
-    #define YYSTYPE TokenData
-#endif
+#define YYSTYPE ParserData
 
 #define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
 
@@ -45,9 +42,9 @@ class TokenData;
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << tokenText << "\n";
+   std::cout << tokenText << "\n";
 
-    yylval->tokenKind = INTEGER;
+    yylval->kind = INTEGER;
     yylval->integer = atoi(tokenText);
 
     yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -56,9 +53,9 @@ static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, i
   //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << (char)tokenKind << "\n";
+    std::cout << (char)tokenKind << "\n";
 
-    yylval->tokenKind = tokenKind;
+    yylval->kind = tokenKind;
     yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
@@ -67,7 +64,7 @@ static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, in
 {
     //std::cout << tokenText << "\n";
 
-    yylval->tokenKind = ID;
+    yylval->kind = ID;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     yylval->name = createIdAtom(tokenText, txtLen);
     lexer.updatePos(txtLen);

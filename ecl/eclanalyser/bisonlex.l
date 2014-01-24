@@ -22,79 +22,56 @@
 %option bison-bridge
 %option yylineno
 %option stack
+
 %{
 #include "analyserparser.hpp"
 #include "bisongram.h"
 #include <iostream>
 #include <cstring>
 
-  /*YYLTYPE  yylloc;
 
-#define YY_USER_ACTION {yylloc.first_line = yylineno; } */
+class AnalyserPD;
 
-static void setLexeme(YYSTYPE * tokenVal, const char * tokenText)
+#define YYSTYPE AnalyserPD
+
+#define YY_DECL extern int ecl3yylex(YYSTYPE * yylval_param, AnalyserParser * parser, yyscan_t yyscanner)
+
+ //--------------------------------------------------------------------------------
+static inline void setId(YYSTYPE * yylval, const char * tokenText, unsigned txtLen, int lineno, AnalyserLexer & lexer, unsigned _tokenKind)
 {
-    unsigned txtLen = strlen(tokenText)+1;
-    tokenVal->returnToken.lexeme = new char [txtLen];
-    memcpy(tokenVal->returnToken.lexeme, tokenText, txtLen);
+   std::cout << tokenText << "\n";
 
-    //std::cout << tokenText << "\n";
 
+    yylval->tokenKind = _tokenKind;
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->name = createIdAtom(tokenText, txtLen);
+    lexer.updatePos(txtLen);
+}
+ //--------------------------------------------------------------------------------
+static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, AnalyserLexer & lexer)
+{
+    std::cout << (char)tokenKind << "\n";
+
+
+    yylval->tokenKind = tokenKind;
+    yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    lexer.updatePos(txtLen);
 }
 
-static void setInt(YYSTYPE * tokenVal, char * tokenText, int lineno)
+#define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
+#define setTerminal setId(yylval, yytext, yyleng, yylineno, parser->getLexer(), TERMINAL)
+#define setNonTerminal setId(yylval, yytext, yyleng, yylineno, parser->getLexer(), NONTERMINAL)
+#define setProduction setId(yylval, parser->getLexer().productionText.str() , yyleng, parser->getLexer().productionLineNo, parser->getLexer(), PRODUCTION)
+
+#define updatepos parser->getLexer().updatePos(yyleng)
+#define resetpos parser->getLexer().resetPos()
+
+
+static inline StringBuffer & productionLexeme(char * text, AnalyserLexer & lexer)
 {
-    tokenVal->returnToken.lineNumber = lineno + 1;
-    tokenVal->returnToken.attributeKind = integerKind;
-    tokenVal->returnToken.integer = atoi(tokenText);
+    return lexer.productionText.append(text);
 }
-
-static void setLex(YYSTYPE * tokenVal, char * tokenText, int lineno)
-{
-    tokenVal->returnToken.lineNumber = lineno + 1;
-    tokenVal->returnToken.attributeKind = lexemeKind;
-    setLexeme(tokenVal, tokenText);
-}
-
-static void setNonTerminal(YYSTYPE * tokenVal, char * tokenText, int lineno)
-{
-    tokenVal->returnToken.lineNumber = lineno + 1;
-    tokenVal->returnToken.attributeKind = nonTerminalKind;
-    setLexeme(tokenVal, tokenText);
-}
-
-static void setTerminal(YYSTYPE * tokenVal, char * tokenText, int lineno)
-{
-    tokenVal->returnToken.lineNumber = lineno + 1;
-    tokenVal->returnToken.attributeKind = terminalKind;
-    setLexeme(tokenVal, tokenText);
-}
-
-static void setProduction(YYSTYPE * tokenVal, const char * tokenText, int lineno)
-{
-    tokenVal->returnToken.lineNumber = lineno + 1;
-    tokenVal->returnToken.attributeKind = productionKind;
-    setLexeme(tokenVal, tokenText);
-
-    //std::cout <<  " : " << lineno << "\n";
-}
-
-
-
-#define setInt setInt(yylval, yytext, yylineno)
-#define setLex setLex(yylval, yytext, yylineno)
-
-//global code used for returning productions within grammar file
-unsigned nestCounter = 0;
-unsigned productionLineNo = 0;
-std::string productionText;
-
-static inline void productionLexeme(const char * tokenText)
-{
-    productionText.append(tokenText);
-    productionText.append("\\n");
-}
-
+#define appendProd(text) productionLexeme(text, parser->getLexer())
 
 %}
 
@@ -116,66 +93,65 @@ upper_alphanum [A-Z$_0-9]
 
 %%
 
-"%%"                     { BEGIN(BISON); }
-<BISON>"%%"              { BEGIN(0); }
+"%%"                     { updatepos; BEGIN(BISON); }
+<BISON>"%%"              { updatepos; BEGIN(0); }
 
-<BISON>"/*"              { BEGIN(COMMENT); }
-<COMMENT>[^*\n]+         { }
-<COMMENT>\n              { }
-<COMMENT>"*"             { }
-<COMMENT>"*/"            { BEGIN(BISON); }
+<BISON>"/*"              { updatepos; BEGIN(COMMENT); }
+<COMMENT>[^*\n]+         { updatepos; }
+<COMMENT>\n              { resetpos; }
+<COMMENT>"*"             { updatepos; }
+<COMMENT>"*/"            { updatepos; BEGIN(BISON); }
 
-<BISON>"//"              { BEGIN(SLCOMMENT); }
-<SLCOMMENT>[^\n]+        { BEGIN(BISON); }
+<BISON>"//"              { updatepos; BEGIN(SLCOMMENT); }
+<SLCOMMENT>[^\n]+        { updatepos; BEGIN(BISON); }
 
 <BISON>#?"'"?"_"{0,2}{upper_alphanum}*"'"? { ;
-                         setTerminal(yylval, yytext, yylineno); return TERMINAL;
+                         setTerminal; return TERMINAL;
                          }
 
 <BISON>"_"{0,2}{alphanum}* {
-                         setNonTerminal(yylval, yytext, yylineno); return NONTERMINAL;
+                         setNonTerminal; return NONTERMINAL;
                          }
 
 
-<BISON>"'"."'"           { setTerminal(yylval, yytext, yylineno); return TERMINAL; }
+<BISON>"'"."'"           { setTerminal; return TERMINAL; }
 
-<BISON>"\{"              { BEGIN(PRODUCTION); productionLineNo = yylineno; }
-<PRODUCTION>"\{"         { nestCounter++; productionLexeme(yytext); }
-<PRODUCTION>[^\t }\n\"]+ { productionText.append(yytext); }
-<PRODUCTION>[ \t]+       { }
-<PRODUCTION>\"           { productionText.append("\\\""); }
-<PRODUCTION>\n           { productionText.append("\\n"); }
+<BISON>"\{"              { updatepos; BEGIN(PRODUCTION); parser->getLexer().productionLineNo = yylineno; }
+<PRODUCTION>"\{"         { updatepos; parser->getLexer().nestCounter++; appendProd(yytext).append("\\n"); }
+<PRODUCTION>[^\t }\n\"]+ { updatepos; appendProd(yytext); }
+<PRODUCTION>[ \t]+       { updatepos; }
+<PRODUCTION>\"           { updatepos; appendProd("\\\""); }
+<PRODUCTION>\n           { updatepos; appendProd("\\n"); }
 <PRODUCTION>"\}"         {
-                            if(!nestCounter)
+                            updatepos;
+                            if(!parser->getLexer().nestCounter)
                             {
-                                setProduction(yylval, productionText.data(), productionLineNo);
-                                productionText.clear();
-                                productionLineNo = 0; // helpful for debugging this code.
+                                setProduction;
+                                parser->getLexer().productionText.clear();
+                                parser->getLexer().productionLineNo = 0; // helpful for debugging this code.
                                 BEGIN(BISON);
                                 return CODE;
                             }
                             else
                             {
-                                nestCounter--;
-                                productionLexeme(yytext);
+                                parser->getLexer().nestCounter--;
+                                appendProd(yytext);
                             }
                           }
 
 
-  /*    "\{"(.|\n)+/"\}"               { setProduction(yylval, yytext, yylineno); return CODE; }   */
+<BISON>"%prec"            { setLex(PREC); return PREC; }
+<BISON>":"                { setLex(':'); return ':'; }
+<BISON>","                { setLex(','); return ','; }
+<BISON>";"                { setLex(';'); return ';'; }
+<BISON>"|"                { setLex('|'); return '|'; }
 
-<BISON>"%prec"            { setLex; return PREC; }
-<BISON>":"                { setLex; return ':'; }
-<BISON>","                { setLex; return ','; }
-<BISON>";"                { setLex; return ';'; }
-<BISON>"|"                { setLex; return '|'; }
+<INITIAL,BISON>\n         { resetpos; }
+<INITIAL,BISON>{blank}+   { updatepos; }
 
-<INITIAL,BISON>\n         { }
-<INITIAL,BISON>{blank}+   { }
-
-.                         { }
+.                         { updatepos; std::cout << "here" << yytext[0];/*setLex(yytext[0]); return (yytext[0]);*/ }
 %%
 
-  /*int yyerror(const char *msg) {
+ int yyerror(const char *msg) {
     fprintf(stderr,"Error:%s \n",msg); return 0;
- } */
+ }

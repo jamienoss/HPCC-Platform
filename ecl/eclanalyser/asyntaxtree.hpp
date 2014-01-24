@@ -23,90 +23,34 @@
 #include "jfile.hpp"
 
 #include "tokendata.hpp"
+#include "syntaxtree.hpp"
+#include "asyntaxtree.hpp"
+#include "atokendata.hpp"
 #include <string>
 #include <vector>
 
-class linkedSTlist;
+class SyntaxTree;
 
-
-//----------------------------------ASyntaxTree--------------------------------------------------------------------
-class ASyntaxTree : public CInterface
+class AnalyserST : public SyntaxTree
 {
+public :
+    static ISyntaxTree * createSyntaxTree(TokenData & tok);
+    static ISyntaxTree * createSyntaxTree(TokenKind & _token, const ECLlocation & _pos);
 
-public:
-    ASyntaxTree * createASyntaxTree();
-    ASyntaxTree * createASyntaxTree(TokenData & token);
-    ASyntaxTree * createASyntaxTree(TokenData & parentTok, TokenData & leftTok, TokenData & rightTok);
-    ASyntaxTree * createASyntaxTree(TokenData & parentTok, ASyntaxTree * leftBranch, TokenData & rightTok);
-    ASyntaxTree * createASyntaxTree(TokenData & parentTok, ASyntaxTree * leftBranch, ASyntaxTree * righBranch);
-    ASyntaxTree * createASyntaxTree(TokenData & token, ASyntaxTree * tempAux);
-    ~ASyntaxTree();
+    virtual void printTree();
+    virtual void printNode(unsigned * nodeNum,  IIOStream * out);
+    virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
 
-    ASyntaxTree * release();
-
-    bool printTree();
-    bool printBranch(unsigned * parentNodeNum, unsigned * nodeNum, Owned<IFileIOStream> & out);
-    bool printEdge(unsigned parentNodeNum, unsigned nodeNum, ASyntaxTree * child, Owned<IFileIOStream> & out);
-    bool printNode(unsigned * nodeNum, Owned<IFileIOStream> & out);
-
-    void bifurcate(ASyntaxTree * leftBranch, TokenData & rightTok);
-    void bifurcate(ASyntaxTree * leftBranch, ASyntaxTree * rightBranch);
-    void bifurcate(TokenData & leftTok, TokenData & rightTok);
-
-    void setLeft(TokenData & token);
-    void setLeft(ASyntaxTree * node);
-    void setRight(TokenData & token);
-    void setRight(ASyntaxTree * node);
-
-    void addChild(ASyntaxTree * addition);
-    ASyntaxTree ** releaseAux();
-    void transferChildren(ASyntaxTree * node);
-
-    const char * getLexeme();
-    symbolKind getKind();
-
-    void extractSymbols(std::vector <std::string> & symbolList, symbolKind kind);
+    virtual void extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind);
     void setSymbolList(std::vector <std::string> & list);
     void printSymbolList();
 
-private:
-    ASyntaxTree();
-    ASyntaxTree(TokenData & token);
-
-private:
-    TokenData attributes;
-
-    ASyntaxTree * left;
-    ASyntaxTree * right;
-    //linkedSTlist * children;
-    CIArrayOf<ASyntaxTree> * children;
-
     static std::vector <std::string> * symbolList;
-};
-
-//----------------------------------linkeSTlist--------------------------------------------------------------------
-class linkedSTlist
-{
-
-    friend class ASyntaxTree;
-
-public:
-    linkedSTlist();
-    ~linkedSTlist();
-    void push(ASyntaxTree * addition);
-    ASyntaxTree * pop();
-    unsigned size();
-
-    ASyntaxTree * operator[](unsigned idx);
-    // const value_type& operator[](index_type idx) const;
 
 private:
-    linkedSTlist(ASyntaxTree * node);
+    AnalyserST(TokenData & tok);
+    AnalyserST(TokenKind & _token, const ECLlocation & pos);
 
-private:
-    ASyntaxTree * data;
-    linkedSTlist * next;
 };
-
 
 #endif

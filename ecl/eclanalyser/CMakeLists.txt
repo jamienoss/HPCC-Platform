@@ -30,8 +30,8 @@ set (   SRCS
         bisongram.y
         bisonlex.l
 
-        tokendata.hpp
-        tokendata.cpp
+        analyserpd.hpp
+        analyserpd.cpp
         asyntaxtree.hpp
         asyntaxtree.cpp
         analyserparser.hpp
@@ -51,6 +51,7 @@ include_directories (
          ./../../common/workunit
          ./../../system/jlib
          ./../../ecl/hql
+         ./../../ecl/parser
          ./../../ecl/eclanalyser
          ./../../testing/unittests
     )

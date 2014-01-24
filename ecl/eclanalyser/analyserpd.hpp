@@ -16,14 +16,14 @@
     limitations under the License.
 ############################################################################## */
 
-#ifndef TOKENDATAX_HPP
-#define TOKENDATAX_HPP
+#ifndef ANALYSERPD_HPP
+#define ANALYSERPD_HPP
 
 //#include "eclgram.h"
 
 //extern YYTOKENTYPE;
 
-enum symbolKind
+/*enum symbolKind
 {
     none,
 	integerKind,
@@ -35,23 +35,16 @@ enum symbolKind
     nonTerminalDefKind,
     productionKind
 };
-//----------------------------------TokenData--------------------------------------------------------------------
-class TokenData
+*/
+
+#include "parserdata.hpp"
+
+//----------------------------------ParserData--------------------------------------------------------------------
+class AnalyserTD : public ParserData
 {
 public:
-    //ECLlocation pos;
-	unsigned lineNumber;
-	symbolKind attributeKind;
-	//yytokentype attributeKind;
-	union
-	{
-		int integer;
-		float real;
-		char * lexeme;
-	};
-
-	void cpy(TokenData tok);
-	void setKind(symbolKind kind);
+    virtual ParserData & add(ParserData & token);
+    virtual ParserData & add(TokenKind token, const ECLlocation & _pos);
 };
 
 #endif

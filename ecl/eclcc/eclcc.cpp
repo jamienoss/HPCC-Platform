@@ -45,7 +45,7 @@
 #include "hqlcerrors.hpp"
 
 #include "eclparser.hpp"
-//#include "analyserparser.hpp"
+#include "analyserparser.hpp"
 
 #include "hqlgram.hpp"
 #include "hqltrans.ipp"
@@ -1020,7 +1020,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         {
             parser->analyseGrammar();
         }
-        //throwUnexpected();
+        throwUnexpected();
     }
 #endif
 

@@ -23,52 +23,21 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
-#include "eclgram.h"
+//#include "eclgram.h"
 
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
+ISyntaxTree * SyntaxTree::createSyntaxTree() { return new SyntaxTree(); }
 
-ISyntaxTree * SyntaxTree::createSyntaxTree()
-{
-    return new SyntaxTree();
-}
+ISyntaxTree * SyntaxTree::createSyntaxTree(const ECLlocation & _pos) { return new SyntaxTree(_pos); }
 
-ISyntaxTree * SyntaxTree::createSyntaxTree(TokenData & token)
-{
-    if (token.tokenKind == INTEGER)
-        return new IntegerSyntaxTree(token);
-    return new SyntaxTree(token);
-}
+SyntaxTree::SyntaxTree() { pos.clear(); }
 
-
-ISyntaxTree * SyntaxTree::createSyntaxTree(TokenKind token, const ECLlocation & pos)
-{
-    return new SyntaxTree(token, pos);
-}
-
-SyntaxTree::SyntaxTree()
-{
-    token = 0;
-}
-
-SyntaxTree::SyntaxTree(TokenKind _token, const ECLlocation & _pos)
-{
-    token = _token;
-    pos.set(_pos);
-}
-
-SyntaxTree::SyntaxTree(TokenData & tok)
-{
-    switch (tok.tokenKind) {
-    case ID: name = tok.name; break;
-    case REAL: real = tok.real; break;
-    }
-
-    token = tok.tokenKind;
-    pos.set(tok.pos);
-}
+SyntaxTree::SyntaxTree(ECLlocation _pos) { pos.set(_pos); }
 
 SyntaxTree::~SyntaxTree() {}
+//-------------------------------------------------------------------------------------------------------------------
+
 
 SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
 {
@@ -78,7 +47,7 @@ SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
 
 void SyntaxTree::printTree()
 {
-    bool XML = 1;
+    bool XML = 0;
 
     unsigned parentNodeNum = 0, nodeNum = 0;
     StringBuffer str;
@@ -98,7 +67,7 @@ void SyntaxTree::printTree()
     {
         print * printer = new print(0, &str);
         printer->str->append("<graph>").newline();
-        printXml(printer);
+        //printXml(printer);
         //printGEXF(printer);
         printer->str->append("</graph>");
 
@@ -108,6 +77,7 @@ void SyntaxTree::printTree()
         return;
     }
 
+    //printing dot
     str = "graph \"Abstract Syntax Tree\"\n{\n";
     out->write(str.length(), str.str());
 
@@ -126,12 +96,12 @@ void  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOS
 
     ForEachItemIn(i,children)
     {
-       printEdge(parentNodeNumm, *nodeNum, out);
+       printEdge(parentNodeNumm, *nodeNum, out, i);
        queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
     }
 }
 
-void SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out)
+void SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx)
 {
     StringBuffer str;
     str.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
@@ -156,6 +126,10 @@ void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out, const char * tex
 void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
+    text.append("Empty Node!!!");
+    printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+    /*StringBuffer text;
     switch(token){
     case REAL: text.append(real); break;
     case ID : text.append(name->str()); break;
@@ -177,7 +151,7 @@ void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     printNode(nodeNum, out, text, colour);
 }
 
-void SyntaxTree::printXml(print * printer)
+/*void SyntaxTree::printXml(print * printer)
 {
 
     printer->indentation().append("<node id=\"").append(printer->id).append("\" label=\"");
@@ -199,32 +173,7 @@ void SyntaxTree::printXml(print * printer)
     {
         printer->str->append("/>").newline();
     }
-}
-
-void SyntaxTree::printGEXF(print * printer)
-{
-
-    printer->indentation().append("<Node id=\"").append(printer->id).append("\" label=\"");
-    appendParserTokenText(*printer->str, token);
-    printer->str->append("\" "); // add extra details here
-
-    if (children.ordinality())
-    {
-        printer->str->append(">").newline();
-        ForEachItemIn(i, children)
-        {
-            printer->tabIncrease();
-            children.item(i).printXml(printer);
-            printer->tabDecrease();
-        }
-        printer->indentation().append("</Node>").newline();
-    }
-    else
-    {
-        printer->str->append("/>").newline();
-    }
-}
-
+}*/
 
 void SyntaxTree::addChild(ISyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
@@ -239,20 +188,110 @@ ISyntaxTree * SyntaxTree::queryChild(unsigned i)
     return NULL;
 }
 
-TokenKind SyntaxTree::getKind()
+/*TokenKind SyntaxTree::getKind()
 {
     return token;
-}
+}*/
+
+void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind) {}
+
+
+
+
+
+
 
 //----------------------------------IntegerSyntaxTree--------------------------------------------------------------------
-
-IntegerSyntaxTree::IntegerSyntaxTree(TokenData & tok) : SyntaxTree(tok)
+ISyntaxTree * IntSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const int & constant)
 {
-    value = tok.integer;
+    return new IntSyntaxTree(_pos, constant);
 }
 
+IntSyntaxTree::IntSyntaxTree(ECLlocation _pos, int constant) : SyntaxTree(_pos)
+{
+    value = constant;
+}
 
-void IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+void IntSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+{
+    StringBuffer text;
+    text.append(value);
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+//----------------------------------RealSyntaxTree--------------------------------------------------------------------
+ISyntaxTree * RealSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const double & constant)
+{
+    return new RealSyntaxTree(_pos, constant);
+}
+
+RealSyntaxTree::RealSyntaxTree(ECLlocation _pos, double constant) : SyntaxTree(_pos)
+{
+    value = constant;
+}
+
+void RealSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+{
+    StringBuffer text;
+    text.append(value);
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+//----------------------------------BooleanSyntaxTree--------------------------------------------------------------------
+ISyntaxTree * BoolSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const bool & constant)
+{
+    return new BoolSyntaxTree(_pos, constant);
+}
+
+BoolSyntaxTree::BoolSyntaxTree(ECLlocation _pos, bool constant) : SyntaxTree(_pos)
+{
+    value = constant;
+}
+
+void BoolSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+{
+    StringBuffer text;
+    text.append(value);
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+//----------------------------------PunctuationSyntaxTree--------------------------------------------------------------------
+ISyntaxTree * PuncSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const TokenKind & constant)
+{
+    return new PuncSyntaxTree(_pos, constant);
+}
+
+PuncSyntaxTree::PuncSyntaxTree(ECLlocation _pos, TokenKind constant) : SyntaxTree(_pos)
+{
+    value = constant;
+}
+
+void PuncSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+{
+    StringBuffer text;
+    text.append(value);
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+//----------------------------------IdentifierSyntaxTree--------------------------------------------------------------------
+ISyntaxTree * IdSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)
+{
+    return new IdSyntaxTree(_pos, _name);
+}
+
+IdSyntaxTree::IdSyntaxTree(ECLlocation _pos, IIdAtom * _name) : SyntaxTree(_pos)
+{
+    name = _name;//createIdAtom(tokenText, txtLen); or make owned and link
+}
+
+void IdSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+{
+    StringBuffer text;
+    text.append(name->str());
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+//------------------------------------------------------------------------------------------------------
+
+
+
+
+/*void IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
     text.append(value);
@@ -261,15 +300,13 @@ void IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 
 void  IntegerSyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
 {
-    bool ioStatL;
-    bool ioStatR;
     unsigned parentNodeNumm = *nodeNum;
 
     printNode(nodeNum, out);
 
     ForEachItemIn(i,children)
     {
-       printEdge(parentNodeNumm, *nodeNum, out);
+       printEdge(parentNodeNumm, *nodeNum, out, i);
        queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
     }
-}
+}*/
