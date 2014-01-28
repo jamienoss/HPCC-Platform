@@ -31,6 +31,7 @@ class EclParser;
 #include "eclgram.h"
 #include <iostream>
 
+#define YYSTYPE_IS_DECLARED 1
 #define YYSTYPE ParserData
 
 //extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner);
