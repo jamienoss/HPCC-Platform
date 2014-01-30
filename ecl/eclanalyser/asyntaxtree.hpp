@@ -22,7 +22,7 @@
 #include "jlib.hpp"
 #include "jfile.hpp"
 
-#include "tokendata.hpp"
+//#include "tokendata.hpp"
 #include "syntaxtree.hpp"
 #include "asyntaxtree.hpp"
 #include "atokendata.hpp"

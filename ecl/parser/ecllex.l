@@ -35,7 +35,7 @@
 class ParserData;
 
 
-#define YYSTYPE ParserData
+  //#define YYSTYPE ParserData
 
 #define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
 
