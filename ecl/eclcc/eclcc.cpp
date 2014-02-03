@@ -45,7 +45,7 @@
 #include "hqlcerrors.hpp"
 
 #include "eclparser.hpp"
-#include "analyserparser.hpp"
+//#include "analyserparser.hpp"
 
 #include "hqlgram.hpp"
 #include "hqltrans.ipp"

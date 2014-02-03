@@ -23,7 +23,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
-//#include "eclgram.h"
+#include "eclgram.h" // needed for correct mapping of YYTokenName
 
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
@@ -266,8 +266,9 @@ PuncSyntaxTree::PuncSyntaxTree(ECLlocation _pos, TokenKind constant) : SyntaxTre
 void PuncSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
-    text.append(value);
-    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+    appendParserTokenText(text, value);
+    //text.append(value);
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.25,0.5,1\"");
 }
 //----------------------------------IdentifierSyntaxTree--------------------------------------------------------------------
 ISyntaxTree * IdSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)

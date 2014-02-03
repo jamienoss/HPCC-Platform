@@ -70,7 +70,7 @@ ParserData & ParserData::add(const ParserData & token2add)
     return *this;
 }
 
-ISyntaxTree * createSyntaxTree(const ParserData & token2add)
+ISyntaxTree * ParserData::createSyntaxTree(const ParserData & token2add)
 {
     switch(token2add.kind)
     {
@@ -82,7 +82,7 @@ ISyntaxTree * createSyntaxTree(const ParserData & token2add)
     }
 }
 
-ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos)
+ISyntaxTree * ParserData::createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos)
 {
     return createPuncSyntaxTree(_pos, _kind);
 }

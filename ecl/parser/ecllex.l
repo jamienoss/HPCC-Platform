@@ -42,7 +42,7 @@ class ParserData;
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-   std::cout << tokenText << "\n";
+   //std::cout << tokenText << "\n";
 
     yylval->kind = INTEGER;
     yylval->integer = atoi(tokenText);
@@ -53,7 +53,7 @@ static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, i
   //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    std::cout << (char)tokenKind << "\n";
+    //std::cout << (char)tokenKind << "\n";
 
     yylval->kind = tokenKind;
     yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
