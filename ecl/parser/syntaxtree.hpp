@@ -18,21 +18,22 @@
 #ifndef SYNTAXTREE_HPP
 #define SYNTAXTREE_HPP
 
+#include "defvalue.hpp"
 #include "parserdata.hpp"
 #include"jlib.hpp"
 #include <vector>
 #include <string>
 
-class print
+class Printer
 {
 public :
     int id;
     int indent;
     StringBuffer * str;
 
-    print() { indent = 0; id = 0; str = NULL; }
-    print(int _indent, StringBuffer * _str) { indent = _indent; id = 0; str = _str; }
-    ~print() {}
+    Printer() { indent = 0; id = 0; str = NULL; }
+    Printer(int _indent, StringBuffer * _str) { indent = _indent; id = 0; str = _str; }
+    ~Printer() {}
 
     StringBuffer & indentation()
     {
@@ -89,16 +90,8 @@ protected:
 
     SyntaxTree * queryPrivateChild(unsigned i);
 
-public: //make protected again
-   /* TokenKind token;
-   union
-    {
-        float real;
-        IIdAtom * name;
-    };
-    */
+protected:
     ECLlocation pos;
-
     SyntaxTreeArray children;
 
 protected:
@@ -114,116 +107,54 @@ class PuncSyntaxTree : public SyntaxTree
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const TokenKind & _token);
 
-//private:
+private:
     PuncSyntaxTree(ECLlocation _pos, TokenKind _token);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
-    //virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
-public: //private
+private:
     TokenKind value;
 };
 
 //--------------------------------------------------------------------------------------------------------
-
-class IntSyntaxTree : public SyntaxTree
+class ConstantSyntaxTree : public SyntaxTree
 {
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const int & constant);
-
-//private:
-    IntSyntaxTree(ECLlocation _pos, int constant);
-    virtual void printNode(unsigned * nodeNum, IIOStream * out);
-
-public: //private
-    int value;
-};
-
-//--------------------------------------------------------------------------------------------------------
-class RealSyntaxTree : public SyntaxTree
-{
-public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const double & constant);
-
-//private:
-    RealSyntaxTree(ECLlocation _pos, double constant);
-    virtual void printNode(unsigned * nodeNum, IIOStream * out);
-
-public: //private
-    double value;
-};
-
-//--------------------------------------------------------------------------------------------------------
-
-class BoolSyntaxTree : public SyntaxTree
-{
-public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const bool & constant);
 
-//private:
-    BoolSyntaxTree(ECLlocation _pos, bool constant);
+private:
+    ConstantSyntaxTree(ECLlocation _pos, const int & constant);
+    ConstantSyntaxTree(ECLlocation _pos, const double & constant);
+    ConstantSyntaxTree(ECLlocation _pos, const bool & constant);
+
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
 
-public: //private
-    bool value;
+private:
+    OwnedIValue value;
 };
-
 //--------------------------------------------------------------------------------------------------------
 class IdSyntaxTree : public SyntaxTree
 {
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _name);
 
-//private:
+private:
     IdSyntaxTree(ECLlocation _pos, IIdAtom * _name);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
 
-public: //private
+private:
     IIdAtom * name;
 };
-
 //--------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 inline ISyntaxTree * createSyntaxTree(){ return SyntaxTree::createSyntaxTree(); }
 inline ISyntaxTree * createSyntaxTree(const ECLlocation & _pos){ return SyntaxTree::createSyntaxTree(_pos); }
 
-inline ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token)
-{
-    return PuncSyntaxTree::createSyntaxTree(_pos, _token);
-}
+ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token);
+ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _name);
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const bool & constant);
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const int & constant);
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const double & constant);
 
-inline ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)
-{
-    return IdSyntaxTree::createSyntaxTree(_pos, _name);
-}
-
-inline ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const bool & constant)
-{
-    return BoolSyntaxTree::createSyntaxTree(_pos, constant);
-}
-
-inline ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const int & constant)
-{
-    return IntSyntaxTree::createSyntaxTree(_pos, constant);
-}
-
-inline ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const double & constant)
-{
-    return RealSyntaxTree::createSyntaxTree(_pos, constant);
-}
 #endif

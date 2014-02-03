@@ -74,7 +74,7 @@ ISyntaxTree * ParserData::createSyntaxTree(const ParserData & token2add)
 {
     switch(token2add.kind)
     {
-    //case BOOLEAN : return createConstSyntaxTree(token2add.pos, token2add.boolean); break;
+    //case BOOLEAN : return createConstSyntaxTree(token2add.pos, token2add.bool); break;
     case INTEGER : return createConstSyntaxTree(token2add.pos, token2add.integer); break;
     case REAL : return createConstSyntaxTree(token2add.pos, token2add.real); break;
     case ID : return createIdSyntaxTree(token2add.pos, token2add.name); break;

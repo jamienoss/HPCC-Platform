@@ -28,16 +28,12 @@
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 ISyntaxTree * SyntaxTree::createSyntaxTree() { return new SyntaxTree(); }
-
 ISyntaxTree * SyntaxTree::createSyntaxTree(const ECLlocation & _pos) { return new SyntaxTree(_pos); }
 
 SyntaxTree::SyntaxTree() { pos.clear(); }
-
 SyntaxTree::SyntaxTree(ECLlocation _pos) { pos.set(_pos); }
-
 SyntaxTree::~SyntaxTree() {}
 //-------------------------------------------------------------------------------------------------------------------
-
 
 SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
 {
@@ -65,15 +61,15 @@ void SyntaxTree::printTree()
 
     if(XML)
     {
-        print * printer = new print(0, &str);
-        printer->str->append("<graph>").newline();
+        Printer * print = new Printer(0, &str);
+        print->str->append("<graph>").newline();
         //printXml(printer);
         //printGEXF(printer);
-        printer->str->append("</graph>");
+        print->str->append("</graph>");
 
-        out->write(printer->str->length(), printer->str->str());
+        out->write(print->str->length(), print->str->str());
         io->close();
-        delete printer;
+        delete print;
         return;
     }
 
@@ -129,51 +125,6 @@ void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     text.append("Empty Node!!!");
     printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
 }
-    /*StringBuffer text;
-    switch(token){
-    case REAL: text.append(real); break;
-    case ID : text.append(name->str()); break;
-    default: appendParserTokenText(text, token); break;
-    }
-
-    const char * colour = NULL;
-    switch(token)
-    {
-    case INTEGER:
-    case REAL:
-        colour = "\"0.66,0.5,1\"";
-        break;
-    default:
-        colour = "\"0.25,0.5,1\"";
-        break;
-    }
-
-    printNode(nodeNum, out, text, colour);
-}
-
-/*void SyntaxTree::printXml(print * printer)
-{
-
-    printer->indentation().append("<node id=\"").append(printer->id).append("\" label=\"");
-    appendParserTokenText(*printer->str, token);
-    printer->str->append("\" "); // add extra details here
-
-    if (children.ordinality())
-    {
-        printer->str->append(">").newline();
-        ForEachItemIn(i, children)
-        {
-            printer->tabIncrease();
-            children.item(i).printXml(printer);
-            printer->tabDecrease();
-        }
-        printer->indentation().append("</node>").newline();
-    }
-    else
-    {
-        printer->str->append("/>").newline();
-    }
-}*/
 
 void SyntaxTree::addChild(ISyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
 {
@@ -188,11 +139,6 @@ ISyntaxTree * SyntaxTree::queryChild(unsigned i)
     return NULL;
 }
 
-/*TokenKind SyntaxTree::getKind()
-{
-    return token;
-}*/
-
 void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind) {}
 
 
@@ -200,56 +146,48 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, TokenKin
 
 
 
-
-//----------------------------------IntegerSyntaxTree--------------------------------------------------------------------
-ISyntaxTree * IntSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const int & constant)
+//----------------------------------ConstantSyntaxTree--------------------------------------------------------------------
+ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const bool & constant)
 {
-    return new IntSyntaxTree(_pos, constant);
+    return new ConstantSyntaxTree(_pos, constant);
 }
 
-IntSyntaxTree::IntSyntaxTree(ECLlocation _pos, int constant) : SyntaxTree(_pos)
+ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, const bool & constant) : SyntaxTree(_pos)
 {
-    value = constant;
+    value.set(createBoolValue(constant));
 }
 
-void IntSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const int & constant)
+{
+    return new ConstantSyntaxTree(_pos, constant);
+}
+
+ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, const int & constant) : SyntaxTree(_pos)
+{
+    value.set(createIntValue(constant, 4, false));
+}
+
+ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const double & constant)
+{
+    return new ConstantSyntaxTree(_pos, constant);
+}
+
+ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, const double & constant) : SyntaxTree(_pos)
+{
+    value.set(createRealValue(constant, 4));
+}
+
+void ConstantSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
-    text.append(value);
-    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
-}
-//----------------------------------RealSyntaxTree--------------------------------------------------------------------
-ISyntaxTree * RealSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const double & constant)
-{
-    return new RealSyntaxTree(_pos, constant);
-}
+    switch(value.get()->getTypeCode())
+    {
+    case type_int : text.append(value.get()->getIntValue());break;
+    case type_real : text.append(value.get()->getRealValue());break;
+    case type_boolean : text.append(value.get()->getBoolValue());break;
+    //default : text.append(value);
+    }
 
-RealSyntaxTree::RealSyntaxTree(ECLlocation _pos, double constant) : SyntaxTree(_pos)
-{
-    value = constant;
-}
-
-void RealSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
-{
-    StringBuffer text;
-    text.append(value);
-    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
-}
-//----------------------------------BooleanSyntaxTree--------------------------------------------------------------------
-ISyntaxTree * BoolSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const bool & constant)
-{
-    return new BoolSyntaxTree(_pos, constant);
-}
-
-BoolSyntaxTree::BoolSyntaxTree(ECLlocation _pos, bool constant) : SyntaxTree(_pos)
-{
-    value = constant;
-}
-
-void BoolSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
-{
-    StringBuffer text;
-    text.append(value);
     SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
 }
 //----------------------------------PunctuationSyntaxTree--------------------------------------------------------------------
@@ -268,7 +206,10 @@ void PuncSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     StringBuffer text;
     appendParserTokenText(text, value);
     //text.append(value);
-    SyntaxTree::printNode(nodeNum, out, text, "\"0.25,0.5,1\"");
+    if(value < 256)
+        SyntaxTree::printNode(nodeNum, out, text, "\"0.25,0.5,1\"");
+    else
+        SyntaxTree::printNode(nodeNum, out, text, "\"1.0,0.5,1\"");
 }
 //----------------------------------IdentifierSyntaxTree--------------------------------------------------------------------
 ISyntaxTree * IdSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)
@@ -291,23 +232,27 @@ void IdSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 
 
 
-
-/*void IntegerSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
+ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token)
 {
-    StringBuffer text;
-    text.append(value);
-    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+    return PuncSyntaxTree::createSyntaxTree(_pos, _token);
 }
 
-void  IntegerSyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
+ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)
 {
-    unsigned parentNodeNumm = *nodeNum;
+    return IdSyntaxTree::createSyntaxTree(_pos, _name);
+}
 
-    printNode(nodeNum, out);
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const bool & constant)
+{
+    return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
+}
 
-    ForEachItemIn(i,children)
-    {
-       printEdge(parentNodeNumm, *nodeNum, out, i);
-       queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
-    }
-}*/
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const int & constant)
+{
+    return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
+}
+
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const double & constant)
+{
+    return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
+}
