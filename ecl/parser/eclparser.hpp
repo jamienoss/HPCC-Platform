@@ -31,9 +31,6 @@ typedef void* yyscan_t;
 class EclParser;
 class EclLexer;
 
-typedef class TokenData YYSTYPE;
-#undef YYSTYPE_IS_DECLARED
-#define YYSTYPE_IS_DECLARED 1
 //----------------------------------EclParser--------------------------------------------------------------------
 class EclParser
 {

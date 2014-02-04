@@ -28,7 +28,6 @@ class EclParser;
 
 #include "platform.h"
 #include "eclparser.hpp"
-#include "eclgram.h"
 #include <iostream>
 
 #define YYSTYPE ParserData

@@ -22,7 +22,7 @@
 %option case-insensitive
 %option bison-bridge
 %option yylineno
-%option stack
+  //%option stack
   //%option nodefault
 
 
@@ -37,7 +37,6 @@ class ParserData;
 #define YYSTYPE ParserData
 
 #define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
-
 
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
