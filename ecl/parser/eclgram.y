@@ -30,7 +30,7 @@ class EclParser;
 #include "eclparser.hpp"
 #include <iostream>
 
-#define YYSTYPE ParserData
+#define YYSTYPE ParserData //NOTE: if you include eclgram.h this needs to be placed after this definition
 
 extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner);
 
