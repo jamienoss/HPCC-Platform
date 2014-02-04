@@ -51,7 +51,8 @@ interface ISyntaxTree : public IInterface
     //virtual TokenKind getKind() = 0;
     virtual const ECLlocation & queryPosition() const = 0;
     virtual void printTree() = 0;
-    //virtual void printXml(print * printer) = 0;
+    virtual void printXml(Printer * print) = 0;
+    virtual void appendSTvalue(StringBuffer & str) = 0;
 
     virtual ISyntaxTree * queryChild(unsigned i) = 0;
 
@@ -62,7 +63,6 @@ interface ISyntaxTree : public IInterface
 
 typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
 
-/// The following code can now be moved and hidden ---
 class SyntaxTree : public CInterfaceOf<ISyntaxTree>
 {
 public:
@@ -72,7 +72,7 @@ public:
 
 //Implementation of ISyntaxTree
     virtual void printTree();
-    //virtual void printXml(print * printer);
+    virtual void printXml(Printer * print);
     void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
     virtual ISyntaxTree * queryChild(unsigned i);
@@ -80,6 +80,7 @@ public:
 
     //virtual TokenKind getKind();
     virtual const ECLlocation & queryPosition() const { return pos; }
+    virtual void appendSTvalue(StringBuffer & str);
 
 protected:
     virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
@@ -99,7 +100,7 @@ protected:
     SyntaxTree(ECLlocation _pos);
 };
 
-
+/// The following code can now be moved and hidden ---
 //MORE: the following below might need parameterless constructors and 'create' wrappers
 //--------------------------------------------------------------------------------------------------------
 class PuncSyntaxTree : public SyntaxTree
@@ -110,6 +111,7 @@ public:
 private:
     PuncSyntaxTree(ECLlocation _pos, TokenKind _token);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
+    virtual void appendSTvalue(StringBuffer & str);
 
 private:
     TokenKind value;
@@ -129,6 +131,7 @@ private:
     ConstantSyntaxTree(ECLlocation _pos, const bool & constant);
 
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
+    virtual void appendSTvalue(StringBuffer & str);
 
 private:
     OwnedIValue value;
@@ -142,6 +145,7 @@ public:
 private:
     IdSyntaxTree(ECLlocation _pos, IIdAtom * _name);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
+    virtual void appendSTvalue(StringBuffer & str);
 
 private:
     IIdAtom * name;

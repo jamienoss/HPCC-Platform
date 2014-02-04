@@ -22,7 +22,7 @@
 %option case-insensitive
 %option bison-bridge
 %option yylineno
-  //%option stack
+%option stack
   //%option nodefault
 
 

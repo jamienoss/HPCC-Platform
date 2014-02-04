@@ -43,7 +43,7 @@ SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
 
 void SyntaxTree::printTree()
 {
-    bool XML = 0;
+    bool XML = 0;//NOTE/MORE: setup to always write both?
 
     unsigned parentNodeNum = 0, nodeNum = 0;
     StringBuffer str;
@@ -63,7 +63,7 @@ void SyntaxTree::printTree()
     {
         Printer * print = new Printer(0, &str);
         print->str->append("<graph>").newline();
-        //printXml(printer);
+        printXml(print);
         //printGEXF(printer);
         print->str->append("</graph>");
 
@@ -82,6 +82,32 @@ void SyntaxTree::printTree()
     str = "}\n";
     out->write(str.length(), str.str());
     io->close();
+}
+
+void SyntaxTree::printXml(Printer * print)
+{
+
+    print->indentation().append("<node id=\"").append(print->id).append("\" label=\"");
+    appendSTvalue(*print->str);
+
+    //appendParserTokenText(*print->str, token);
+    print->str->append("\" "); // add extra details here
+
+    if (children.ordinality())
+    {
+        print->str->append(">").newline();
+        ForEachItemIn(i, children)
+        {
+            print->tabIncrease();
+            children.item(i).printXml(print);
+            print->tabDecrease();
+        }
+        print->indentation().append("</node>").newline();
+    }
+    else
+    {
+        print->str->append("/>").newline();
+    }
 }
 
 void  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
@@ -139,6 +165,11 @@ ISyntaxTree * SyntaxTree::queryChild(unsigned i)
     return NULL;
 }
 
+void SyntaxTree::appendSTvalue(StringBuffer & str)
+{
+    str.append("Empty tree node!!!");
+}
+
 void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind) {}
 
 
@@ -180,15 +211,19 @@ ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, const double & constant
 void ConstantSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
+    appendSTvalue(text);
+    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+
+void ConstantSyntaxTree::appendSTvalue(StringBuffer & str)
+{
     switch(value.get()->getTypeCode())
     {
-    case type_int : text.append(value.get()->getIntValue());break;
-    case type_real : text.append(value.get()->getRealValue());break;
-    case type_boolean : text.append(value.get()->getBoolValue());break;
-    //default : text.append(value);
+    case type_int : str.append(value.get()->getIntValue());break;
+    case type_real : str.append(value.get()->getRealValue());break;
+    case type_boolean : str.append(value.get()->getBoolValue());break;
+    //default : str.append(value);
     }
-
-    SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
 }
 //----------------------------------PunctuationSyntaxTree--------------------------------------------------------------------
 ISyntaxTree * PuncSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const TokenKind & constant)
@@ -211,6 +246,12 @@ void PuncSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     else
         SyntaxTree::printNode(nodeNum, out, text, "\"1.0,0.5,1\"");
 }
+
+void PuncSyntaxTree::appendSTvalue(StringBuffer & str)
+{
+    appendParserTokenText(str, value);
+}
+
 //----------------------------------IdentifierSyntaxTree--------------------------------------------------------------------
 ISyntaxTree * IdSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)
 {
@@ -227,6 +268,11 @@ void IdSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     StringBuffer text;
     text.append(name->str());
     SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
+}
+
+void IdSyntaxTree::appendSTvalue(StringBuffer & str)
+{
+    str.append(name->str());
 }
 //------------------------------------------------------------------------------------------------------
 
