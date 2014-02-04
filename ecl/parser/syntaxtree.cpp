@@ -87,7 +87,7 @@ void SyntaxTree::printTree()
 void SyntaxTree::printXml(Printer * print)
 {
 
-    print->indentation().append("<node id=\"").append(print->id).append("\" label=\"");
+    print->indent().append("<node id=\"").append(print->id).append("\" label=\"");
     appendSTvalue(*print->str);
 
     //appendParserTokenText(*print->str, token);
@@ -102,7 +102,7 @@ void SyntaxTree::printXml(Printer * print)
             children.item(i).printXml(print);
             print->tabDecrease();
         }
-        print->indentation().append("</node>").newline();
+        print->indent().append("</node>").newline();
     }
     else
     {

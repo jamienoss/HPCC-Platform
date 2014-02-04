@@ -28,21 +28,21 @@ class Printer
 {
 public :
     int id;
-    int indent;
+    int indentation;
     StringBuffer * str;
 
-    Printer() { indent = 0; id = 0; str = NULL; }
-    Printer(int _indent, StringBuffer * _str) { indent = _indent; id = 0; str = _str; }
+    Printer() { indentation = 0; id = 0; str = NULL; }
+    Printer(int _indentation, StringBuffer * _str) { indentation = _indentation; id = 0; str = _str; }
     ~Printer() {}
 
-    StringBuffer & indentation()
+    StringBuffer & indent()
     {
-        for (unsigned short i = 0; i < indent; ++i)
+        for (unsigned short i = 0; i < indentation; ++i)
             str->append("  ");
         return *str;
     }
-    inline void tabIncrease() { ++indent; ++id; }
-    inline void tabDecrease() { --indent; }
+    inline void tabIncrease() { ++indentation; ++id; }
+    inline void tabDecrease() { --indentation; }
 };
 
 //----------------------------------SyntaxTree--------------------------------------------------------------------
