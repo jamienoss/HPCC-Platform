@@ -23,7 +23,7 @@ ParserData & ParserData::clear()
     pos.clear();
     kind = 0;
     integer = 0;
-    node.set(NULL);//needs to change perhaps
+    node.set(NULL);//needs to change
     return *this;
 }
 

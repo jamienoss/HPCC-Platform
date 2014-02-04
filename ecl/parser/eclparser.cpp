@@ -24,6 +24,7 @@
 #include "syntaxtree.hpp"
 
 #include <cstring>
+#include <iostream>
 
 class IFile;
 

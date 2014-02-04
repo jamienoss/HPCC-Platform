@@ -1027,10 +1027,13 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
     if (printSyntaxTree) {
         EclParser * parser = new EclParser(queryContents);
+        //std::cout << parser->parse() << "\n"; throwUnexpected();
+
         if (!(parser->parse())) { // Check persistence of AST
             //ISyntaxTree * AST = parser->releaseAST();
             //delete parser;
             //AST->printTree();
+            std::cout << "Printing syntax tree\n";
             parser->printAST();
         }
         throwUnexpected();

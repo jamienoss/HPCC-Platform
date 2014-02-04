@@ -91,7 +91,7 @@ protected:
 
     SyntaxTree * queryPrivateChild(unsigned i);
 
-protected:
+public ://protected:
     ECLlocation pos;
     SyntaxTreeArray children;
 

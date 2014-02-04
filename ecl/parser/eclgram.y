@@ -51,7 +51,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 
 %token
     AS
-    ASSIGN
+    ASSIGN ":="
     DIR
     END
     FROM
@@ -61,26 +61,10 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
     REAL
     RECORD
 
+    _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
-/*%type <>
-    eclQuery
-    expr
-    expr_list
-    fields
-    imports
-    inline_recordset
-    lhs
-    line_of_code
-    module_from
-    module_list
-    module_symbols
-    records
-    recordset
-    rhs
-    set
-    type
-*/
+
 
 %left '.'
 %left '('
@@ -100,7 +84,9 @@ code
 
 eclQuery
     : line_of_code ';'              { $$.clear($2).add($1); }
+    | line_of_code _EOF_            { $$.clear($2).add($1); }
     | eclQuery line_of_code ';'     { $$.clear($3).add($2).add($1); }
+    | eclQuery line_of_code _EOF_   { $$.clear($3).add($2).add($1); }
     ;
 
 line_of_code
@@ -126,7 +112,7 @@ expr
 
 expr_list
     : expr_list ',' expr            { $$.clear($1).add($3); }
-    | expr                          { $$.clear(',', $1.pos).add($1); }
+    | expr                          { $$.clear(',', $1.node->queryPosition()).add($1); }
     ;
 
 field
@@ -134,7 +120,7 @@ field
 
 fields
     : fields field                  { $$.clear($1).add($2); }
-    | field                         { $$.clear(',', $1.pos).add($1); }
+    | field                         { $$.clear(',', $1.node->queryPosition()).add($1); }
     ;
 
 imports
@@ -167,7 +153,7 @@ module_from
 module_list
     : module_list ',' module_symbols
                                     { $$.clear($1).add($3); }
-    | module_symbols                { $$.clear(',', $1.pos).add($1); }
+    | module_symbols                { $$.clear(',', $1.node->queryPosition()).add($1); }
     ;
 
 module_symbols
@@ -205,8 +191,19 @@ type
 
 void appendParserTokenText(StringBuffer & target, unsigned tok)
 {
-    if (tok < 256)
+    if (tok == 0)
+    {
+        StringBuffer tokenName = yytname[tok];
+        tokenName.replaceString("\"", "");
+        target.append(tokenName.str());
+    }
+    else if (tok > 0 && tok < 256)
         target.append((char)tok);
-    else
-        target.append(yytname[tok-258+3]); //NOTE:+3 to buffer from '$end', '$error', and '$undefined' that Bison prefix is the list - yytname -with.
-}                                          //-258 rather than 256 as Bison's 1st token starts at 258.
+    else if (tok > 258)
+    {
+        StringBuffer tokenName = yytname[tok-258+3];
+        tokenName.replaceString("\"", "");
+        target.append(tokenName.str()); //NOTE:+3 to buffer from '$end', '$error', and '$undefined' that Bison prefix is the list - yytname -with.
+                                          //-258 rather than 256 as Bison's 1st token starts at 258.
+    }
+}

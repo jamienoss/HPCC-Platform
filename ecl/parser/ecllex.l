@@ -78,6 +78,8 @@ static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, in
 #define updatepos parser->getLexer().updatePos(yyleng)
 #define resetpos parser->getLexer().resetPos()
 
+#define yyterminate() setLex(_EOF_);return _EOF_
+
 %}
 
 letter        [a-z_A-Z]
@@ -104,13 +106,17 @@ xpathseq      ([^}\r\n])+
 %%
 
 "/*"                     { updatepos; BEGIN(COMMENT); }
+<COMMENT>"*/"            { updatepos; BEGIN(0); }
 <COMMENT>[^*\n]+         { updatepos; }
 <COMMENT>\n              { resetpos; }
 <COMMENT>"*"             { updatepos; }
-<COMMENT>"*/"            { updatepos; BEGIN(0); }
+
+\n                       { resetpos; }
+{blank}+                 { updatepos; }
 
 "//"                     { updatepos; BEGIN(SLCOMMENT); }
-<SLCOMMENT>[^\n]+        { updatepos; BEGIN(0); }
+<SLCOMMENT>\n            { updatepos; BEGIN(0); }
+<SLCOMMENT>[^\n]+        { updatepos; }
 
 AS                       { setLex(AS); return AS; }
 END                      { setLex(END); return END; }
@@ -121,8 +127,6 @@ RECORD                   { setLex(RECORD); return RECORD; }
 {digit}+                 { setInt; return INTEGER; } /* complete for UNSIGNED[n]*/
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
-\n                       { resetpos; }
-{blank}+                 { updatepos; }
 
 .                        { updatepos; setLex(yytext[0]); return (yytext[0]); }
 
