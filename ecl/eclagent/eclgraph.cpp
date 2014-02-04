@@ -379,6 +379,8 @@ bool EclGraphElement::alreadyUpToDate(IAgentContext & agent)
             helper->getUpdateCRCs(eclCRC, totalCRC);
             break;
         }
+    default:
+        UNIMPLEMENTED;
     }
 
     Owned<ILocalOrDistributedFile> ldFile = agent.resolveLFN(filename.get(), "Read", true, false, false);
@@ -776,7 +778,7 @@ EclSubGraph::EclSubGraph(IAgentContext & _agent, EclGraph & _parent, EclSubGraph
     isChildGraph = false;
 }
 
-void EclSubGraph::createFromXGMML(EclGraph * graph, ILoadedDllEntry * dll, IPropertyTree * node, unsigned * subGraphSeqNo, EclSubGraph * resultsGraph)
+void EclSubGraph::createFromXGMML(EclGraph * graph, ILoadedDllEntry * dll, IPropertyTree * node, unsigned & subGraphSeqNo, EclSubGraph * resultsGraph)
 {
     xgmml.set(node->queryPropTree("att/graph"));
 
@@ -803,9 +805,9 @@ void EclSubGraph::createFromXGMML(EclGraph * graph, ILoadedDllEntry * dll, IProp
         {
             Owned<IProbeManager> childProbe;
             if (probeManager)
-                childProbe.setown(probeManager->startChildGraph(*subGraphSeqNo, NULL));
+                childProbe.setown(probeManager->startChildGraph(subGraphSeqNo, NULL));
 
-            Owned<EclSubGraph> subgraph = new EclSubGraph(*agent, *graph, this, *subGraphSeqNo++, probeEnabled, debugContext, probeManager);
+            Owned<EclSubGraph> subgraph = new EclSubGraph(*agent, *graph, this, subGraphSeqNo++, probeEnabled, debugContext, probeManager);
             subgraph->createFromXGMML(graph, dll, &cur, subGraphSeqNo, resultsGraph);
             if (probeManager)
                 probeManager->endChildGraph(childProbe, NULL);
@@ -1134,7 +1136,7 @@ void EclGraph::createFromXGMML(ILoadedDllEntry * dll, IPropertyTree * xgmml, boo
             childProbe.setown(probeManager->startChildGraph(subGraphSeqNo, NULL));
 
         Owned<EclSubGraph> subgraph = new EclSubGraph(*agent, *this, NULL, subGraphSeqNo++, enableProbe, debugContext, probeManager);
-        subgraph->createFromXGMML(this, dll, &iter->query(), &subGraphSeqNo, NULL);
+        subgraph->createFromXGMML(this, dll, &iter->query(), subGraphSeqNo, NULL);
         if (probeManager)
             probeManager->endChildGraph(childProbe, NULL);
 
@@ -1518,7 +1520,7 @@ void EclAgent::executeThorGraph(const char * graphName)
             {
                 CriticalBlock b(crit);
                 if (0 == subId) return;
-                if (valueLen && valueLen==strlen("resume") && (0 == strncmp("resume", (const char *)valueData, valueLen)))
+                if (valueLen==strlen("resume") && (0 == strncmp("resume", (const char *)valueData, valueLen)))
                     sem.signal();
             }
             bool wait()
@@ -1560,7 +1562,6 @@ void EclAgent::executeThorGraph(const char * graphName)
         {
             Semaphore sem;
             bool stopped;
-            unsigned starttime;
             IJobQueue *jq;
             IConstWorkUnit *wu;
         public:

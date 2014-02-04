@@ -4366,6 +4366,7 @@ class CEnvironmentClusterInfo: public CInterface, implements IConstWUClusterInfo
     SocketEndpointArray roxieServers;
     StringAttr thorQueue;
     StringArray thorProcesses;
+    StringArray primaryThorProcesses;
     StringAttr prefix;
     ClusterType platform;
     unsigned clusterWidth;
@@ -4379,10 +4380,20 @@ public:
         {
             thorQueue.set(getClusterThorQueueName(queue.clear(), name));
             clusterWidth = 0;
+            bool isMultiThor = (thors.length() > 1);
             ForEachItemIn(i,thors) 
             {
                 IPropertyTree &thor = thors.item(i);
-                thorProcesses.append(thor.queryProp("@name"));
+                const char* thorName = thor.queryProp("@name");
+                thorProcesses.append(thorName);
+                if (!isMultiThor)
+                    primaryThorProcesses.append(thorName);
+                else
+                {
+                    const char *nodeGroup = thor.queryProp("@nodeGroup");
+                    if (!nodeGroup || strieq(nodeGroup, thorName))
+                        primaryThorProcesses.append(thorName);
+                }
                 unsigned nodes = thor.getCount("ThorSlaveProcess");
                 if (!nodes)
                     throw MakeStringException(WUERR_MismatchClusterSize,"CEnvironmentClusterInfo: Thor cluster can not have 0 slave processes");
@@ -4460,6 +4471,10 @@ public:
     const StringArray & getThorProcesses() const
     {
         return thorProcesses;
+    }
+    const StringArray & getPrimaryThorProcesses() const
+    {
+        return primaryThorProcesses;
     }
 
     const SocketEndpointArray & getRoxieServers() const
@@ -4612,9 +4627,21 @@ extern WORKUNIT_API bool isProcessCluster(const char *remoteDali, const char *pr
     Owned<INode> remote = createINode(remoteDali, 7070);
     if (!remote)
         return false;
+
     VStringBuffer xpath("Environment/Software/*Cluster[@name=\"%s\"]/@name", process);
-    Owned<IPropertyTreeIterator> clusters = querySDS().getElementsRaw(xpath, remote, 1000*60*1);
-    return clusters->first();
+    try
+    {
+        Owned<IPropertyTreeIterator> clusters = querySDS().getElementsRaw(xpath, remote, 1000*60*1);
+        return clusters->first();
+    }
+    catch (IException *E)
+    {
+        StringBuffer msg;
+        E->errorMessage(msg);
+        DBGLOG("Exception validating cluster %s/%s: %s", remoteDali, xpath.str(), msg.str());
+        E->Release();
+    }
+    return true;
 }
 
 IConstWUClusterInfo* getTargetClusterInfo(IPropertyTree *environment, IPropertyTree *cluster)

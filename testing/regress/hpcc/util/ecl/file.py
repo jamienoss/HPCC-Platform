@@ -141,6 +141,15 @@ class ECLFile:
         logging.debug("%3d. Publish is %s",  self.taskId,  retVal)
         return retVal
 
+    def testNoKey(self):
+        # Standard string has a problem with unicode characters
+        # use byte arrays and binary file open instead
+        tag = b'//nokey'
+        logging.debug("%3d. testNoKey (ecl:'%s', tag:'%s')", self.taskId, self.ecl,  tag)
+        retVal = self.__checkTag(tag)
+        logging.debug("%3d. No key is %s",  self.taskId,  retVal)
+        return retVal
+
     def getTimeout(self):
         timeout = 0
         # Standard string has a problem with unicode characters
@@ -152,7 +161,7 @@ class ECLFile:
             if tag in line:
                 timeoutParts = line.split()
                 if len(timeoutParts) == 2:
-                    if isPositiveIntNum(timeoutParts[1]):
+                    if (timeoutParts[1] == '-1') or isPositiveIntNum(timeoutParts[1]) :
                         timeout = int(timeoutParts[1])
                 break
         logging.debug("%3d. Timeout is :%d sec",  self.taskId,  timeout)

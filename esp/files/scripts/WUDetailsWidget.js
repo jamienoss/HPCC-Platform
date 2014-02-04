@@ -15,9 +15,12 @@
 ############################################################################## */
 define([
     "dojo/_base/declare",
+    "dojo/_base/lang",
+    "dojo/i18n",
+    "dojo/i18n!./nls/common",
+    "dojo/i18n!./nls/WUDetailsWidget",
     "dojo/dom",
     "dojo/dom-form",
-    "dojo/_base/lang",
     "dojo/dom-attr",
     "dojo/request/iframe",
     "dojo/dom-class",
@@ -64,8 +67,8 @@ define([
     "dijit/Dialog",
     "dijit/form/SimpleTextarea",
 
-    "dojox/layout/TableContainer"
-], function (declare, dom, domForm, lang, domAttr, iframe, domClass, query, Memory, Observable,
+    "hpcc/TableContainer"
+], function (declare, lang, i18n, nlsCommon, nlsSpecific, dom, domForm, domAttr, iframe, domClass, query, Memory, Observable,
                 registry,
                 OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
                 _TabContainerWidget, ESPWorkunit, ESPRequest, EclSourceWidget, TargetSelectWidget, GraphsWidget, ResultsWidget, SourceFilesWidget, InfoGridWidget, LogsWidget, TimingPageWidget, ECLPlaygroundWidget, VizWidget, WsWorkunits,
@@ -73,6 +76,8 @@ define([
     return declare("WUDetailsWidget", [_TabContainerWidget], {
         templateString: template,
         baseClass: "WUDetailsWidget",
+        i18n: lang.mixin(nlsCommon, nlsSpecific),
+
         summaryWidget: null,
         resultsWidget: null,
         resultsWidgetLoaded: false,
@@ -111,6 +116,9 @@ define([
             this.resultsWidget = registry.byId(this.id + "_Results");
             this.filesWidget = registry.byId(this.id + "_Files");
             this.vizWidget = registry.byId(this.id + "_Visualize");
+            if (!this.vizWidget.supportsSvg()) {
+                this.vizWidget.set("disabled", true);
+            }
             this.timersWidget = registry.byId(this.id + "_Timers");
             this.graphsWidget = registry.byId(this.id + "_Graphs");
             this.sourceWidget = registry.byId(this.id + "_Source");
@@ -151,7 +159,7 @@ define([
         },
 
         getTitle: function () {
-            return "ECL Workunit Details";
+            return this.i18n.title;
         },
 
         _onCancelDialog: function (){
