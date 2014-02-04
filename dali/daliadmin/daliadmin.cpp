@@ -98,6 +98,7 @@ void usage(const char *exe)
   printf("  dfscompratio <logicalname>      -- returns compression ratio of file\n");
   printf("  dfsscopes <mask>                -- lists logical scopes (mask = * for all)\n");
   printf("  cleanscopes                     -- remove empty scopes\n");
+  printf("  dfsreplication <clustermask> <logicalnamemask> <redundancy-count> -- set redundancy for files matching mask, on specified clusters only");
   printf("\n");
   printf("Workunit commands:\n");
   printf("  listworkunits [<prop>=<val> [<lower> [<upper>]]] -- list workunits that match prop=val in workunit name range lower to upper\n");
@@ -1645,6 +1646,48 @@ static void listmatches(const char *path, const char *match, const char *pval)
 //=============================================================================
 
 
+static void dfsreplication(const char *clusterMask, const char *lfnMask, unsigned redundancy, bool dryRun)
+{
+    StringBuffer findXPath("//File");
+    if (clusterMask && !streq("*", clusterMask))
+        findXPath.appendf("[Cluster/@name=\"%s\"]", clusterMask);
+    if (lfnMask && !streq("*", lfnMask))
+        findXPath.appendf("[@name=\"%s\"]", lfnMask);
+
+    const char *basePath = "/Files";
+    const char *propToSet = "@redundancy";
+    StringBuffer value;
+    value.append(redundancy);
+
+    StringBuffer clusterFilter("Cluster");
+    if (clusterMask && !streq("*", clusterMask))
+        clusterFilter.appendf("[@name=\"%s\"]", clusterMask);
+
+    Owned<IRemoteConnection> conn = querySDS().connect(basePath, myProcessSession(), 0, daliConnectTimeoutMs);
+    Owned<IPropertyTreeIterator> iter = conn->getElements(findXPath);
+    ForEach(*iter)
+    {
+        IPropertyTree &file = iter->query();
+        Owned<IPropertyTreeIterator> clusterIter = file.getElements(clusterFilter);
+        ForEach(*clusterIter)
+        {
+            IPropertyTree &cluster = clusterIter->query();
+            const char *oldValue = cluster.queryProp(propToSet);
+            if (!oldValue || !streq(value, oldValue))
+            {
+                const char *fileName = file.queryProp("OrigName");
+                const char *clusterName = cluster.queryProp("@name");
+                VStringBuffer msg("File=%s on cluster=%s - %s %s to %s", fileName, clusterName, dryRun?"Would set":"Setting", propToSet, value.str());
+                if (oldValue)
+                    msg.appendf(" [old value = %s]", oldValue);
+                PROGLOG("%s", msg.str());
+                if (!dryRun)
+                    cluster.setProp(propToSet, value);
+            }
+        }
+    }
+}
+
 static const char *getNum(const char *s,unsigned &num)
 {
     while (*s&&!isdigit(*s))
@@ -1657,6 +1700,22 @@ static const char *getNum(const char *s,unsigned &num)
     return s;
 }
 
+
+static void displayGraphTiming(const char * name, unsigned time)
+{
+    unsigned gn;
+    const char *s = getNum(name,gn);
+    unsigned sn;
+    s = getNum(s,sn);
+    if (gn&&sn) {
+        const char *gs = strchr(name,'(');
+        unsigned gid = 0;
+        if (gs)
+            getNum(gs+1,gid);
+        OUTLOG("\"%s\",%d,%d,%d,%d,%d",name,gn,sn,gid,time,(time/60000));
+    }
+}
+
 static void workunittimings(const char *wuid)
 {
     StringBuffer path;
@@ -1667,28 +1726,38 @@ static void workunittimings(const char *wuid)
         return;
     }
     IPropertyTree *wu = conn->queryRoot();
-    Owned<IPropertyTreeIterator> iter = wu->getElements("Timings/Timing");
     StringBuffer name;
     outln("Name,graph,sub,gid,time ms,time min");
-    ForEach(*iter) {
-        if (iter->query().getProp("@name",name.clear())) {
-            if ((name.length()>11)&&(memcmp("Graph graph",name.str(),11)==0)) {
-                unsigned gn;
-                const char *s = getNum(name.str(),gn);
-                unsigned sn;
-                s = getNum(s,sn);
-                if (gn&&sn) {
-                    const char *gs = strchr(name.str(),'(');
-                    unsigned gid = 0;
-                    if (gs)
-                        getNum(gs+1,gid);
-                    unsigned time = iter->query().getPropInt("@duration");
-                    OUTLOG("\"%s\",%d,%d,%d,%d,%d",name.str(),gn,sn,gid,time,(time/60000));
+    if (wu->hasProp("Statistics"))
+    {
+        Owned<IPropertyTreeIterator> iter = wu->getElements("Statistics/Statistic");
+        ForEach(*iter)
+        {
+            if (iter->query().getProp("@desc",name.clear()))
+            {
+                if ((name.length()>11)&&(memcmp("Graph graph",name.str(),11)==0))
+                {
+                    unsigned time = (iter->query().getPropInt64("@value") / 1000000);
+                    displayGraphTiming(name.str(), time);
                 }
             }
         }
     }
-
+    else
+    {
+        Owned<IPropertyTreeIterator> iter = wu->getElements("Timings/Timing");
+        ForEach(*iter)
+        {
+            if (iter->query().getProp("@name",name.clear()))
+            {
+                if ((name.length()>11)&&(memcmp("Graph graph",name.str(),11)==0))
+                {
+                    unsigned time = iter->query().getPropInt("@duration");
+                    displayGraphTiming(name.str(), time);
+                }
+            }
+        }
+    }
 }
 
 //=============================================================================
@@ -2811,6 +2880,11 @@ int main(int argc, char* argv[])
                     else if (stricmp(cmd,"wuidDecompress")==0) {
                         CHECKPARAMS(2,2);
                         wuidCompress(params.item(1), params.item(2), false);
+                    }
+                    else if (stricmp(cmd,"dfsreplication")==0) {
+                        CHECKPARAMS(3,4);
+                        bool dryRun = np>3 && strieq("dryrun", params.item(4));
+                        dfsreplication(params.item(1), params.item(2), atoi(params.item(3)), dryRun);
                     }
                     else
                         ERRLOG("Unknown command %s",cmd);

@@ -30,6 +30,7 @@
 #include "roxie.hpp"
 #include "roxiedebug.ipp"
 #include "eclrtl.hpp"
+#include "workunit.hpp"
 
 #ifdef _WIN32
 #ifdef CCD_EXPORTS
@@ -459,6 +460,7 @@ extern void saveTopology();
 #define LOGGING_TRACELEVELSET   0x10
 #define LOGGING_CHECKINGHEAP    0x20
 #define LOGGING_FLAGSPRESENT    0x40
+#define LOGGING_WUID            0x80
 
 class LogItem : public CInterface
 {
@@ -695,6 +697,19 @@ public:
         }
     }
 
+    void dumpStats(IWorkUnit *wu) const
+    {
+        SpinBlock b(lock);
+        if (cumulative)
+        {
+            for (unsigned i = 0; i < STATS_SIZE; i++)
+            {
+                if (counts[i])
+                    wu->setStatistic("roxie", "workunit", getStatShortName(i), getStatName(i), getStatMeasure(i), cumulative[i], counts[i], 0, false);
+            }
+        }
+    }
+
     void toXML(StringBuffer &reply) const
     {
         SpinBlock b(lock);
@@ -765,11 +780,14 @@ protected:
     unsigned start;
     unsigned ctxTraceLevel;
     mutable StatsCollector stats;
+    mutable ITimeReporter *timeReporter;
     unsigned channel;
 public: // Not very clean but I don't care
     bool intercept;
     bool blind;
     mutable CIArrayOf<LogItem> log;
+private:
+    ContextLogger(const ContextLogger &);  // Disable copy constructor
 public:
     IMPLEMENT_IINTERFACE;
 
@@ -778,8 +796,13 @@ public:
         ctxTraceLevel = traceLevel;
         intercept = false;
         blind = false;
+        timeReporter = createStdTimeReporter();
         start = msTick();
         channel = 0;
+    }
+    ~ContextLogger()
+    {
+        ::Release(timeReporter);
     }
 
     void outputXML(IXmlStreamFlusher &out)
@@ -897,6 +920,11 @@ public:
         stats.dumpStats(*this);
     }
 
+    virtual void dumpStats(IWorkUnit *wu) const
+    {
+        stats.dumpStats(wu);
+    }
+
     virtual bool isIntercepted() const
     {
         return intercept;
@@ -916,6 +944,15 @@ public:
     {
         return ctxTraceLevel;
     }
+    inline ITimeReporter *queryTimer() const
+    {
+        return timeReporter;
+    }
+    void reset()
+    {
+        stats.reset();
+        timer->reset();
+    }
 };
 
 class StringContextLogger : public ContextLogger
@@ -934,7 +971,7 @@ public:
     }
     void set(const char *_id)
     {
-        stats.reset();
+        reset();
         id.set(_id);
     }
 };

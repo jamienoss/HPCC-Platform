@@ -1130,6 +1130,18 @@ bool CWsWorkunitsEx::onWUResubmit(IEspContext &context, IEspWUResubmitRequest &r
                 if(!cw)
                     throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT,"Cannot open workunit %s.",wuid.str());
 
+                //Dont allow resubmit of someone else's workunit
+                if (context.querySecManager())
+                {
+                    IUserDescriptor * owner = cw->queryUserDescriptor();
+                    if (!owner)
+                        throw MakeStringException(ECLWATCH_CANNOT_SUBMIT_WORKUNIT,"Workunit User Descriptor missing on %s", wuid.str());
+                    StringBuffer ownerUserName;
+                    owner->getUserName(ownerUserName);
+                    if (strcmp(context.queryUser()->getName(), ownerUserName.str()))
+                        throw MakeStringException(ECLWATCH_CANNOT_SUBMIT_WORKUNIT,"Cannot resubmit another user's workunit %s.", wuid.str());
+                }
+
                 submitWsWorkunit(context, cw, NULL, NULL, 0, req.getRecompile(), req.getResetWorkflow(), false);
 
                 if (version < 1.40)
@@ -1762,15 +1774,20 @@ bool CWsWorkunitsEx::onWUInfo(IEspContext &context, IEspWUInfoRequest &req, IEsp
                     flags|=WUINFO_IncludeEclSchemas;
                 if (req.getIncludeXmlSchemas())
                     flags|=WUINFO_IncludeXmlSchema;
+                if (req.getIncludeResultsViewNames())
+                    flags|=WUINFO_IncludeResultsViewNames;
+                if (req.getIncludeResourceURLs())
+                    flags|=WUINFO_IncludeResourceURLs;
 
                 WsWuInfo winfo(context, wuid.str());
                 winfo.getInfo(resp.updateWorkunit(), flags);
 
-                if (req.getIncludeResultsViewNames())
+                if (req.getIncludeResultsViewNames()||req.getIncludeResourceURLs())
                 {
-                    StringArray views;
-                    winfo.getResultViews(views, WUINFO_IncludeResultsViewNames);
+                    StringArray views, urls;
+                    winfo.getResourceInfo(views, urls, flags);
                     resp.setResultViews(views);
+                    resp.updateWorkunit().setResourceURLs(urls);
                 }
             }
             catch (IException *e)
@@ -3954,16 +3971,16 @@ bool CWsWorkunitsEx::onWUCreateZAPInfo(IEspContext &context, IEspWUCreateZAPInfo
         throw MakeStringException(ECLWATCH_CANNOT_COMPRESS_DATA,"The data cannot be compressed.");
 #else
         Owned<IWorkUnitFactory> factory = getWorkUnitFactory(context.querySecManager(), context.queryUser());
-        Owned<IConstWorkUnit> cwu = factory->openWorkUnit(req.getWUID(), false);
+        Owned<IConstWorkUnit> cwu = factory->openWorkUnit(req.getWuid(), false);
         if(!cwu.get())
-            throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT, "Cannot open workunit %s.", req.getWUID());
+            throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT, "Cannot open workunit %s.", req.getWuid());
 
         //Create output report file
         StringBuffer zipFile;
         StringBuffer userName;
         if (context.queryUser())
             userName.append(context.queryUser()->getName());
-        zipFile.append("ZAPReport_").append(req.getWUID()).append('_').append(userName.str()).append(".zip");
+        zipFile.append("ZAPReport_").append(req.getWuid()).append('_').append(userName.str()).append(".zip");
         SCMStringBuffer temp;
         StringBuffer sb;
         sb.append("Workunit:     ").append(cwu->getWuid(temp)).append("\r\n");
@@ -4013,7 +4030,7 @@ bool CWsWorkunitsEx::onWUCreateZAPInfo(IEspContext &context, IEspWUCreateZAPInfo
 #endif
             StringBuffer fs;
             //add report file to ZIP
-            fs.append("ZAPReport_").append(req.getWUID()).append('_').append(userName.str()).append(".txt");
+            fs.append("ZAPReport_").append(req.getWuid()).append('_').append(userName.str()).append(".txt");
             zipper->addContentToZIP(sb.length(), (void*)sb.str(), (char*)fs.str(), false);
 
             //add ECL query/archive to zip
@@ -4024,7 +4041,7 @@ bool CWsWorkunitsEx::onWUCreateZAPInfo(IEspContext &context, IEspWUCreateZAPInfo
                 query->getQueryText(temp);
                 if (temp.length())
                 {
-                    fs.clear().append("ZAPReport_").append(req.getWUID()).append('_').append(userName.str()).append(".");
+                    fs.clear().append("ZAPReport_").append(req.getWuid()).append('_').append(userName.str()).append(".");
                     fs.append(isArchiveQuery(temp.str()) ? "archive" : "ecl");
                     ecl.append(temp.str());
                     zipper->addContentToZIP(ecl.length(), (void*)ecl.str(), (char*)fs.str(), true);
@@ -4042,7 +4059,7 @@ bool CWsWorkunitsEx::onWUCreateZAPInfo(IEspContext &context, IEspWUCreateZAPInfo
             //Add Workunit XML file
             MemoryBuffer wuXmlMB;
             winfo.getWorkunitXml(NULL, wuXmlMB);
-            fs.clear().append("ZAPReport_").append(req.getWUID()).append('_').append(userName.str()).append(".xml");
+            fs.clear().append("ZAPReport_").append(req.getWuid()).append('_').append(userName.str()).append(".xml");
             zipper->addContentToZIP(wuXmlMB.length(), (void*)wuXmlMB.toByteArray(), (char*)fs.str(), true);
 
             //Write out ZIP file

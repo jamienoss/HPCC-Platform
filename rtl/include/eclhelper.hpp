@@ -62,6 +62,7 @@ interface IException;
 class MemoryBuffer;
 class StringBuffer;
 class rtlRowBuilder;
+class Decimal;
 struct RtlFieldInfo;
 struct RtlTypeInfo;
 
@@ -102,12 +103,16 @@ interface INaryCompareEq
     virtual bool match(unsigned _num, const void * * _rows) const = 0;
 };
 
+interface IEngineRowAllocator;
+
 interface IRowBuilder : public IInterface
 {
     virtual byte * ensureCapacity(size32_t required, const char * fieldName) = 0;
 protected:
     virtual byte * createSelf() = 0;
     virtual void reportMissingRow() const = 0;
+public:
+    virtual IEngineRowAllocator *queryAllocator() const = 0;
 };
 
 class ARowBuilder : public IRowBuilder
@@ -199,7 +204,33 @@ public:
     virtual void processEndRow(const RtlFieldInfo * field) = 0;
 };
 
-// Functions for processing rows - creating, serializing, destorying etc.
+class RtlDynamicRowBuilder;
+
+interface IFieldSource : public IInterface
+{
+public:
+    virtual bool getBooleanResult(const RtlFieldInfo *field) = 0;
+    virtual void getDataResult(const RtlFieldInfo *field, size32_t &len, void * &result) = 0;
+    virtual double getRealResult(const RtlFieldInfo *field) = 0;
+    virtual __int64 getSignedResult(const RtlFieldInfo *field) = 0;
+    virtual unsigned __int64 getUnsignedResult(const RtlFieldInfo *field) = 0;
+    virtual void getStringResult(const RtlFieldInfo *field, size32_t &len, char * &result) = 0;
+    virtual void getUTF8Result(const RtlFieldInfo *field, size32_t &chars, char * &result) = 0;
+    virtual void getUnicodeResult(const RtlFieldInfo *field, size32_t &chars, UChar * &result) = 0;
+    virtual void getDecimalResult(const RtlFieldInfo *field, Decimal &value) = 0;
+
+    //The following are used process the structured fields
+    virtual void processBeginSet(const RtlFieldInfo * field, bool &isAll) = 0;
+    virtual void processBeginDataset(const RtlFieldInfo * field) = 0;
+    virtual void processBeginRow(const RtlFieldInfo * field) = 0;
+    virtual bool processNextSet(const RtlFieldInfo * field) = 0;
+    virtual bool processNextRow(const RtlFieldInfo * field) = 0;
+    virtual void processEndSet(const RtlFieldInfo * field) = 0;
+    virtual void processEndDataset(const RtlFieldInfo * field) = 0;
+    virtual void processEndRow(const RtlFieldInfo * field) = 0;
+};
+
+// Functions for processing rows - creating, serializing, destroying etc.
 interface IOutputRowSerializer;
 interface IOutputRowDeserializer;
 
@@ -227,6 +258,7 @@ interface IEngineRowAllocator : extends IInterface
     virtual IOutputRowDeserializer *createDiskDeserializer(ICodeContext *ctx) = 0;
     virtual IOutputRowSerializer *createInternalSerializer(ICodeContext *ctx = NULL) = 0;
     virtual IOutputRowDeserializer *createInternalDeserializer(ICodeContext *ctx) = 0;
+    virtual IEngineRowAllocator *createChildRowAllocator(const RtlTypeInfo *childtype) = 0;
 };
 
 interface IRowSerializerTarget
@@ -313,6 +345,8 @@ interface RtlITypeInfo
     virtual const char * queryLocale() const = 0;
     virtual const RtlFieldInfo * const * queryFields() const = 0;               // null terminated list
     virtual const RtlTypeInfo * queryChildType() const = 0;
+
+    virtual size32_t build(ARowBuilder &builder, size32_t offset, const RtlFieldInfo *field, IFieldSource &source) const = 0;
 };
 
 
@@ -340,6 +374,7 @@ public:
                                     // if RFTMunknownsize then maxlength (records) [maxcount(datasets)]
 };
 
+
 //Core struct used for representing meta for a field.
 struct RtlFieldInfo
 {
@@ -356,6 +391,10 @@ struct RtlFieldInfo
     inline size32_t size(const byte * self, const byte * selfrow) const 
     { 
         return type->size(self, selfrow); 
+    }
+    inline size32_t build(ARowBuilder &builder, size32_t offset, IFieldSource & source) const
+    {
+        return type->build(builder, offset, this, source);
     }
     inline size32_t process(const byte * self, const byte * selfrow, IFieldProcessor & target) const 
     {
@@ -410,6 +449,7 @@ interface IOutputMetaData : public IRecordSize
 
     virtual void process(const byte * self, IFieldProcessor & target, unsigned from, unsigned to) {}            // from and to are *hints* for the range of fields to call through with
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor) = 0;
+    virtual IOutputMetaData * queryChildMeta(unsigned i) = 0;
 };
 
 
@@ -499,6 +539,7 @@ interface IUserDescriptor;
 interface IHThorArg;
 interface IHThorHashLookupInfo;
 interface IEngineContext;
+interface IWorkUnit;
 
 interface ICodeContext : public IResourceContext
 {
@@ -555,7 +596,7 @@ interface ICodeContext : public IResourceContext
 
     // Exception handling
 
-    virtual void addWuException(const char * text, unsigned code, unsigned severity) = 0; //n.b. this might be better named: it should only be used for adding user-generated exceptions (via the logging plug-in) --- there's a call in IAgentContext which takes a source argument too
+    virtual void addWuException(const char * text, unsigned code, unsigned severity, const char * source) = 0;
     virtual void addWuAssertFailure(unsigned code, const char * text, const char * filename, unsigned lineno, unsigned column, bool isAbort) = 0;
 
     // File resolution etc
@@ -596,6 +637,7 @@ interface ICodeContext : public IResourceContext
     virtual char * queryIndexMetaData(char const * lfn, char const * xpath) = 0;
     virtual IEngineContext *queryEngineContext() = 0;
     virtual char *getDaliServers() = 0;
+    virtual IWorkUnit *updateWorkUnit() const = 0;
 };
 
 
@@ -1578,6 +1620,7 @@ enum {
     JFrightSortedLocally         = 0x08000000,
     JFsmart                      = 0x10000000,
     JFunstable                   = 0x20000000, // can sorts be unstable?
+    JFnevermatchself             = 0x40000000, // for a self join can a record match itself
 };
 
 // FetchFlags

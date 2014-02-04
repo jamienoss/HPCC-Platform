@@ -182,43 +182,42 @@ public:
  * </PackageMaps>
  */
 
-class CRoxiePackageNode : extends CPackageNode, implements IRoxiePackage
+class CResolvedFileCache : implements IResolvedFileCache
 {
-protected:
-    Owned<IRoxieDaliHelper> daliHelper;
+    CriticalSection cacheLock;
+    CopyMapStringToMyClass<IResolvedFile> files;
 
-    mutable CriticalSection cacheLock;
-    mutable CopyMapStringToMyClass<IResolvedFile> fileCache;
-
-    virtual aindex_t getBaseCount() const = 0;
-    virtual const CRoxiePackageNode *getBaseNode(aindex_t pos) const = 0;
-
-    virtual bool getSysFieldTranslationEnabled() const {return fieldTranslationEnabled;} //roxie configured value
+public:
+    // Retrieve number of files in cache
+    inline unsigned count() const
+    {
+        return files.count();
+    }
 
     // Add a filename and the corresponding IResolvedFile to the cache
-    void addCache(const char *filename, const IResolvedFile *file) const
+    virtual void addCache(const char *filename, const IResolvedFile *file)
     {
         CriticalBlock b(cacheLock);
         IResolvedFile *add = const_cast<IResolvedFile *>(file);
         add->setCache(this);
-        fileCache.setValue(filename, add);
+        files.setValue(filename, add);
     }
     // Remove an IResolvedFile from the cache
-    void removeCache(const IResolvedFile *file) const
+    virtual void removeCache(const IResolvedFile *file)
     {
         CriticalBlock b(cacheLock);
         // NOTE: it's theoretically possible for the final release to happen after a replacement has been inserted into hash table. 
         // So only remove from hash table if what we find there matches the item that is being deleted.
-        IResolvedFile *goer = fileCache.getValue(file->queryFileName());
+        IResolvedFile *goer = files.getValue(file->queryFileName());
         if (goer == file)
-            fileCache.remove(file->queryFileName());
+            files.remove(file->queryFileName());
         // You might want to remove files from the daliServer cache too, but it's not safe to do so here as there may be multiple package caches
     }
     // Lookup a filename in the cache
-    IResolvedFile *lookupCache(const char *filename) const
+    virtual IResolvedFile *lookupCache(const char *filename)
     {
         CriticalBlock b(cacheLock);
-        IResolvedFile *cache = fileCache.getValue(filename);
+        IResolvedFile *cache = files.getValue(filename);
         if (cache)
         {
             LINK(cache);
@@ -227,6 +226,45 @@ protected:
         }
         return NULL;
     }
+};
+
+// Note - we use a separate cache for the misses rather than any clever attempts to overload
+// the one cache with a "special" value, since (among other reasons) the misses are cleared
+// prior to a package reload, but the hits need not be (as the file will be locked as long as it
+// is in the cache)
+
+static CriticalSection daliMissesCrit;
+static Owned<KeptLowerCaseAtomTable> daliMisses;
+
+static void noteDaliMiss(const char *filename)
+{
+    CriticalBlock b(daliMissesCrit);
+    daliMisses->addAtom(filename);
+}
+
+static bool checkCachedDaliMiss(const char *filename)
+{
+    CriticalBlock b(daliMissesCrit);
+    return daliMisses->find(filename) != NULL;
+}
+
+static void clearDaliMisses()
+{
+    CriticalBlock b(daliMissesCrit);
+    daliMisses.setown(new KeptLowerCaseAtomTable);
+}
+
+
+class CRoxiePackageNode : extends CPackageNode, implements IRoxiePackage
+{
+protected:
+    static CResolvedFileCache daliFiles;
+    mutable CResolvedFileCache fileCache;
+
+    virtual aindex_t getBaseCount() const = 0;
+    virtual const CRoxiePackageNode *getBaseNode(aindex_t pos) const = 0;
+
+    virtual bool getSysFieldTranslationEnabled() const {return fieldTranslationEnabled;} //roxie configured value
 
     // Use local package file only to resolve subfile into physical file info
     IResolvedFile *resolveLFNusingPackage(const char *fileName) const
@@ -246,66 +284,82 @@ protected:
     }
 
     // Use dali to resolve subfile into physical file info
-    IResolvedFile *resolveLFNusingDali(const char *fileName, bool cacheIt, bool writeAccess, bool alwaysCreate) const
+    static IResolvedFile *resolveLFNusingDaliOrLocal(const char *fileName, bool cacheIt, bool writeAccess, bool alwaysCreate)
     {
         // MORE - look at alwaysCreate... This may be useful to implement earlier locking semantics.
-        if (daliHelper)
+        IResolvedFile* result = daliFiles.lookupCache(fileName);
+        if (result)
+            return result;
+        if (!checkCachedDaliMiss(fileName))
         {
-            if (daliHelper->connected())
+            Owned<IRoxieDaliHelper> daliHelper = connectToDali();
+            if (daliHelper)
             {
-                Owned<IDistributedFile> dFile = daliHelper->resolveLFN(fileName, cacheIt, writeAccess);
-                if (dFile)
-                    return createResolvedFile(fileName, NULL, dFile.getClear(), daliHelper, cacheIt, writeAccess);
-            }
-            else if (!writeAccess)  // If we need write access and expect a dali, but don't have one, we should probably fail
-            {
-                // we have no dali, we can't lock..
-                Owned<IFileDescriptor> fd = daliHelper->resolveCachedLFN(fileName);
-                if (fd)
+                if (daliHelper->connected())
                 {
-                    Owned <IResolvedFileCreator> result = createResolvedFile(fileName, NULL, false);
-                    Owned<IFileDescriptor> remoteFDesc = daliHelper->checkClonedFromRemote(fileName, fd, cacheIt);
-                    result->addSubFile(fd.getClear(), remoteFDesc.getClear());
-                    return result.getClear();
+                    Owned<IDistributedFile> dFile = daliHelper->resolveLFN(fileName, cacheIt, writeAccess);
+                    if (dFile)
+                        result = createResolvedFile(fileName, NULL, dFile.getClear(), daliHelper, cacheIt, writeAccess);
+                }
+                else if (!writeAccess)  // If we need write access and expect a dali, but don't have one, we should probably fail
+                {
+                    // we have no dali, we can't lock..
+                    Owned<IFileDescriptor> fd = daliHelper->resolveCachedLFN(fileName);
+                    if (fd)
+                    {
+                        Owned <IResolvedFileCreator> creator = createResolvedFile(fileName, NULL, false);
+                        Owned<IFileDescriptor> remoteFDesc = daliHelper->checkClonedFromRemote(fileName, fd, cacheIt);
+                        creator->addSubFile(fd.getClear(), remoteFDesc.getClear());
+                        result = creator.getClear();
+                    }
+                }
+            }
+            if (!result)
+            {
+                StringBuffer useName;
+                if (strstr(fileName,"::"))
+                {
+                    bool wasDFS;
+                    makeSinglePhysicalPartName(fileName, useName, true, wasDFS);
+                }
+                else
+                    useName.append(fileName);
+                bool exists = checkFileExists(useName);
+                if (exists || alwaysCreate)
+                {
+                    Owned <IResolvedFileCreator> creator = createResolvedFile(fileName, useName, false);
+                    if (exists)
+                        creator->addSubFile(useName);
+                    result = creator.getClear();
                 }
             }
         }
-        return NULL;
-    }
-    // Use local package file's localFile info to resolve subfile into physical file info
-    IResolvedFile *resolveLFNusingLocal(const char *fileName, bool writeAccess, bool alwaysCreate) const
-    {
-        if (node && node->getPropBool("@localFiles"))
+        if (cacheIt)
         {
-            StringBuffer useName;
-            if (strstr(fileName,"::"))
-            {
-                bool wasDFS;
-                makeSinglePhysicalPartName(fileName, useName, true, wasDFS);
-            }
+            if (result)
+                daliFiles.addCache(fileName, result);
             else
-                useName.append(fileName);
-            bool exists = checkFileExists(useName);
-            if (exists || alwaysCreate)
-            {
-                Owned <IResolvedFileCreator> result = createResolvedFile(fileName, useName, false);
-                if (exists)
-                    result->addSubFile(useName);
-                return result.getClear();
-            }
+                noteDaliMiss(fileName);
         }
-        return NULL;
+        return result;
     }
+
     // Use local package and its bases to resolve existing file into physical file info via all supported resolvers
+    IResolvedFile *lookupExpandedFileName(const char *fileName, bool cache, bool writeAccess, bool alwaysCreate) const
+    {
+        IResolvedFile *result = lookupFile(fileName, cache, writeAccess, alwaysCreate);
+        if (!result)
+            result = resolveLFNusingDaliOrLocal(fileName, cache, writeAccess, alwaysCreate);
+        return result;
+    }
+
     IResolvedFile *lookupFile(const char *fileName, bool cache, bool writeAccess, bool alwaysCreate) const
     {
         // Order of resolution: 
         // 1. Files named in package
-        // 2. If dali lookup enabled, dali
-        // 3. If local file system lookup enabled, local file system?
-        // 4. Files named in bases
+        // 2. Files named in bases
 
-        IResolvedFile* result = lookupCache(fileName);
+        IResolvedFile* result = fileCache.lookupCache(fileName);
         if (result)
             return result;
 
@@ -320,7 +374,7 @@ protected:
             {
                 StringBuffer subFileName;
                 subFileInfo->getSubFileName(idx, subFileName);
-                Owned<const IResolvedFile> subFileInfo = lookupFile(subFileName, cache, writeAccess, alwaysCreate);
+                Owned<const IResolvedFile> subFileInfo = lookupExpandedFileName(subFileName, cache, false, false);  // NOTE - overwriting a superfile does NOT require write access to subfiles
                 if (subFileInfo)
                 {
                     if (!super)
@@ -329,18 +383,14 @@ protected:
                 }
             }
             if (super && cache)
-                addCache(fileName, super);
+                fileCache.addCache(fileName, super);
             return super.getClear();
         }
         result = resolveLFNusingPackage(fileName);
-        if (!result)
-            result = resolveLFNusingDali(fileName, cache, writeAccess, alwaysCreate);
-        if (!result)
-            result = resolveLFNusingLocal(fileName, writeAccess, alwaysCreate);
         if (result)
         {
             if (cache)
-                addCache(fileName, result);
+                fileCache.addCache(fileName, result);
             return result;
         }
         aindex_t count = getBaseCount();
@@ -366,9 +416,6 @@ public:
 
     CRoxiePackageNode(IPropertyTree *p) : CPackageNode(p)
     {
-        daliHelper.setown(connectToDali()); // MORE - should make this conditional?
-        if (!fileNameServiceDali.length())
-            node->setPropBool("@localFiles", true);
     }
 
     ~CRoxiePackageNode()
@@ -392,7 +439,7 @@ public:
         if (traceLevel > 5)
             DBGLOG("lookupFileName %s", fileName.str());
 
-        const IResolvedFile *result = lookupFile(fileName, cache, false, false);
+        const IResolvedFile *result = lookupExpandedFileName(fileName, cache, false, false);
         if (!result)
         {
             if (!opt)
@@ -408,6 +455,8 @@ public:
         StringBuffer fileName;
         expandLogicalFilename(fileName, _fileName, wu, false);
         Owned<IResolvedFile> resolved = lookupFile(fileName, false, true, true);
+        if (!resolved)
+            resolved.setown(resolveLFNusingDaliOrLocal(fileName, false, true, true));
         if (resolved)
         {
             if (resolved->exists())
@@ -416,13 +465,14 @@ public:
                     throw MakeStringException(99, "Cannot write %s, file already exists (missing OVERWRITE attribute?)", resolved->queryFileName());
                 if (extend)
                     UNIMPLEMENTED; // How does extend fit in with the clusterwritemanager stuff? They can't specify cluster and extend together...
-                removeCache(resolved);
+                resolved->setCache(NULL);
                 resolved->remove();
             }
             if (resolved->queryPhysicalName())
                 fileName.clear().append(resolved->queryPhysicalName());
             resolved.clear();
         }
+        Owned<IRoxieDaliHelper> daliHelper = connectToDali();
         bool disconnected = !daliHelper->connected();
         // MORE - not sure this is really the right test. If there SHOULD be a dali but is's unavailable, we should fail.
         Owned<ILocalOrDistributedFile> ldFile = createLocalOrDistributedFile(fileName, NULL, disconnected, !disconnected, true);
@@ -458,6 +508,8 @@ public:
         return CPackageNode::queryId();
     }
 };
+
+CResolvedFileCache CRoxiePackageNode::daliFiles;
 
 typedef CResolvedPackage<CRoxiePackageNode> CRoxiePackage;
 
@@ -1489,6 +1541,7 @@ private:
 
     void reload()
     {
+        clearDaliMisses();
         // We want to kill the old packages, but not until we have created the new ones
         // So that the query/dll caching will work for anything that is not affected by the changes
         Owned<CRoxiePackageSetWatcher> newPackages;
@@ -2211,6 +2264,7 @@ private:
                 else
                     stopPerformanceMonitor();
             }
+            //MORE: control:stats??
             else
                 unknown = true;
             break;

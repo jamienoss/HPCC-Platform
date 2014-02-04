@@ -445,7 +445,7 @@ public:
         VStringBuffer exeFileName(".%c_%s-bundle-selftest", PATHSEPCHAR, cleanName.str());
         VStringBuffer eclOpts("-   --nologfile -o%s", exeFileName.str());
         VStringBuffer bundleCmd("IMPORT %s as B;\n"
-                                "#IF (#ISDEFINED(B.__selftesdft))\n"
+                                "#IF (#ISDEFINED(B.__selftest))\n"
                                 "  EVALUATE(B.__selftest);\n"
                                 "#ELSE\n"
                                 "  FAIL(253, 'No selftests exported');\n"
@@ -463,6 +463,8 @@ public:
         {
             if (retcode != 253)
                 printf("%s selftests returned non-zero\n", cleanName.str());
+            else
+                printf("%s has no selftests\n", cleanName.str());
             return false;
         }
         else
@@ -1279,13 +1281,15 @@ private:
             splitFilename(thisFile->queryFilename(), NULL, NULL, &tail, &tail);
             StringBuffer destname(destdir);
             destname.append(PATHSEPCHAR).append(tail);
+            Owned<IFile> targetFile = createIFile(destname);
             if (thisFile->isDirectory()==foundYes)
             {
+                if (!optDryRun)
+                    targetFile->createDirectory();
                 copyDirectory(thisFile, destname);
             }
             else
             {
-                Owned<IFile> targetFile = createIFile(destname);
                 if (optDryRun || optVerbose)
                     printf("cp %s %s\n", thisFile->queryFilename(), targetFile->queryFilename());
                 if (!optDryRun)

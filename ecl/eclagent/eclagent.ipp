@@ -178,7 +178,7 @@ public:
     {
         return ctx->queryWorkUnit();
     }
-    virtual IWorkUnit *updateWorkUnit()
+    virtual IWorkUnit *updateWorkUnit() const
     {
         return ctx->updateWorkUnit();
     }
@@ -312,6 +312,7 @@ private:
 class EclAgentQueryLibrary : public CInterface
 {
 public:
+    void destroyGraph();
     void updateProgress();
 
 public:
@@ -351,7 +352,7 @@ private:
     friend class EclAgentWorkflowMachine;
 
     Owned<EclAgentWorkflowMachine> workflow;
-    Owned<IWorkUnit> wuWrite;
+    mutable Owned<IWorkUnit> wuWrite;
     Owned<IConstWorkUnit> wuRead;
     Owned<roxiemem::IRowManager> rowManager;
     StringAttr wuid;
@@ -370,7 +371,7 @@ private:
     Owned<IUserDescriptor> standAloneUDesc;
     outputFmts outputFmt;
     unsigned __int64 stopAfter;
-    CriticalSection wusect;
+    mutable CriticalSection wusect;
     StringArray tempFiles;
     CriticalSection tfsect;
     Array persistReadLocks;
@@ -501,7 +502,6 @@ public:
 
     virtual bool fileExists(const char * filename);
     virtual char * getExpandLogicalName(const char * logicalName);
-    virtual void addWuException(const char * text, unsigned code, unsigned severity);
     virtual void addWuException(const char * text, unsigned code, unsigned severity, char const * source);
     virtual void addWuAssertFailure(unsigned code, const char * text, const char * filename, unsigned lineno, unsigned column, bool isAbort);
     virtual IUserDescriptor *queryUserDescriptor();
@@ -576,7 +576,7 @@ public:
     virtual bool isResult(const char * name, unsigned sequence);
     virtual unsigned getWorkflowId();// { return workflow->queryCurrentWfid(); }
     virtual IConstWorkUnit *queryWorkUnit();  // no link
-    virtual IWorkUnit *updateWorkUnit();        // links
+    virtual IWorkUnit *updateWorkUnit() const; // links
     virtual void unlockWorkUnit();      
     virtual void reloadWorkUnit();
     void addTimings();
@@ -641,9 +641,9 @@ public:
     virtual void updateWULogfile();
 
 // roxiemem::IRowAllocatorMetaActIdCacheCallback
-    virtual IEngineRowAllocator *createAllocator(IOutputMetaData *meta, unsigned activityId, unsigned id, roxiemem::RoxieHeapFlags flags) const
+    virtual IEngineRowAllocator *createAllocator(IRowAllocatorMetaActIdCache * cache, IOutputMetaData *meta, unsigned activityId, unsigned id, roxiemem::RoxieHeapFlags flags) const
     {
-        return createRoxieRowAllocator(*rowManager, meta, activityId, id, flags);
+        return createRoxieRowAllocator(cache, *rowManager, meta, activityId, id, flags);
     }
 };
 
@@ -671,6 +671,7 @@ public:
     virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor) {}
+    virtual IOutputMetaData * queryChildMeta(unsigned i) { return NULL; }
 };
 
 class EclBoundLoopGraph : public CInterface, implements IHThorBoundLoopGraph

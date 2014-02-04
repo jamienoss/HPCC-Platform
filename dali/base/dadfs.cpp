@@ -1445,6 +1445,7 @@ public:
     }
     void retryActions()
     {
+        clearFiles(); // clear all previously tracked pending file changes, e.g. renames, super file additions/removals
         while (prepared) // unlock for retry
             actions.item(--prepared).retry();
     }
@@ -3622,7 +3623,7 @@ public:
                 reliter.setown(iter);
             }
             catch (IException *e) {
-                EXCLOG(e,"CDistributedFileDirectory::rename");
+                EXCLOG(e,"CDistributedFile::rename");
                 e->Release();
             }
             detachLogical();
@@ -4437,7 +4438,7 @@ class CDistributedSuperFile: public CDistributedFileBase<IDistributedSuperFile>
         }
         bool prepare()
         {
-            parent.setown(transaction->lookupSuperFile(parentlname,true));
+            parent.setown(transaction->lookupSuperFile(parentlname));
             if (!parent)
                 throw MakeStringException(-1,"removeSubFile: SuperFile %s cannot be found",parentlname.get());
             if (!subfile.isEmpty())
@@ -4529,7 +4530,7 @@ class CDistributedSuperFile: public CDistributedFileBase<IDistributedSuperFile>
         }
         bool prepare()
         {
-            parent.setown(transaction->lookupSuperFile(parentlname,true));
+            parent.setown(transaction->lookupSuperFile(parentlname));
             if (!parent)
                 throw MakeStringException(-1,"removeOwnedSubFiles: SuperFile %s cannot be found", parentlname.get());
             // Try to lock all files
@@ -5129,7 +5130,7 @@ public:
                 }
             }
             unsigned np = file.numParts();
-            if (width)
+            if (0 == width)
                 width = np;
             else if (np!=width)
                 mixedwidth = true;
@@ -5721,7 +5722,8 @@ private:
         }
         else
             pos = before?0:subfiles.ordinality();
-        unsigned cmppos = (pos==0)?1:0;
+        if (pos > subfiles.ordinality())
+            throw MakeStringException(-1,"addSubFile: Insert position %d out of range for file %s in superfile %s", pos+1, sub->queryLogicalName(), queryLogicalName());
         addItem(pos,sub.getClear());     // remove if failure TBD?
         setModified();
         updateFileAttrs();
@@ -6623,7 +6625,10 @@ public:
             }
             free(buf);
             if (epa.ordinality())
+            {
+                groupType = grp_unknown;
                 return createIGroup(epa);
+            }
         }
         StringBuffer range;
         StringBuffer parent;

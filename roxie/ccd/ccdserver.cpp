@@ -3411,6 +3411,8 @@ private:
                     loggingFlags |= LOGGING_BLIND;
                 if (ctx->queryCheckingHeap())
                     loggingFlags |= LOGGING_CHECKINGHEAP;
+                if (ctx->queryWorkUnit())
+                    loggingFlags |= LOGGING_WUID;
                 if (debugContext)
                 {
                     loggingFlags |= LOGGING_DEBUGGERACTIVE;
@@ -7321,7 +7323,7 @@ class CSpillingQuickSortAlgorithm : implements CInterfaceOf<ISortAlgorithm>, imp
 
 public:
     CSpillingQuickSortAlgorithm(ICompare *_compare, IRoxieSlaveContext * _ctx, IOutputMetaData * _rowMeta, unsigned _activityId)
-        : rowsToSort(&_ctx->queryRowManager(), InitialSortElements, CommitStep), ctx(_ctx), compare(_compare), rowMeta(_rowMeta), activityId(_activityId)
+        : rowsToSort(&_ctx->queryRowManager(), InitialSortElements, CommitStep, _activityId), ctx(_ctx), compare(_compare), rowMeta(_rowMeta), activityId(_activityId)
     {
         ctx->queryRowManager().addRowBuffer(this);
     }
@@ -7403,7 +7405,7 @@ public:
     }
 
 //interface roxiemem::IBufferedRowCallback
-    virtual unsigned getPriority() const
+    virtual unsigned getSpillCost() const
     {
         //Spill global sorts before grouped sorts
         if (rowMeta->isGrouped())
@@ -12173,9 +12175,8 @@ class CRoxieThreadedConcatReader : public CInterface, implements IRecordPullerCa
 public:
     IMPLEMENT_IINTERFACE;
     CRoxieThreadedConcatReader(InterruptableSemaphore &_ready, bool _grouped)
-    : puller(false), grouped(_grouped), ready(_ready), eof(false)
+    : puller(false), grouped(_grouped), atEog(true), ready(_ready), eof(false)
     {
-
     }
 
     void start(unsigned parentExtractSize, const byte *parentExtract, bool paused, IRoxieSlaveContext *ctx)
@@ -12202,6 +12203,7 @@ public:
             ReleaseRoxieRow(buffer.item(idx));
         buffer.clear();
         eof = false;
+        atEog = true;
     }
 
     void setInput(IRoxieInput *_in)
@@ -12230,8 +12232,7 @@ public:
 
     virtual void processDone()
     {
-        eof = true;
-        ready.signal();
+        processRow(NULL);
     }
 
     virtual bool fireException(IException *e)
@@ -12244,20 +12245,29 @@ public:
 
     bool peek(const void * &row, bool &anyActive)
     {
-        if (buffer.ordinality())
-        {
-            space.signal();
-            row = buffer.dequeue();
-            return true;
-        }
         if (!eof)
+        {
+            if (buffer.ordinality())
+            {
+                space.signal();
+                row = buffer.dequeue();
+                if (row==NULL)
+                {
+                    if (atEog)
+                    {
+                        eof = true;
+                        return false;
+                    }
+                    else
+                        atEog = true;
+                }
+                else if (grouped)
+                    atEog = false;
+                return true;
+            }
             anyActive = true;
+        }
         return false;
-    }
-
-    inline bool atEof() const
-    {
-        return eof;
     }
 
 protected:
@@ -12265,6 +12275,7 @@ protected:
     InterruptableSemaphore space;
     InterruptableSemaphore &ready;
     SafeQueueOf<const void, true> buffer;
+    bool atEog;
     bool eof;
     bool grouped;
 };
@@ -12366,7 +12377,11 @@ public:
         loop
         {
             if (readyPending && !inGroup)
-                readyPending--;
+            {
+                if (readyPending > 1)
+                    ready.signal(readyPending-1);
+                readyPending = 0;
+            }
             else
                 ready.wait();
             bool anyActive = false;
@@ -14525,6 +14540,7 @@ public:
     virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor) {}
+    virtual IOutputMetaData * queryChildMeta(unsigned i) { return NULL; }
 };
 
 class CRoxieServerLoopActivityFactory : public CRoxieServerActivityFactory
@@ -25922,6 +25938,7 @@ public:
     virtual IOutputRowSerializer * createInternalSerializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual IOutputRowDeserializer * createInternalDeserializer(ICodeContext * ctx, unsigned activityId) { return NULL; }
     virtual void walkIndirectMembers(const byte * self, IIndirectMemberVisitor & visitor) {}
+    virtual IOutputMetaData * queryChildMeta(unsigned i) { return NULL; }
 } testMeta;
 
 class TestInput : public CInterface, implements IRoxieInput

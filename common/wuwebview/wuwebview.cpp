@@ -283,6 +283,7 @@ public:
     IPropertyTree *ensureManifest();
 
     virtual void getResultViewNames(StringArray &names);
+    virtual void getResourceURLs(StringArray &urls, const char *prefix);
     virtual void renderResults(const char *viewName, const char *xml, StringBuffer &html);
     virtual void renderResults(const char *viewName, StringBuffer &html);
     virtual void renderSingleResult(const char *viewName, const char *resultname, StringBuffer &html);
@@ -395,15 +396,17 @@ bool WuWebView::getEspInclude(const char *includename, MemoryBuffer &includebuf,
 
 bool WuWebView::getInclude(const char *includename, MemoryBuffer &includebuf, bool &pathOnly)
 {
-    int len=strlen(includename);
-    if (len<8)
-        return false;
     //eliminate "file://"
-    if (strncmp(includename, "file://", 7)==0)
-        includename+=7;
-    //eliminate extra '/' for windows absolute paths
-    if (len>9 && includename[2]==':')
-        includename++;
+    if (strncmp(includename, "file:", 5)==0)
+        includename+=5;
+    if (*includename=='/')
+    {
+        while (includename[1]=='/')
+            includename++;
+        //eliminate extra '/' for windows absolute paths
+        if (includename[1] && includename[2]==':')
+            includename++;
+    }
     if (mapEspDirectories && !strnicmp(includename, "/esp/", 5))
         return getEspInclude(includename+5, includebuf, pathOnly);
 
@@ -451,6 +454,25 @@ bool WuWebView::getResourceByPath(const char *path, MemoryBuffer &mb)
     if (!res)
         return false;
     return getResource(res, mb);
+}
+
+void WuWebView::getResourceURLs(StringArray &urls, const char *prefix)
+{
+    SCMStringBuffer wuid;
+    cw->getWuid(wuid);
+    StringBuffer url(prefix);
+    urls.append(url.append("manifest/").append(wuid.str()));
+
+    Owned<IPropertyTreeIterator> iter = ensureManifest()->getElements("Resource");
+    ForEach(*iter)
+    {
+        IPropertyTree &res = iter->query();
+        url.set(prefix).append("res/").append(wuid.str());
+        if (res.hasProp("@ResourcePath"))
+            urls.append(url.append(res.queryProp("@ResourcePath")));
+        else if (res.hasProp("@filename"))
+            urls.append(url.append('/').append(res.queryProp("@filename")));
+    }
 }
 
 void WuWebView::getResultViewNames(StringArray &names)
@@ -830,3 +852,69 @@ extern WUWEBVIEW_API IWuWebView *createWuWebView(const char *wuid, const char *q
     return NULL;
 }
 
+const char *mimeTypeFromFileExt(const char *ext)
+{
+    if (!ext)
+        return "application/octet-stream";
+    if (*ext=='.')
+        ext++;
+    if (strieq(ext, "html") || strieq(ext, "htm"))
+        return "text/html";
+    if (strieq(ext, "xml") || strieq(ext, "xsl") || strieq(ext, "xslt"))
+       return "application/xml";
+    if (strieq(ext, "js"))
+       return "text/javascript";
+    if (strieq(ext, "css"))
+       return "text/css";
+    if (strieq(ext, "jpeg") || strieq(ext, "jpg"))
+       return "image/jpeg";
+    if (strieq(ext, "gif"))
+       return "image/gif";
+    if (strieq(ext, "png"))
+       return "image/png";
+    if (strieq(ext, "svg"))
+       return "image/svg+xml";
+    if (strieq(ext, "txt") || strieq(ext, "text"))
+       return "text/plain";
+    if (strieq(ext, "zip"))
+       return "application/zip";
+    if (strieq(ext, "pdf"))
+       return "application/pdf";
+    if (strieq(ext, "xpi"))
+       return "application/x-xpinstall";
+    if (strieq(ext, "exe") || strieq(ext, "class"))
+       return "application/octet-stream";
+    return "application/octet-stream";
+}
+
+extern WUWEBVIEW_API void getWuResourceByPath(const char *path, MemoryBuffer &mb, StringBuffer &mimetype)
+{
+    StringBuffer s, wuid, queryname;
+    nextPathNode(path, s);
+    if (strieq(s, "res"))
+        nextPathNode(path, s.clear());
+    if (strieq(s, "query"))
+    {
+        StringBuffer target;
+        nextPathNode(path, target);
+        if (!target.length())
+            throw MakeStringException(WUWEBERR_TargetNotFound, "Target cluster required");
+        nextPathNode(path, queryname);
+        Owned<IPropertyTree> query = resolveQueryAlias(target, queryname, true);
+        if (!query)
+            throw MakeStringException(WUWEBERR_QueryNotFound, "Query not found");
+        wuid.set(query->queryProp("@wuid"));
+    }
+    else
+    {
+        wuid.swapWith(s);
+        queryname.set(wuid);
+    }
+
+    Owned<IWuWebView> web = createWuWebView(wuid, queryname, NULL, true);
+    if (!web)
+        throw MakeStringException(WUWEBERR_WorkUnitNotFound, "Cannot open workunit");
+    mimetype.append(mimeTypeFromFileExt(strrchr(path, '.')));
+    if (!web->getResourceByPath(path, mb))
+        throw MakeStringException(WUWEBERR_ViewResourceNotFound, "Cannot open resource");
+}

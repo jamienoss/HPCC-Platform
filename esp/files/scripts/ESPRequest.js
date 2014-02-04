@@ -206,6 +206,17 @@ define([
 
     _StoreSingletons = [];
     return {
+        getURL: function (_params) {
+            var requestHelper = new RequestHelper();
+            var params = lang.mixin({
+                protocol: location.protocol,
+                hostname: requestHelper.serverIP ? requestHelper.serverIP : location.hostname,
+                port: location.port,
+                pathname: ""
+            }, _params);
+            return params.protocol + "//" + params.hostname + ":" + params.port + params.pathname;
+        },
+
         flattenArray: function (target, arrayName, arrayID) {
             if (lang.exists(arrayName + ".length", target)) {
                 var tmp = {};

@@ -551,7 +551,7 @@ public:
     virtual unsigned __int64 getDatasetHash(const char * name, unsigned __int64 hash)   { throwUnexpected(); return 0; }
 
     virtual char * getExpandLogicalName(const char * logicalName) { throwUnexpected(); }
-    virtual void addWuException(const char * text, unsigned code, unsigned severity) { throwUnexpected(); }
+    virtual void addWuException(const char * text, unsigned code, unsigned severity, const char * source) { throwUnexpected(); }
     virtual void addWuAssertFailure(unsigned code, const char * text, const char * filename, unsigned lineno, unsigned column, bool isAbort) { throwUnexpected(); }
     virtual IUserDescriptor *queryUserDescriptor() { throwUnexpected(); }
     virtual unsigned getNodes() { throwUnexpected(); }
@@ -608,6 +608,7 @@ public:
         return createRowFromXml(rowAllocator, len, utf8, xmlTransformer, stripWhitespace);
     }
     virtual IEngineContext *queryEngineContext() { return NULL; }
+    virtual IWorkUnit *updateWorkUnit() const { throwUnexpected(); }
 };
 
 //================================================================================================
@@ -622,6 +623,10 @@ public:
     }
     IMPLEMENT_IINTERFACE
 
+    virtual IEngineRowAllocator *queryAllocator() const
+    {
+        return dynamicBuilder.queryAllocator();
+    }
     virtual byte * createSelf()
     {
         if (useDynamic)
@@ -714,7 +719,10 @@ public:
     {
         useDynamic = meta.isVariableSize();
     }
-
+    virtual IEngineRowAllocator *queryAllocator() const
+    {
+        return dynamicBuilder.queryAllocator();
+    }
     virtual byte * createSelf()
     {
         if (useDynamic)

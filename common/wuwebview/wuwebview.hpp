@@ -42,6 +42,7 @@
 interface IWuWebView : extends IInterface
 {
     virtual void getResultViewNames(StringArray &names)=0;
+    virtual void getResourceURLs(StringArray &urls, const char *prefix)=0;
     virtual void renderResults(const char *viewName, const char *xml, StringBuffer &html)=0;
     virtual void renderResults(const char *viewName, StringBuffer &html)=0;
     virtual void renderSingleResult(const char *viewName, const char *resultname, StringBuffer &html)=0;
@@ -60,6 +61,8 @@ interface IWuWebView : extends IInterface
 
 extern WUWEBVIEW_API IWuWebView *createWuWebView(IConstWorkUnit &wu, const char *queryname, const char*dir, bool mapEspDir);
 extern WUWEBVIEW_API IWuWebView *createWuWebView(const char *wuid, const char *queryname, const char*dir, bool mapEspDir);
+
+extern WUWEBVIEW_API void getWuResourceByPath(const char *path, MemoryBuffer &mb, StringBuffer &mimetype);
 
 static inline bool isPathSeparator(char sep)
 {

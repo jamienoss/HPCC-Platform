@@ -750,7 +750,7 @@ class CThorCodeContextMaster : public CThorCodeContextBase
     Linked<IConstWorkUnit> workunit;
     Owned<IDistributedFileTransaction> superfiletransaction;
 
-    IWorkUnit *updateWorkUnit() 
+    virtual IWorkUnit *updateWorkUnit() const
     {
         StringAttr wuid;
         workunit->getWuid(StringAttrAdaptor(wuid));
@@ -1061,7 +1061,7 @@ public:
             throw MakeStringException(TE_FailedToRetrieveWorkunitValue, "Failed to retrieve external data value %s from workunit %s", stepname, wuid);
         }
     }
-    virtual void addWuException(const char * text, unsigned code, unsigned severity)
+    virtual void addWuException(const char * text, unsigned code, unsigned severity, const char * source)
     {
         DBGLOG("%s", text);
         try
@@ -1070,7 +1070,7 @@ public:
             Owned<IWUException> we = w->createException();
             we->setSeverity((WUExceptionSeverity)severity);
             we->setExceptionMessage(text);
-            we->setExceptionSource("user");
+            we->setExceptionSource(source);
             if (code)
                 we->setExceptionCode(code);
         }
@@ -2585,12 +2585,17 @@ void CMasterGraph::done()
                     {
                         wu.setown(&graph.queryJob().queryWorkUnit().lock());
                     }
-                    virtual void report(const char *name, const __int64 totaltime, const __int64 maxtime, const unsigned count)
+                    virtual void report(const char * stat, const char *description, const __int64 totaltime, const __int64 maxtime, const unsigned count)
                     {
                         StringBuffer timerStr(graph.queryJob().queryGraphName());
                         timerStr.append("(").append(graph.queryGraphId()).append("): ");
-                        timerStr.append(name);
-                        wu->setTimerInfo(timerStr.str(), NULL, (unsigned)totaltime, count, (unsigned)maxtime);
+                        timerStr.append(description);
+
+                        StringBuffer wuScope;
+                        wuScope.append(graph.queryJob().queryGraphName()).append("(").append(graph.queryGraphId()).append(")");
+
+                        updateWorkunitTimeStat(wu, "thor", wuScope, stat, timerStr.str(), totaltime, count, maxtime);
+
                     }
                 } wureport(*this);
                 queryJob().queryTimeReporter().report(wureport);

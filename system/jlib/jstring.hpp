@@ -354,6 +354,7 @@ interface IEntityHelper
 };
 
 void jlib_decl appendURL(StringBuffer *dest, const char *src, size32_t len = -1, char lower=FALSE);
+extern jlib_decl StringBuffer &appendDecodedURL(StringBuffer &out, const char *url);
 extern jlib_decl StringBuffer & appendStringAsCPP(StringBuffer &out, unsigned len, const char * src, bool addBreak);
 extern jlib_decl StringBuffer & appendStringAsQuotedCPP(StringBuffer &out, unsigned len, const char * src, bool addBreak);
 extern jlib_decl StringBuffer & appendDataAsHex(StringBuffer &out, unsigned len, const void * data);
@@ -369,6 +370,7 @@ extern jlib_decl const char *decodeXML(const char *x, StringBuffer &ret, const c
 extern jlib_decl const char *encodeXML(const char *x, IIOStream &out, unsigned flags=0, unsigned len=(unsigned)-1, bool utf8=false);
 extern jlib_decl void decodeXML(ISimpleReadStream &in, StringBuffer &out, unsigned len=(unsigned)-1);
 
+extern jlib_decl int utf8CharLen(unsigned char ch);
 extern jlib_decl int utf8CharLen(const unsigned char *ch);
 
 inline const char *encodeUtf8XML(const char *x, StringBuffer &ret, unsigned flags=false, unsigned len=(unsigned)-1)

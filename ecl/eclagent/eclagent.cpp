@@ -705,7 +705,7 @@ const char *EclAgent::loadResource(unsigned id)
     return reinterpret_cast<const char *>(dll->getResource(id));  // stays loaded as long as dll stays loaded
 }
 
-IWorkUnit *EclAgent::updateWorkUnit()
+IWorkUnit *EclAgent::updateWorkUnit() const
 {
     CriticalBlock block(wusect);
     if (!wuWrite)
@@ -1482,11 +1482,6 @@ char * EclAgent::getExpandLogicalName(const char * logicalName)
     return lfn.detach();
 }
 
-void EclAgent::addWuException(const char * text, unsigned code, unsigned severity)
-{
-    addException((WUExceptionSeverity)severity, "user", code, text, NULL, 0, 0, false, false);
-}
-
 void EclAgent::addWuException(const char * text, unsigned code, unsigned severity, char const * source)
 {
     addException((WUExceptionSeverity)severity, source, code, text, NULL, 0, 0, false, false);
@@ -2065,6 +2060,8 @@ void EclAgent::runProcess(IEclProcess *process)
     memsize_t memLimitBytes = (memsize_t)memLimitMB * 1024 * 1024;
     roxiemem::setTotalMemoryLimit(allowHugePages, memLimitBytes, 0, NULL);
 
+    rowManager->setActivityTracking(queryWorkUnit()->getDebugValueBool("traceRoxiePeakMemory", false));
+
     if (debugContext)
         debugContext->checkBreakpoint(DebugStateReady, NULL, NULL);
 
@@ -2079,12 +2076,18 @@ void EclAgent::runProcess(IEclProcess *process)
     ForEachItemIn(i, queryLibraries)
         queryLibraries.item(i).updateProgress();
 
-    if (rowManager)
-        rowManager->getMemoryUsage();//Causes statistics to be written to logfile
+    ForEachItemIn(i2, queryLibraries)
+        queryLibraries.item(i2).destroyGraph();
 
-#ifdef _DEBUG_LEAKS
-    rowManager.clear();//Early release of rowManager, so activity IDs of leaked blocks are available
-#endif
+    if (rowManager)
+    {
+        WorkunitUpdate wu = updateWorkUnit();
+        WuStatisticTarget statsTarget(wu, "eclagent");
+        rowManager->reportPeakStatistics(statsTarget, 0);
+        rowManager->getMemoryUsage();//Causes statistics to be written to logfile
+    }
+
+    rowManager.clear(); // Must go before the allocatorCache
     allocatorMetaCache.clear(); //release meta before libraries unloaded
     queryLibraries.kill();
 
@@ -3009,13 +3012,8 @@ char * EclAgent::getDaliServers()
 
 void EclAgent::addTimings()
 {
-    StringBuffer str;
     WorkunitUpdate w = updateWorkUnit();
-    for (unsigned i = 0; i < timer->numSections(); i++)
-    {
-        timer->getSection(i, str.clear());
-        w->setTimerInfo(str.str(), NULL, (unsigned)(timer->getTime(i)/1000000), timer->getCount(i), (unsigned)timer->getMaxTime(i));
-    }
+    updateWorkunitTimings(w, timer, "eclagent");
 }
 
 // eclagent abort monitoring
