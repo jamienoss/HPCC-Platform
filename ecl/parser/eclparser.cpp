@@ -98,10 +98,12 @@ void EclLexer::init(IFileContents * queryContents)
         std::cout << "uh-oh\n";
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 
+
     yyPosition = 0;
     yyColumn = 0;
     sourcePath = queryContents->querySourcePath();
 
+    ecl2yyset_lineno(1, scanner);
     //std::cout << ((std::string)sourcePath->str()).append(".dot").c_str() << "\n";
     //std::cout << queryContents->queryFile()->queryFilename() << "\n";
 }

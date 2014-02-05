@@ -37,7 +37,7 @@ public:
 	union
 	{
         int integer;
-        float real;
+        double real;
         IIdAtom * name;
 	};
 

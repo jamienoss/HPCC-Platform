@@ -41,27 +41,38 @@ class ParserData;
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-   //std::cout << tokenText << "\n";
+    std::cout << tokenText << "\n";
 
     yylval->kind = INTEGER;
     yylval->integer = atoi(tokenText);
 
-    yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    lexer.updatePos(txtLen);
+}
+  //--------------------------------------------------------------------------------
+static inline void setReal(YYSTYPE * yylval, unsigned tokenKind, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+{
+    std::cout << tokenText << "\n";
+
+    yylval->kind = tokenKind;
+    yylval->real = atof(tokenText);
+
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << (char)tokenKind << "\n";
+    std::cout << (char)tokenKind << "\n";
 
     yylval->kind = tokenKind;
-    yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
 static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << tokenText << "\n";
+    std::cout << tokenText << "\n";
 
     yylval->kind = ID;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -73,6 +84,7 @@ static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, in
 
 
 #define setInt setInt(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define setReal(x) setReal(yylval, x, yytext, yyleng, yylineno, parser->getLexer())
 #define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
 #define setId setId(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define updatepos parser->getLexer().updatePos(yyleng)
@@ -124,9 +136,17 @@ FROM                     { setLex(FROM); return FROM; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 RECORD                   { setLex(RECORD); return RECORD; }
 
-{digit}+                 { setInt; return INTEGER; } /* complete for UNSIGNED[n]*/
+{digit}+U?               { setInt; return INTEGER; }
+0x{hexdigit}+U?          { setInt; return INTEGER; }
+0b{bindigit}+U?          { setInt; return INTEGER; }
+
+{digit}*\.{digit}+((e|E)("+"|"-")?{digit}+)? {
+                          setReal(FLOAT); return FLOAT; }
+{digit}*\.?{digit}+(d|D) { setReal(DECIMAL); return DECIMAL; }
+
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
+[;]+                     { setLex(';'); return ';'; }
 
 .                        { updatepos; setLex(yytext[0]); return (yytext[0]); }
 

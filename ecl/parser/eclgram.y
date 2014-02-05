@@ -52,8 +52,10 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 %token
     AS
     ASSIGN ":="
+    DECIMAL
     DIR
     END
+    FLOAT
     FROM
     ID
     IMPORT
@@ -65,7 +67,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
     YY_LAST_TOKEN
 
 
-
+%left ','
 %left '.'
 %left '('
 %left '{'
@@ -74,6 +76,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
 %left '-'
 %left '*'
 %left '+'
+%right '='
 
 %%
 //================================== begin of syntax section ==========================
@@ -84,35 +87,52 @@ code
 
 eclQuery
     : line_of_code ';'              { $$.clear($2).add($1); }
-    | line_of_code _EOF_            { $$.clear($2).add($1); }
+    | line_of_code _EOF_            { $$.clear($2).add($1); } /*should be deprecated*/
     | eclQuery line_of_code ';'     { $$.clear($3).add($2).add($1); }
-    | eclQuery line_of_code _EOF_   { $$.clear($3).add($2).add($1); }
+    | eclQuery line_of_code _EOF_   { $$.clear($3).add($2).add($1); } /*should be deprecated*/
     ;
 
 line_of_code
     : expr                          { $$.clear($1); }
     | IMPORT imports                { $$.clear($1).add($2); }
-    | lhs ASSIGN rhs                { $$.clear($2).add($1).add($3); }
+    | assignment                    { $$.clear($1); }
     ;
 
 //-----------Listed Alphabetical from here on in------------------------------------------
+
+assignment
+    : lhs ASSIGN rhs                { $$.clear($2).add($1).add($3); } /*should this be an expr???*/
+    ;
+
+constant
+    : INTEGER                       { $$.clear($1); }
+    | FLOAT                         { $$.clear($1); }
+    | DECIMAL                       { $$.clear($1); }
+    ;
 
 expr
     : expr '+' expr                 { $$.clear($2).add($1).add($3); }
     | expr '-' expr                 { $$.clear($2).add($1).add($3); }
     | expr '*' expr                 { $$.clear($2).add($1).add($3); }
     | expr '/' expr                 { $$.clear($2).add($1).add($3); }
-    | INTEGER                       { $$.clear($1); }
-    | REAL                          { $$.clear($1); }
-    | ID                            { $$.clear($1); }
+    | expr '=' expr                 { $$.clear($2).add($1).add($3); }
+    | constant                      { $$.clear($1); }
     | set                           { $$.clear($1); }
-    | ID '(' expr_list ')'          { $$.clear($1).add($2).add($3).add($4);}
-    | '(' expr ')'                  { $$.clear($2); }
+    | lhs                           { $$.clear($1); } /* ugly re-think, especially since rhs can be an expr!!! */
+    | '(' expr ')'                  { $$.clear($2); } /*might want to re-think concerning keeping parens - I don't think so!*/
     ;
 
-expr_list
-    : expr_list ',' expr            { $$.clear($1).add($3); }
-    | expr                          { $$.clear(',', $1.node->queryPosition()).add($1); }
+parameters
+    : parameters ',' parameter      { $$.clear($1).add($2).add($3); }
+    | parameters ','                { $$.clear($1).add($2); }
+    | parameter                     { $$.clear(',', $1.node->queryPosition()).add($1); }
+    ;
+
+parameter
+    : expr                          { $$.clear($1); }
+    | ','                           { $$.clear($1); }
+    | ',' assignment                { $$.clear($2); } /* not obvious why you'd want to shape the ST like this, i.e. miss out the ','*/
+    | assignment                    { $$.clear($1); }
     ;
 
 field
@@ -121,6 +141,10 @@ field
 fields
     : fields field                  { $$.clear($1).add($2); }
     | field                         { $$.clear(',', $1.node->queryPosition()).add($1); }
+    ;
+
+functions
+    : ID '(' parameters ')'          { $$.clear($1).add($2).add($3).add($4);}
     ;
 
 imports
@@ -133,7 +157,7 @@ imports
 
 inline_field
     : ID
-    | INTEGER
+    | constant
     ;
 
 inline_fields
@@ -142,7 +166,9 @@ inline_fields
     ;
 
 lhs
-    : ID                            { $$.clear($1); }
+    : lhs ID                        { $$.clear($1).add($2); }  /*This needs further thought inc. whether to swap order of $1 & $2*/
+    | ID                            { $$.clear($1); }
+    | functions                     { $$.clear($1); }
     ;
 
 module_from
