@@ -66,7 +66,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
-
+%left ';'
 %left ','
 %left '.'
 %left '('
@@ -86,10 +86,10 @@ code
     ;
 
 eclQuery
-    : line_of_code ';'              { $$.clear($2).add($1); }
-    | line_of_code _EOF_            { $$.clear($2).add($1); } /*should be deprecated*/
-    | eclQuery line_of_code ';'     { $$.clear($3).add($2).add($1); }
-    | eclQuery line_of_code _EOF_   { $$.clear($3).add($2).add($1); } /*should be deprecated*/
+    : eclQuery ';' eclQuery _EOF_   { $$.clear($2).add($1).add($3); }
+    | eclQuery ';'                  { $$.clear($2).add($1); }
+    | line_of_code                  { $$.clear($1); }
+    | ';' line_of_code              { $$.clear($2); }
     ;
 
 line_of_code
@@ -125,7 +125,7 @@ expr
 parameters
     : parameters ',' parameter      { $$.clear($1).add($2).add($3); }
     | parameters ','                { $$.clear($1).add($2); }
-    | parameter                     { $$.clear(',', $1.node->queryPosition()).add($1); }
+    | parameter                     { $$.clear(',', $1.node->queryPosition()).add($1); } /*perhaps re-think - this creates a comma list even if only one parameter*/
     ;
 
 parameter

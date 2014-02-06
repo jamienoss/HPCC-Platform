@@ -146,7 +146,7 @@ RECORD                   { setLex(RECORD); return RECORD; }
 
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
-[;]+                     { setLex(';'); return ';'; }
+";"+[; \t\r]*            { setLex(';'); return ';'; }
 
 .                        { updatepos; setLex(yytext[0]); return (yytext[0]); }
 
