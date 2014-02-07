@@ -13,29 +13,42 @@ ParserData::ParserData()
 {
     pos.clear();
     kind = 0;
-    integer = 0;
 }
 
-ParserData::~ParserData() {}
+ParserData::~ParserData()
+{
+   //Release(value);
+   //Release(id);
+    //node.first();
+}
 
-ParserData & ParserData::clear()
+ISyntaxTree * ParserData::getNode()
+{
+    return node.get();
+}
+
+const ECLlocation & ParserData::queryNodePosition() const
+{
+    return node->queryPosition();
+}
+
+ParserData & ParserData::first()
 {
     pos.clear();
     kind = 0;
-    integer = 0;
     node.set(NULL);//needs to change
     return *this;
 }
 
-ParserData & ParserData::clear(const ParserData & token2add)
+ParserData & ParserData::first(const ParserData & token2add)
 {
-    clear();
+    first();
     return add(token2add);
 }
 
-ParserData & ParserData::clear(const TokenKind & _kind, const ECLlocation & _pos)
+ParserData & ParserData::first(const TokenKind & _kind, const ECLlocation & _pos)
 {
-    clear();
+    first();
     return add(_kind, _pos);
 }
 
@@ -74,11 +87,11 @@ ISyntaxTree * ParserData::createSyntaxTree(const ParserData & token2add)
 {
     switch(token2add.kind)
     {
-    //case BOOLEAN : return createConstSyntaxTree(token2add.pos, token2add.bool); break;
-    case INTEGER : return createConstSyntaxTree(token2add.pos, token2add.integer); break;
+    //case BOOLEAN :
+    case INTEGER :
     case DECIMAL :
-    case FLOAT : return createConstSyntaxTree(token2add.pos, token2add.real); break;
-    case ID : return createIdSyntaxTree(token2add.pos, token2add.name); break;
+    case FLOAT : return createConstSyntaxTree(token2add.pos, value); break;
+    case ID : return createIdSyntaxTree(token2add.pos, token2add.id); break;
     default : return createPuncSyntaxTree(token2add.pos, token2add.kind);
     }
 }

@@ -41,10 +41,11 @@ class ParserData;
   //--------------------------------------------------------------------------------
 static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    std::cout << tokenText << "\n";
+    //std::cout << tokenText << "\n";
 
     yylval->kind = INTEGER;
-    yylval->integer = atoi(tokenText);
+    //yylval->integer = atoi(tokenText);
+    yylval->value = createIntValue(atoi(tokenText), 8, false);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -52,10 +53,11 @@ static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, i
   //--------------------------------------------------------------------------------
 static inline void setReal(YYSTYPE * yylval, unsigned tokenKind, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    std::cout << tokenText << "\n";
+    //std::cout << tokenText << "\n";
 
     yylval->kind = tokenKind;
-    yylval->real = atof(tokenText);
+    //yylval->real = atof(tokenText);
+    yylval->value = createRealValue(atof(tokenText), 8);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -63,7 +65,7 @@ static inline void setReal(YYSTYPE * yylval, unsigned tokenKind, char * tokenTex
   //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    std::cout << (char)tokenKind << "\n";
+    //std::cout << (char)tokenKind << "\n";
 
     yylval->kind = tokenKind;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -72,16 +74,32 @@ static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen,
   //--------------------------------------------------------------------------------
 static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    std::cout << tokenText << "\n";
+    //std::cout << tokenText << "\n";
 
     yylval->kind = ID;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
-    yylval->name = createIdAtom(tokenText, txtLen);
+    yylval->id = createIdAtom(tokenText, txtLen);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
+static char foldMinus(char * & tokenText, unsigned txtLen)
+{
+    if(txtLen == 1)
+        return '-';
 
+    unsigned count = 1;
+    while(*(tokenText)++)
+    {
+        if(*tokenText == '-')
+            ++count;
+    }
 
+    if(count%2)
+      return '+';
+
+    return '-';
+}
+  //--------------------------------------------------------------------------------
 
 #define setInt setInt(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define setReal(x) setReal(yylval, x, yytext, yyleng, yylineno, parser->getLexer())
@@ -147,6 +165,9 @@ RECORD                   { setLex(RECORD); return RECORD; }
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
 ";"+[; \t\r]*            { setLex(';'); return ';'; }
+
+"+"+[+ \t\r]*            { setLex('+'); return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
+"-"+[- \t\r]*            { char op = foldMinus(yytext, yyleng); setLex(op); return op; }
 
 .                        { updatepos; setLex(yytext[0]); return (yytext[0]); }
 

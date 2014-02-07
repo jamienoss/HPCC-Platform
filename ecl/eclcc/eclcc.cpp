@@ -1026,7 +1026,10 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
 
     bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
     if (printSyntaxTree) {
-        EclParser * parser = new EclParser(queryContents);
+        //EclParser * parser = new EclParser(queryContents);
+        Owned<EclParser> parser;
+        parser.setown(new EclParser(queryContents));
+
         //std::cout << parser->parse() << "\n"; throwUnexpected();
 
         if (!(parser->parse())) { // Check persistence of AST
@@ -1037,10 +1040,6 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
             parser->printAST();
         }
         throwUnexpected();
-
-        //std::cout << queryContents->queryFile()->queryFilename() << "\n";
-        //std::cout << "Press ENTER to continue... " << std::flush;
-        //std::cin.ignore( std::numeric_limits <std::streamsize> ::max(), '\n' );
     }
 
     if (optTargetCompiler != DEFAULT_COMPILER)

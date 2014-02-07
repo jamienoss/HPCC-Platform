@@ -91,7 +91,7 @@ protected:
 
     SyntaxTree * queryPrivateChild(unsigned i);
 
-public ://protected:
+protected:
     ECLlocation pos;
     SyntaxTreeArray children;
 
@@ -121,14 +121,12 @@ private:
 class ConstantSyntaxTree : public SyntaxTree
 {
 public:
-    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const int & constant);
-    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const double & constant);
-    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const bool & constant);
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IValue * constant);
+
 
 private:
-    ConstantSyntaxTree(ECLlocation _pos, const int & constant);
-    ConstantSyntaxTree(ECLlocation _pos, const double & constant);
-    ConstantSyntaxTree(ECLlocation _pos, const bool & constant);
+    ConstantSyntaxTree(ECLlocation _pos, IValue * constant);
+
 
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
@@ -140,15 +138,15 @@ private:
 class IdSyntaxTree : public SyntaxTree
 {
 public:
-    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _name);
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id);
 
 private:
-    IdSyntaxTree(ECLlocation _pos, IIdAtom * _name);
+    IdSyntaxTree(ECLlocation _pos, IIdAtom * _id);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
 
 private:
-    IIdAtom * name;
+    IIdAtom * id;
 };
 //--------------------------------------------------------------------------------------------------------
 
@@ -156,9 +154,8 @@ inline ISyntaxTree * createSyntaxTree(){ return SyntaxTree::createSyntaxTree(); 
 inline ISyntaxTree * createSyntaxTree(const ECLlocation & _pos){ return SyntaxTree::createSyntaxTree(_pos); }
 
 ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token);
-ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _name);
-ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const bool & constant);
-ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const int & constant);
-ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const double & constant);
+ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _id);
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, IValue * constant);
+
 
 #endif

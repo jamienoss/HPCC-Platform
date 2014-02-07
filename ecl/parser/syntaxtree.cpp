@@ -178,34 +178,15 @@ void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, TokenKin
 
 
 //----------------------------------ConstantSyntaxTree--------------------------------------------------------------------
-ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const bool & constant)
+ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IValue * constant)
 {
     return new ConstantSyntaxTree(_pos, constant);
 }
 
-ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, const bool & constant) : SyntaxTree(_pos)
+ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, IValue * constant) : SyntaxTree(_pos)
 {
-    value.set(createBoolValue(constant));
-}
-
-ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const int & constant)
-{
-    return new ConstantSyntaxTree(_pos, constant);
-}
-
-ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, const int & constant) : SyntaxTree(_pos)
-{
-    value.set(createIntValue(constant, 4, false));
-}
-
-ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const double & constant)
-{
-    return new ConstantSyntaxTree(_pos, constant);
-}
-
-ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, const double & constant) : SyntaxTree(_pos)
-{
-    value.set(createRealValue(constant, 4));
+    //value.set(createBoolValue(constant));
+    value.set(LINK(constant));
 }
 
 void ConstantSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
@@ -217,6 +198,9 @@ void ConstantSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 
 void ConstantSyntaxTree::appendSTvalue(StringBuffer & str)
 {
+
+    //return;
+
     switch(value.get()->getTypeCode())
     {
     case type_int : str.append(value.get()->getIntValue());break;
@@ -253,29 +237,28 @@ void PuncSyntaxTree::appendSTvalue(StringBuffer & str)
 }
 
 //----------------------------------IdentifierSyntaxTree--------------------------------------------------------------------
-ISyntaxTree * IdSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)
+ISyntaxTree * IdSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id)
 {
-    return new IdSyntaxTree(_pos, _name);
+    return new IdSyntaxTree(_pos, _id);
 }
 
-IdSyntaxTree::IdSyntaxTree(ECLlocation _pos, IIdAtom * _name) : SyntaxTree(_pos)
+IdSyntaxTree::IdSyntaxTree(ECLlocation _pos, IIdAtom * _id) : SyntaxTree(_pos)
 {
-    name = _name;//createIdAtom(tokenText, txtLen); or make owned and link
+    id = _id;//createIdAtom(tokenText, txtLen); or make owned and link
 }
 
 void IdSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer text;
-    text.append(name->str());
+    text.append(id->str());
     SyntaxTree::printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
 }
 
 void IdSyntaxTree::appendSTvalue(StringBuffer & str)
 {
-    str.append(name->str());
+    str.append(id->str());
 }
 //------------------------------------------------------------------------------------------------------
-
 
 
 ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token)
@@ -283,22 +266,12 @@ ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _
     return PuncSyntaxTree::createSyntaxTree(_pos, _token);
 }
 
-ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _name)
+ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _id)
 {
-    return IdSyntaxTree::createSyntaxTree(_pos, _name);
+    return IdSyntaxTree::createSyntaxTree(_pos, _id);
 }
 
-ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const bool & constant)
-{
-    return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
-}
-
-ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const int & constant)
-{
-    return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
-}
-
-ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, const double & constant)
+ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, IValue * constant)
 {
     return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
 }

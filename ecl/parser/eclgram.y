@@ -66,91 +66,93 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token)
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
-%left ';'
-%left ','
-%left '.'
-%left '('
-%left '{'
-%left '['
-%left '/'
-%left '-'
-%left '*'
-%left '+'
+%left ';' ',' '.'
+%left '+' '*' '/'
+
+%right '-'
 %right '='
+
+
+// When writing actions $$.first($n) must be used before $$.add($n)
+
 
 %%
 //================================== begin of syntax section ==========================
 
 code
-    : eclQuery                      { parser->setRoot($1.node.get()); }
+    : eclQuery                      { parser->setRoot($1.getNode()); }
     ;
 
 eclQuery
-    : eclQuery ';' eclQuery _EOF_   { $$.clear($2).add($1).add($3); }
-    | eclQuery ';'                  { $$.clear($2).add($1); }
-    | line_of_code                  { $$.clear($1); }
-    | ';' line_of_code              { $$.clear($2); }
+    : eclQuery ';' eclQuery _EOF_   { $$.first($2).add($1).add($3); }
+    | eclQuery ';'                  { $$.first($2).add($1); }
+    | line_of_code                  { $$.first($1); }
+    | ';' line_of_code              { $$.first($2); }
     ;
 
 line_of_code
-    : expr                          { $$.clear($1); }
-    | IMPORT imports                { $$.clear($1).add($2); }
-    | assignment                    { $$.clear($1); }
+    : expr                          { $$.first($1); }
+    | IMPORT imports                { $$.first($1).add($2); }
+    | assignment                    { $$.first($1); }
     ;
 
 //-----------Listed Alphabetical from here on in------------------------------------------
 
 assignment
-    : lhs ASSIGN rhs                { $$.clear($2).add($1).add($3); } /*should this be an expr???*/
+    : lhs ASSIGN rhs                { $$.first($2).add($1).add($3); } /*should this be an expr???*/
     ;
 
 constant
-    : INTEGER                       { $$.clear($1); }
-    | FLOAT                         { $$.clear($1); }
-    | DECIMAL                       { $$.clear($1); }
+    : INTEGER                       { $$.first($1); }
+    | FLOAT                         { $$.first($1); }
+    | DECIMAL                       { $$.first($1); }
     ;
 
 expr
-    : expr '+' expr                 { $$.clear($2).add($1).add($3); }
-    | expr '-' expr                 { $$.clear($2).add($1).add($3); }
-    | expr '*' expr                 { $$.clear($2).add($1).add($3); }
-    | expr '/' expr                 { $$.clear($2).add($1).add($3); }
-    | expr '=' expr                 { $$.clear($2).add($1).add($3); }
-    | constant                      { $$.clear($1); }
-    | set                           { $$.clear($1); }
-    | lhs                           { $$.clear($1); } /* ugly re-think, especially since rhs can be an expr!!! */
-    | '(' expr ')'                  { $$.clear($2); } /*might want to re-think concerning keeping parens - I don't think so!*/
+    : '+' expr                      { $$.first($1).add($2); }
+    | '-' expr                      { $$.first($1).add($2); }
+    | expr '+' expr                 { $$.first($2).add($1).add($3); }
+    | expr '-' expr                 { $$.first($2).add($1).add($3); }
+    | expr '*' expr                 { $$.first($2).add($1).add($3); }
+    | expr '/' expr                 { $$.first($2).add($1).add($3); }
+    | expr '=' expr                 { $$.first($2).add($1).add($3); }
+    | constant                      { $$.first($1); }
+    | set                           { $$.first($1); }
+    | lhs                           { $$.first($1); } /* ugly, re-think, especially since rhs can be an expr!!! */
+    | '(' expr ')'                  { $$.first($2); } /*might want to re-think discarding parens - I don't think so!*/
+    | '(' ')'                       { $$.first($1).add($2); }
     ;
 
 parameters
-    : parameters ',' parameter      { $$.clear($1).add($2).add($3); }
-    | parameters ','                { $$.clear($1).add($2); }
-    | parameter                     { $$.clear(',', $1.node->queryPosition()).add($1); } /*perhaps re-think - this creates a comma list even if only one parameter*/
+    : parameters ',' parameter      { $$.first($1).add($2).add($3); }
+    | parameters ','                { $$.first($1).add($2); }
+    | parameter                     { $$.first(',', $1.queryNodePosition()).add($1); } /*perhaps re-think - this creates a comma list even if only one parameter*/
     ;
 
 parameter
-    : expr                          { $$.clear($1); }
-    | ','                           { $$.clear($1); }
-    | ',' assignment                { $$.clear($2); } /* not obvious why you'd want to shape the ST like this, i.e. miss out the ','*/
-    | assignment                    { $$.clear($1); }
+    : expr                          { $$.first($1); }
+    | ','                           { $$.first($1); }
+    | ',' assignment                { $$.first($2); } /* not obvious why you'd want to shape the ST like this, i.e. miss out the ','*/
+    | assignment                    { $$.first($1); }
     ;
 
 field
-    : type ID ';'                   { $$.clear($3).add($1).add($2); }
+    : type ID ';'                   { $$.first($3).add($1).add($2); }
 
 fields
-    : fields field                  { $$.clear($1).add($2); }
-    | field                         { $$.clear(',', $1.node->queryPosition()).add($1); }
+    : fields field                  { $$.first($1).add($2); }
+    | field                         { $$.first(',', $1.queryNodePosition()).add($1); }
     ;
 
 functions
-    : ID '(' parameters ')'          { $$.clear($1).add($2).add($3).add($4);}
+    : ID '(' parameters ')'          { $$.first($1).add($2).add($3).add($4);}
+    | ID '(' ')'                     { $$.first($1).add($2).add($3); }
     ;
 
 imports
-    : module_list                   { $$.clear($1); }
-    | ID AS ID                      { $$.clear($2).add($1).add($3); }
-    | module_list FROM  module_from { $$.clear($2).add($1).add($3); }
+    : module_list                   { $$.first($1); }
+    | ID AS ID                      { $$.first($2).add($1).add($3); }
+    | module_list FROM  module_from { $$.first($2).add($1).add($3); }
 
 //  r/r error with ID in module_list  | ID                            { } // language - can this not be listed in module_list?
     ;
@@ -166,25 +168,25 @@ inline_fields
     ;
 
 lhs
-    : lhs ID                        { $$.clear($1).add($2); }  /*This needs further thought inc. whether to swap order of $1 & $2*/
-    | ID                            { $$.clear($1); }
-    | functions                     { $$.clear($1); }
+    : lhs ID                        { $$.first($1).add($2); }  /*This needs further thought inc. whether to swap order of $1 & $2*/
+    | ID                            { $$.first($1); }
+    | functions                     { $$.first($1); }
     ;
 
 module_from
-    : ID                            { $$.clear($1); }
-    | DIR                           { $$.clear($1); }
+    : ID                            { $$.first($1); }
+    | DIR                           { $$.first($1); }
     ;
 
 module_list
     : module_list ',' module_symbols
-                                    { $$.clear($1).add($3); }
-    | module_symbols                { $$.clear(',', $1.node->queryPosition()).add($1); }
+                                    { $$.first($1).add($3); }
+    | module_symbols                { $$.first(',', $1.queryNodePosition()).add($1); }
     ;
 
 module_symbols
-    : ID                            { $$.clear($1); }
-    | '$'                           { $$.clear($1); }
+    : ID                            { $$.first($1); }
+    | '$'                           { $$.first($1); }
     ;
 
 inline_recordset
@@ -196,21 +198,21 @@ records
     ;
 
 recordset
-    : RECORD fields END             { $$.clear($1).add($2).add($3); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
+    : RECORD fields END             { $$.first($1).add($2).add($3); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
     ;
 
 rhs
-    : expr                          { $$.clear($1); }
-    | recordset                     { $$.clear($1); }
-    | inline_recordset              { $$.clear($1); }
+    : expr                          { $$.first($1); }
+    | recordset                     { $$.first($1); }
+    | inline_recordset              { $$.first($1); }
     ;
 
 set
-    : '[' records ']'               { $$.clear($1).add($2).add($3); }
+    : '[' records ']'               { $$.first($1).add($2).add($3); }
     ;
 
 type
-    : ID                            { $$.clear($1); }
+    : ID                            { $$.first($1); }
     ;
 
 %%

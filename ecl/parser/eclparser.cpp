@@ -34,6 +34,12 @@ EclParser::EclParser(IFileContents * queryContents)
     init(queryContents);
 }
 
+void EclParser::init(IFileContents * queryContents)
+{
+    lexer = new EclLexer(queryContents);
+    //errorHandler = new IErrorReceiver();
+}
+
 EclParser::~EclParser()
 {
     if (lexer)
@@ -45,11 +51,6 @@ EclParser::~EclParser()
 int EclParser::parse()
 {
     return lexer->parse(this);
-}
-
-void EclParser::init(IFileContents * queryContents)
-{
-    lexer = new EclLexer(queryContents);
 }
 
 void EclParser::setRoot(ISyntaxTree * node)

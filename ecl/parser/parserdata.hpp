@@ -20,6 +20,7 @@
 #define PARSERDATA_HPP
 
 #include "hql.hpp" //for ECLlocations
+#include "defvalue.hpp" //IValue
 
 class ISyntaxTree;
 typedef unsigned short TokenKind;
@@ -31,29 +32,30 @@ public:
     ParserData();
     ~ParserData();
 
-public:
-    ECLlocation pos;
-    unsigned kind;
-	union
-	{
-        int integer;
-        double real;
-        IIdAtom * name;
-	};
-
-    Owned<ISyntaxTree> node;
-
-public: // NOTE: Could call newToken = token2add
-	ParserData & clear();
-    ParserData & clear(const ParserData & token2add);
-    ParserData & clear(const TokenKind & _kind, const ECLlocation & _pos);
+	ParserData & first();
+    ParserData & first(const ParserData & token2add);
+    ParserData & first(const TokenKind & _kind, const ECLlocation & _pos);
     virtual ParserData & add(const ParserData & token2add);
     virtual ParserData & add(const TokenKind & _kind, const ECLlocation & _pos);
 
+    const ECLlocation & queryNodePosition() const;
+    ISyntaxTree * getNode();
     ISyntaxTree * createSyntaxTree(const ParserData & token2add);
     ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
-
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
+
+
+public:
+    ECLlocation pos;
+    unsigned kind;
+    union
+    {
+        IValue * value;
+        IIdAtom * id;
+    };
+
+protected:
+    Owned<ISyntaxTree> node;
 };
 
 class StringBuffer;

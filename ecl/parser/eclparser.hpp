@@ -32,7 +32,7 @@ class EclParser;
 class EclLexer;
 
 //----------------------------------EclParser--------------------------------------------------------------------
-class EclParser
+class EclParser : public CInterface
 {
      friend int ecl2yyparse(EclParser * parser, yyscan_t scanner);
 
@@ -48,6 +48,8 @@ public:
 
 protected:
     void init(IFileContents * queryContents);
+
+    IErrorReceiver * errorHandler;
 
 private:
     Owned<ISyntaxTree> ast;
