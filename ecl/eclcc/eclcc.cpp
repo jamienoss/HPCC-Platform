@@ -1028,7 +1028,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     if (printSyntaxTree) {
         //EclParser * parser = new EclParser(queryContents);
         Owned<EclParser> parser;
-        parser.setown(new EclParser(queryContents));
+        parser.setown(new EclParser(queryContents, errs));
 
         //std::cout << parser->parse() << "\n"; throwUnexpected();
 

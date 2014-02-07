@@ -29,6 +29,7 @@ class EclParser;
 #include "platform.h"
 #include "eclparser.hpp"
 #include <iostream>
+#include "hqlerrors.hpp"
 
 #define YYSTYPE ParserData //NOTE: if you include eclgram.h this needs to be placed after this definition
 
@@ -36,12 +37,11 @@ extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscan
 
 int yyerror(EclParser * parser, yyscan_t scanner, const char *msg);
 int syntaxerror(const char *msg, short yystate, YYSTYPE token);
-#define ecl2yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval)
+#define ecl2yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval, parser)
 
-int syntaxerror(const char *msg, short yystate, YYSTYPE token)
+int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parser)
 {
-    std::cout << msg <<  " near line "  << token.pos.lineno << \
-                     ", nearcol:" <<  token.pos.column <<  "\n";
+    parser->reportError(ERR_EXPECTED, msg, parser->getLexer().sourcePath->str(), token.pos.lineno, token.pos.column, token.pos.position);
     return 0;
 }
 

@@ -29,28 +29,28 @@
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
-EclParser::EclParser(IFileContents * queryContents)
+EclParser::EclParser(IFileContents * queryContents, IErrorReceiver * errs)
 {
-    init(queryContents);
+    init(queryContents, errs);
 }
 
-void EclParser::init(IFileContents * queryContents)
+void EclParser::init(IFileContents * queryContents, IErrorReceiver * errs)
 {
     lexer = new EclLexer(queryContents);
-    //errorHandler = new IErrorReceiver();
+    errorHandler = LINK(errs);
 }
 
 EclParser::~EclParser()
 {
     if (lexer)
         delete lexer;
-    //if (ast)
-     //   delete ast;
+    ast.clear();
+    errorHandler->Release();
 }
 
 int EclParser::parse()
 {
-    return lexer->parse(this);
+    return ecl2yyparse(this, lexer->getScanner());
 }
 
 void EclParser::setRoot(ISyntaxTree * node)
@@ -73,6 +73,12 @@ EclLexer & EclParser::getLexer()
 {
     return *lexer;
 }
+
+void EclParser::reportError(int errNo, const char *msg, const char * _sourcePath, int _lineno, int _column, int _position)
+{
+    errorHandler->reportError(errNo, msg, _sourcePath, _lineno, _column, _position);
+}
+
 //----------------------------------EclLexer--------------------------------------------------------------------
 EclLexer::EclLexer(IFileContents * queryContents)
 {
@@ -99,19 +105,16 @@ void EclLexer::init(IFileContents * queryContents)
         std::cout << "uh-oh\n";
     ecl2yy_scan_buffer(yyBuffer, len+2, scanner);
 
-
     yyPosition = 0;
     yyColumn = 0;
     sourcePath = queryContents->querySourcePath();
 
     ecl2yyset_lineno(1, scanner);
-    //std::cout << ((std::string)sourcePath->str()).append(".dot").c_str() << "\n";
-    //std::cout << queryContents->queryFile()->queryFilename() << "\n";
 }
 
-int EclLexer::parse(EclParser * parser)
+yyscan_t & EclLexer::getScanner()
 {
-     return ecl2yyparse(parser,  scanner);
+    return scanner;
 }
 
 void EclLexer::updatePos(unsigned delta)
