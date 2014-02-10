@@ -27,6 +27,7 @@
 
 
 %{
+#include "platform.h"
 #include "eclparser.hpp"
 #include "eclgram.h"
 #include <iostream>
@@ -39,13 +40,42 @@ class ParserData;
 #define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
 
   //--------------------------------------------------------------------------------
-static inline void setInt(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+static unsigned hex2digit(char c)
+{
+  if (c >= 'a')
+    return (c - 'a' + 10);
+  else if (c >= 'A')
+    return (c - 'A' + 10);
+  return (c - '0');
+}
+  //--------------------------------------------------------------------------------
+static __int64 str2int64(unsigned len, const char * digits, unsigned base)
+{
+  __int64 value = 0;
+  while (len--)
+  {
+    char c = *digits++;
+    value = value * base + hex2digit(c);
+  }
+  return value;
+}
+  //--------------------------------------------------------------------------------
+static void hex2str(char * target, const char * digits, unsigned len)
+{
+  while (len)
+  {
+    *target++ = (hex2digit(digits[0]) << 4) | hex2digit(digits[1]);
+    len -= 2;
+    digits += 2;
+  }
+}
+  //--------------------------------------------------------------------------------
+static inline void setInteger(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, __int64 _value, unsigned short size, bool isSigned)
 {
     //std::cout << tokenText << "\n";
 
     yylval->kind = INTEGER;
-    //yylval->integer = atoi(tokenText);
-    yylval->value = createIntValue(atoi(tokenText), 8, false);
+    yylval->value = createIntValue(_value, size, isSigned);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -99,9 +129,8 @@ static char foldMinus(char * & tokenText, unsigned txtLen)
 
     return '-';
 }
-  //--------------------------------------------------------------------------------
-
-#define setInt setInt(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define manSetInt(x,y,z) setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), x,y,z)
+#define setInt setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), str2int64(yyleng, yytext, 10), 8, false)
 #define setReal(x) setReal(yylval, x, yytext, yyleng, yylineno, parser->getLexer())
 #define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
 #define setId setId(yylval, yytext, yyleng, yylineno, parser->getLexer())
@@ -154,9 +183,18 @@ FROM                     { setLex(FROM); return FROM; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 RECORD                   { setLex(RECORD); return RECORD; }
 
-{digit}+U?               { setInt; return INTEGER; }
-0x{hexdigit}+U?          { setInt; return INTEGER; }
-0b{bindigit}+U?          { setInt; return INTEGER; }
+{digit}+                 { manSetInt(str2int64(yyleng, yytext, 10), 8, true); return INTEGER; }
+{digit}+U                { manSetInt(str2int64(yyleng-1, yytext, 10), 8, false); return INTEGER; }
+
+0x{hexdigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 16), 8, true); return INTEGER;  }
+0x{hexdigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 16), 8, false); return INTEGER;  }
+{digit}{hexdigit}+X      { manSetInt(str2int64(yyleng-1, yytext+2, 16), 8, true); return INTEGER;  }
+{digit}{hexdigit}+XU     { manSetInt(str2int64(yyleng-2, yytext+2, 16), 8, false); return INTEGER;  }
+
+0b{bindigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 2), 8, true); return INTEGER; }
+0b{bindigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 2), 8, false); return INTEGER; }
+{bindigit}+B             { manSetInt(str2int64(yyleng-1, yytext, 2), 8, true); return INTEGER; }
+{bindigit}+BU            { manSetInt(str2int64(yyleng-2, yytext, 2), 8, false); return INTEGER; }
 
 {digit}*\.{digit}+((e|E)("+"|"-")?{digit}+)? {
                           setReal(FLOAT); return FLOAT; }
