@@ -19,7 +19,7 @@ ParserData::~ParserData()
 {
    //Release(value);
    //Release(id);
-    //node.first();
+    //node.clear();
 }
 
 ISyntaxTree * ParserData::getNode()

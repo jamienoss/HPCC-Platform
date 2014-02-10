@@ -24,6 +24,7 @@
 #include "asyntaxtree.hpp"
 #include <vector>
 #include <string>
+#include "eclparser.hpp"
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -33,58 +34,31 @@ typedef void* yyscan_t;
 class AnalyserParser;
 class AnalyserLexer;
 
-//extern int ecl3yyparse(AnalyserParser * parser, yyscan_t scanner);
-
 //----------------------------------AnalyserParser--------------------------------------------------------------------
-class AnalyserParser
+class AnalyserParser : public EclParser
 {
     friend int ecl3yyparse(AnalyserParser * parser, yyscan_t scanner);
 
 public:
-    AnalyserParser(IFileContents * queryContents);
-    ~AnalyserParser();
-
-    void setRoot(ISyntaxTree * node);
-    void printAST();
-    int parse();
-    AnalyserLexer & getLexer();
+    AnalyserParser(IFileContents * queryContents, IErrorReceiver * errs);
 
     void analyseGrammar();
-    void createSymbolList(AnalyserST * tree, std::vector <std::string> & symbolList, TokenKind kind);
+    void createSymbolList(ISyntaxTree * tree, std::vector <std::string> & symbolList, TokenKind kind);
     void printStringVector(std::vector <std::string> vector);
-
-protected:
-    void init(IFileContents * queryContents);
+    AnalyserLexer & getLexer();
 
 private:
-    Owned<AnalyserST> ast;
     AnalyserLexer * lexer;
 };
 //----------------------------------AnalyserLexer--------------------------------------------------------------------
-class AnalyserLexer
+class AnalyserLexer : public EclLexer
 {
 public:
     AnalyserLexer(IFileContents * queryContents);
-    ~AnalyserLexer();
-
-    int parse(AnalyserParser * parser);
-    void updatePos(unsigned delta);
-    void resetPos();
-
-    int yyColumn;
-    int yyPosition;
-    ISourcePath * sourcePath;
 
     unsigned nestCounter;
     unsigned productionLineNo;
     StringBuffer productionText;
-
-protected:
-    yyscan_t scanner;
-    Owned<IFileContents> text;
-    char *yyBuffer;
-
-    virtual void init(IFileContents * queryContents);
 };
 //--------------------------------------------------------------------------------------------------------------
 

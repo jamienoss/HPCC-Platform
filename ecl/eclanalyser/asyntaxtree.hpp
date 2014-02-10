@@ -22,35 +22,58 @@
 #include "jlib.hpp"
 #include "jfile.hpp"
 
-#include "tokendata.hpp"
+#include "parserdata.hpp"
 #include "syntaxtree.hpp"
 #include "asyntaxtree.hpp"
-#include "atokendata.hpp"
+#include "analyserpd.hpp"
 #include <string>
 #include <vector>
 
 class SyntaxTree;
 
-class AnalyserST : public SyntaxTree
+class AnalyserST
 {
 public :
-    static ISyntaxTree * createSyntaxTree(TokenData & tok);
-    static ISyntaxTree * createSyntaxTree(TokenKind & _token, const ECLlocation & _pos);
-
-    virtual void printTree();
-    virtual void printNode(unsigned * nodeNum,  IIOStream * out);
-    virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
-
-    virtual void extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind);
+    void extractSymbols(std::vector <std::string> & symbolList, const TokenKind & kind);
     void setSymbolList(std::vector <std::string> & list);
     void printSymbolList();
 
     static std::vector <std::string> * symbolList;
 
-private:
-    AnalyserST(TokenData & tok);
-    AnalyserST(TokenKind & _token, const ECLlocation & pos);
-
+protected:
+    AnalyserST();
 };
+
+//----------------------------------------------------------------------------------------------------------------------
+class AnalyserPuncST : public AnalyserST, PuncSyntaxTree
+{
+public:
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const TokenKind & _kind);
+
+private:
+    AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
+};
+//-----------------------------------------------------------------------------------------------------------------------
+class AnalyserIdST : public AnalyserST, IdSyntaxTree
+{
+public:
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
+    virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
+
+private:
+    AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
+    TokenKind kind;
+};
+//-----------------------------------------------------------------------------------------------------------------------
+
+
+//inline ISyntaxTree * createAnalyserST(){ return AnalyserST::createSyntaxTree(); }
+//inline ISyntaxTree * createAnalyserST(const ECLlocation & _pos){ return AnalyserST::createSyntaxTree(_pos); }
+ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
+ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
+
+
+
+
 
 #endif

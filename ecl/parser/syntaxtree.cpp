@@ -31,7 +31,7 @@ ISyntaxTree * SyntaxTree::createSyntaxTree() { return new SyntaxTree(); }
 ISyntaxTree * SyntaxTree::createSyntaxTree(const ECLlocation & _pos) { return new SyntaxTree(_pos); }
 
 SyntaxTree::SyntaxTree() { pos.clear(); }
-SyntaxTree::SyntaxTree(ECLlocation _pos) { pos.set(_pos); }
+SyntaxTree::SyntaxTree(const ECLlocation & _pos) { pos.set(_pos); }
 SyntaxTree::~SyntaxTree() {}
 //-------------------------------------------------------------------------------------------------------------------
 
@@ -244,8 +244,10 @@ ISyntaxTree * IdSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IIdAtom *
 
 IdSyntaxTree::IdSyntaxTree(ECLlocation _pos, IIdAtom * _id) : SyntaxTree(_pos)
 {
-    id = _id;//createIdAtom(tokenText, txtLen); or make owned and link
+    id = LINK(_id);//createIdAtom(tokenText, txtLen); or make owned and link
 }
+
+IdSyntaxTree::~IdSyntaxTree() { id->Release(); }
 
 void IdSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 {

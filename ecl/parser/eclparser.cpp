@@ -29,12 +29,8 @@
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
+EclParser::EclParser() { }
 EclParser::EclParser(IFileContents * queryContents, IErrorReceiver * errs)
-{
-    init(queryContents, errs);
-}
-
-void EclParser::init(IFileContents * queryContents, IErrorReceiver * errs)
 {
     lexer = new EclLexer(queryContents);
     errorHandler = LINK(errs);

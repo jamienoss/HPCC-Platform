@@ -28,59 +28,26 @@
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
-AnalyserParser::AnalyserParser(IFileContents * queryContents) : EclParser(queryContents)
-{
-    init(queryContents);
-}
-
-void AnalyserParser::init(IFileContents * queryContents)
+AnalyserParser::AnalyserParser(IFileContents * queryContents, IErrorReceiver * errs)
 {
     lexer = new AnalyserLexer(queryContents);
-}
-
-AnalyserParser::~AnalyserParser()
-{
-    if(lexer)
-        delete lexer;
-}
-
-int AnalyserParser::parse()
-{
-    return lexer->parse(this);
-}
-
-AnalyserLexer & AnalyserParser::getLexer()
-{
-    return *lexer;
-}
-
-void AnalyserParser::printAST()
-{
-    ast->printTree();
-}
-
-void AnalyserParser::setRoot(ISyntaxTree * node)
-{
-    ast.setown(node);
+    errorHandler = LINK(errs);
 }
 
 void AnalyserParser::analyseGrammar()
 {
     std::vector <std::string> terminalSymbols;
-    createSymbolList(ast, terminalSymbols, 300);
+    createSymbolList(ast.get(), terminalSymbols, 300);
     //printStringVector(terminalSymbols);
 
-    ast->setSymbolList(terminalSymbols);
-    ast->printSymbolList();
+    //ast->setSymbolList(terminalSymbols);
+    //ast->printSymbolList();
 
 
     ast->printTree();
-
-
-
 }
 
-void AnalyserParser::createSymbolList(AnalyserST *  tree, std::vector <std::string> & symbolList, TokenKind kind)
+void AnalyserParser::createSymbolList(ISyntaxTree *  tree, std::vector <std::string> & symbolList, TokenKind kind)
 {
     tree->extractSymbols(symbolList, kind);
 }
@@ -94,40 +61,8 @@ void printStringVector(std::vector <std::string> vector)
     }
 }
 //----------------------------------AnalyserLexer--------------------------------------------------------------------
-AnalyserLexer::AnalyserLexer(IFileContents * queryContents)
+AnalyserLexer::AnalyserLexer(IFileContents * queryContents) : EclLexer(queryContents)
 {
-    init(queryContents);
-}
-
-AnalyserLexer::~AnalyserLexer()
-{
-    ecl3yylex_destroy(scanner);
-    scanner = NULL;
-    delete[] yyBuffer;
-}
-
-void AnalyserLexer::init(IFileContents * queryContents)
-{
-    text.set(queryContents);
-    size32_t len = queryContents->length();
-    yyBuffer = new char[len+2]; // Include room for \0 and another \0 that we write beyond the end null while parsing
-    memcpy(yyBuffer, text->getText(), len);
-    yyBuffer[len] = '\0';
-    yyBuffer[len+1] = '\0';
-
-    if (ecl3yylex_init(&scanner) != 0)
-        std::cout << "uh-oh\n";
-    ecl3yy_scan_buffer(yyBuffer, len+2, scanner);
-
-    yyPosition = 0;
-    yyColumn = 0;
-    sourcePath = queryContents->querySourcePath();
-
     nestCounter = 0;
     productionLineNo = 0;
-}
-
-int AnalyserLexer::parse(AnalyserParser * parser)
-{
-     return ecl3yyparse(parser, scanner);
 }

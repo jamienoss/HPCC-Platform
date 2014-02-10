@@ -97,7 +97,7 @@ protected:
 
 protected:
     SyntaxTree();
-    SyntaxTree(ECLlocation _pos);
+    SyntaxTree(const ECLlocation & _pos);
 };
 
 /// The following code can now be moved and hidden ---
@@ -108,12 +108,10 @@ class PuncSyntaxTree : public SyntaxTree
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const TokenKind & _token);
 
-private:
-    PuncSyntaxTree(ECLlocation _pos, TokenKind _token);
+protected:
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
-
-private:
+    PuncSyntaxTree(ECLlocation _pos, TokenKind _token);
     TokenKind value;
 };
 
@@ -124,14 +122,12 @@ public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IValue * constant);
 
 
-private:
+protected:
     ConstantSyntaxTree(ECLlocation _pos, IValue * constant);
-
-
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
 
-private:
+protected:
     OwnedIValue value;
 };
 //--------------------------------------------------------------------------------------------------------
@@ -139,13 +135,14 @@ class IdSyntaxTree : public SyntaxTree
 {
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id);
+    ~IdSyntaxTree();
 
-private:
+protected:
     IdSyntaxTree(ECLlocation _pos, IIdAtom * _id);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
 
-private:
+protected:
     IIdAtom * id;
 };
 //--------------------------------------------------------------------------------------------------------

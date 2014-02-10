@@ -40,8 +40,8 @@ public:
 
     const ECLlocation & queryNodePosition() const;
     ISyntaxTree * getNode();
-    ISyntaxTree * createSyntaxTree(const ParserData & token2add);
-    ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
+    virtual ISyntaxTree * createSyntaxTree(const ParserData & token2add);
+    virtual ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 
 

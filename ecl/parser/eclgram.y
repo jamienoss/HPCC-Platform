@@ -28,8 +28,8 @@ class EclParser;
 
 #include "platform.h"
 #include "eclparser.hpp"
-#include <iostream>
 #include "hqlerrors.hpp"
+#include <iostream>
 
 #define YYSTYPE ParserData //NOTE: if you include eclgram.h this needs to be placed after this definition
 

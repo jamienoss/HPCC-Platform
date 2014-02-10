@@ -19,32 +19,16 @@
 #ifndef ANALYSERPD_HPP
 #define ANALYSERPD_HPP
 
-//#include "eclgram.h"
-
-//extern YYTOKENTYPE;
-
-/*enum symbolKind
-{
-    none,
-	integerKind,
-	unsignedKind,
-	realKind,
-	lexemeKind,
-    terminalKind,
-    nonTerminalKind,
-    nonTerminalDefKind,
-    productionKind
-};
-*/
-
 #include "parserdata.hpp"
 
 //----------------------------------ParserData--------------------------------------------------------------------
-class AnalyserTD : public ParserData
+class AnalyserPD : public ParserData
 {
 public:
-    virtual ParserData & add(ParserData & token);
-    virtual ParserData & add(TokenKind token, const ECLlocation & _pos);
+    virtual ISyntaxTree * createSyntaxTree(const AnalyserPD & token2add);
+    virtual ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
+    virtual ParserData & add(const AnalyserPD & token2add);
+    virtual ParserData & add(const TokenKind & _kind, const ECLlocation & _pos);
 };
 
 #endif

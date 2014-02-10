@@ -37,6 +37,7 @@ class EclParser : public CInterface
      friend int ecl2yyparse(EclParser * parser, yyscan_t scanner);
 
 public:
+    EclParser();
     EclParser(IFileContents * queryContents, IErrorReceiver * errs);
     ~EclParser();
     IMPLEMENT_IINTERFACE
@@ -50,11 +51,10 @@ public:
     void reportError(int errNo, const char *msg, const char * _sourcePath, int _lineno, int _column, int _position);
 
 protected:
-    void init(IFileContents * queryContents, IErrorReceiver * errs);
     IErrorReceiver * errorHandler;
+    Owned<ISyntaxTree> ast;
 
 private:
-    Owned<ISyntaxTree> ast;
     EclLexer * lexer;
 };
 //----------------------------------EclLexer--------------------------------------------------------------------

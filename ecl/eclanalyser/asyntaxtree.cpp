@@ -24,28 +24,19 @@
 
 std::vector <std::string> * AnalyserST::symbolList = NULL;
 
+ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind)
+{
+    return AnalyserPuncST::createSyntaxTree(_pos, _kind);
+}
+
+ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind)
+{
+    return AnalyserIdST::createSyntaxTree(_pos, _id, _kind);
+}
 //----------------------------------AnalyserST--------------------------------------------------------------------
-ISyntaxTree * AnalyserST::createSyntaxTree(TokenData & tok)
-{
-    return new AnalyserST(tok);
-}
+AnalyserST::AnalyserST() { symbolList = NULL; }
 
-ISyntaxTree * AnalyserST::createSyntaxTree(TokenKind & _token, const ECLlocation & _pos)
-{
-    return new AnalyserST(_token, _pos);
-}
-
-AnalyserST::AnalyserST(TokenData & tok) : SyntaxTree(tok)
-{
-    symbolList = NULL;
-}
-
-AnalyserST::AnalyserST(TokenKind & _token, const ECLlocation & _pos) : SyntaxTree(_token, _pos)
-{
-    symbolList = NULL;
-}
-
-void AnalyserST::printTree()
+/*void AnalyserIdST::printTree()
 {
 	unsigned n = symbolList->size();
 	unsigned parentNodeNum = n+1, nodeNum = n+1; // shifted beyond those reserved for nonTerminalDefKind
@@ -64,8 +55,8 @@ void AnalyserST::printTree()
     io->close();
 }
 
-
-void AnalyserST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx)
+*/
+/*void AnalyserIdST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx)
 {
     //if(attributes.attributeKind == none)
       //  return true;
@@ -76,7 +67,7 @@ void AnalyserST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream *
     int tempParentNodeNum = (int)parentNodeNum;
     int tempNodeNum = (int)nodeNum;
 
-    switch(token)
+    switch(kind)
     {
     case NONTERMINAL :
     case 300 :
@@ -84,7 +75,7 @@ void AnalyserST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream *
         unsigned n = symbolList->size();
         for (unsigned i = 0; i < n; ++i)
         {
-            if(!(*symbolList)[i].compare(name->str()))
+            if(!(*symbolList)[i].compare(id->str()))
             {
                 tempParentNodeNum = i;
                 break;
@@ -93,7 +84,7 @@ void AnalyserST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream *
     }
     }
 
-    switch(queryPrivateChild(childIndx)->token)
+    switch(queryPrivateChild(childIndx)->kind)
     {
     case NONTERMINAL :
     case 300 :
@@ -101,7 +92,7 @@ void AnalyserST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream *
         unsigned n = symbolList->size();
         for (unsigned i = 0; i < n; ++i)
         {
-            if(!(*symbolList)[i].compare(queryPrivateChild(childIndx)->name->str()))
+            if(!(*symbolList)[i].compare(queryPrivateChild(childIndx)->id->str()))
             {
                 tempNodeNum = i;
                 break;
@@ -118,11 +109,11 @@ void AnalyserST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream *
     out->write(str.length(), str.str());
 }
 
-void AnalyserST::printNode(unsigned * nodeNum, IIOStream * out)
+void AnalyserIdST::printNode(unsigned * nodeNum, IIOStream * out)
 {
     StringBuffer str;
 
-    switch(token)
+    switch(kind)
     {
     //case none :
     case NONTERMINAL : return;
@@ -131,7 +122,7 @@ void AnalyserST::printNode(unsigned * nodeNum, IIOStream * out)
         unsigned n = symbolList->size();
         for (unsigned i = 0; i < n; ++i)
         {
-            if(!(*symbolList)[i].compare(name->str()))
+            if(!(*symbolList)[i].compare(id->str()))
             {
                 str.append(i).append(" [label = \"");
                 break;
@@ -146,20 +137,8 @@ void AnalyserST::printNode(unsigned * nodeNum, IIOStream * out)
     }
     }
 
-	/*switch(kind){
-	case integerKind : str.append(attributes.integer); break;
-	case realKind : str.append(attributes.real); break;
-	case lexemeKind:
-	case terminalKind :
-    case nonTerminalKind :
-    case nonTerminalDefKind :
-    case productionKind : str.append(attributes.lexeme); break;
-	default : str.append("KIND not yet defined!"); break;
-	}*/
-
-
-	str.append(name->str()).append("\\nLine: ").append(pos.lineno).append("\"");
-	switch(token)
+	str.append(id->str()).append("\\nLine: ").append(pos.lineno).append("\"");
+	switch(kind)
 	{
 	case 300 : str.append("style=filled, color=\"0.25,0.5,1\"]\n"); break;//green
 	case TERMINAL : str.append("style=filled, color=\"0,0.5,1\"]\n"); break;//red
@@ -169,8 +148,8 @@ void AnalyserST::printNode(unsigned * nodeNum, IIOStream * out)
 
 	out->write(str.length(), str.str());
 }
-
-void AnalyserST::extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind)
+*/
+/*void AnalyserST::extractSymbols(std::vector <std::string> & symbolList, const TokenKind & _kind)
 {
     if(children.ordinality())
     {
@@ -181,14 +160,14 @@ void AnalyserST::extractSymbols(std::vector <std::string> & symbolList, TokenKin
     // add only new symbols
     unsigned m = symbolList.size();
     std::string lexeme;
-    if(token == kind)
+    if(kind == _kind)
     {
-        switch(token)
+        switch(kind)
         {
            case TERMINAL :
            case NONTERMINAL :
            {
-               lexeme = name->str();
+               lexeme = id->str();
                for (unsigned i = 0; i < m; ++i)
                {
                    if(!symbolList[i].compare(lexeme))
@@ -199,7 +178,7 @@ void AnalyserST::extractSymbols(std::vector <std::string> & symbolList, TokenKin
            }
            case 300 :
            {
-               lexeme = name->str();
+               lexeme = id->str();
                symbolList.push_back(lexeme);
                break;
            }
@@ -228,3 +207,26 @@ void AnalyserST::printSymbolList()
     out->write(str.length(), str.str());
     io->close();
 }
+
+*/
+
+
+//-----------------------------------------------------------------------------------------------------------------------
+
+ISyntaxTree * AnalyserPuncST::createSyntaxTree(const ECLlocation & _pos, const TokenKind & _kind)
+{
+    return new AnalyserPuncST(_pos, _kind);
+}
+
+AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind) : PuncSyntaxTree(_pos, _kind) {}
+//-----------------------------------------------------------------------------------------------------------------------
+ISyntaxTree * AnalyserIdST::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind)
+{
+    return new AnalyserIdST(_pos, _id, _kind);
+}
+
+AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind) : IdSyntaxTree(_pos, _id)
+{
+    kind = _kind;
+}
+//-----------------------------------------------------------------------------------------------------------------------
