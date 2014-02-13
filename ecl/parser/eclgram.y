@@ -185,8 +185,10 @@ module_list
     ;
 
 module_symbols
-    : ID                            { $$.first($1); }
+    : module_symbols '.' ID         { $$.first($1).add($2).add($3); }
+    | module_symbols '.''^'         { $$.first($1).add($3); } //MORE might need to consider strings and not just char tokens
     | '$'                           { $$.first($1); }
+    | ID                            { $$.first($1); }
     ;
 
 inline_recordset
