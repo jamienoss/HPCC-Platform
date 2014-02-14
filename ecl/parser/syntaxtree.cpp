@@ -51,7 +51,7 @@ void SyntaxTree::printTree()
 
     fileName.append(pos.sourcePath->str());
 
-    //std::cout << "\n" << fileName.str() << "\n";
+    std::cout << "Filename\n" << fileName.str() << "\n";
 
     if(XML)
         fileName.append(".xgmml");
