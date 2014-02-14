@@ -29,7 +29,7 @@
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
-EclParser::EclParser() { }
+EclParser::EclParser() {}
 EclParser::EclParser(IFileContents * queryContents, IErrorReceiver * errs)
 {
     lexer = new EclLexer(queryContents);
@@ -76,6 +76,7 @@ void EclParser::reportError(int errNo, const char *msg, const char * _sourcePath
 }
 
 //----------------------------------EclLexer--------------------------------------------------------------------
+EclLexer::EclLexer() {}
 EclLexer::EclLexer(IFileContents * queryContents)
 {
     init(queryContents);

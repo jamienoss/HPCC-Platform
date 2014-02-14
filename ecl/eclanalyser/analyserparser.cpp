@@ -28,16 +28,21 @@
 class IFile;
 
 //----------------------------------EclParser--------------------------------------------------------------------
-AnalyserParser::AnalyserParser(IFileContents * queryContents, IErrorReceiver * errs)
+AnalyserParser::AnalyserParser(IFileContents * queryContents, IErrorReceiver * errs) : EclParser()
 {
     lexer = new AnalyserLexer(queryContents);
     errorHandler = LINK(errs);
 }
 
+int AnalyserParser::parse()
+{
+    return ecl3yyparse(this, lexer->getScanner());
+}
+
 void AnalyserParser::analyseGrammar()
 {
-    std::vector <std::string> terminalSymbols;
-    createSymbolList(ast.get(), terminalSymbols, 300);
+    //std::vector <std::string> terminalSymbols;
+    //createSymbolList(ast.get(), terminalSymbols, 300);
     //printStringVector(terminalSymbols);
 
     //ast->setSymbolList(terminalSymbols);
@@ -60,9 +65,43 @@ void printStringVector(std::vector <std::string> vector)
         std::cout << vector[i] << "\n";
     }
 }
-//----------------------------------AnalyserLexer--------------------------------------------------------------------
-AnalyserLexer::AnalyserLexer(IFileContents * queryContents) : EclLexer(queryContents)
+
+AnalyserLexer & AnalyserParser::getLexer()
 {
+    return *lexer;
+}
+
+//----------------------------------AnalyserLexer--------------------------------------------------------------------
+AnalyserLexer::AnalyserLexer(IFileContents * queryContents) : EclLexer()
+{
+    init(queryContents);
     nestCounter = 0;
     productionLineNo = 0;
+}
+
+AnalyserLexer::~AnalyserLexer()
+{
+    ecl3yylex_destroy(scanner);
+    scanner = NULL;
+    delete[] yyBuffer;
+}
+
+void AnalyserLexer::init(IFileContents * queryContents)
+{
+    text.set(queryContents);
+    size32_t len = queryContents->length();
+    yyBuffer = new char[len+2]; // Include room for \0 and another \0 that we write beyond the end null while parsing
+    memcpy(yyBuffer, text->getText(), len);
+    yyBuffer[len] = '\0';
+    yyBuffer[len+1] = '\0';
+
+    if (ecl3yylex_init(&scanner) != 0)
+        std::cout << "uh-oh\n";
+    ecl3yy_scan_buffer(yyBuffer, len+2, scanner);
+
+    yyPosition = 0;
+    yyColumn = 0;
+    sourcePath = queryContents->querySourcePath();
+
+    ecl3yyset_lineno(1, scanner);
 }

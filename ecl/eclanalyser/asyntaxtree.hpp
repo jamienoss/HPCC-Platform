@@ -58,7 +58,7 @@ class AnalyserIdST : public AnalyserST, IdSyntaxTree
 {
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
-    virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
+    //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
 
 private:
     AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);

@@ -45,7 +45,7 @@
 #include "hqlcerrors.hpp"
 
 #include "eclparser.hpp"
-//#include "analyserparser.hpp"
+#include "analyserparser.hpp"
 
 #include "hqlgram.hpp"
 #include "hqltrans.ipp"
@@ -1007,7 +1007,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
 
-#if 0
+#if 1
     bool analyseGrammar = instance.wu->getDebugValueBool("grammaranalysis", false);
     if (analyseGrammar)
     {
@@ -1015,7 +1015,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         Owned<ISourcePath> grammarSourcePath = createSourcePath(grammarFileName);
         Owned<IFileContents> grammarText = createFileContentsFromFile(grammarFileName, grammarSourcePath);
 
-        AnalyserParser * parser = new AnalyserParser(grammarText);
+        AnalyserParser * parser = new AnalyserParser(grammarText, errs);
         if (!(parser->parse()))
         {
             parser->analyseGrammar();

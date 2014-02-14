@@ -31,13 +31,13 @@ class AnalyserParser;
 #include "hqlerrors.hpp"
 #include <iostream>
 
-#define YYSTYPE AnalyserPD
+#define YYSTYPE AnalyserPD //NOTE: if you include eclgram.h this needs to be placed after this definition
 
 extern int ecl3yylex(YYSTYPE * yylval_param, AnalyserParser * parser, yyscan_t yyscanner);
 
 int yyerror(AnalyserParser * parser, yyscan_t scanner, const char *msg);
 int syntaxerror(const char *msg, short yystate, YYSTYPE token);
-#define ecl3yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval)
+#define ecl3yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval, parser)
 
 int syntaxerror(const char *msg, short yystate, YYSTYPE token, AnalyserParser * parser)
 {

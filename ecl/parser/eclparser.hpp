@@ -44,9 +44,10 @@ public:
 
     ISyntaxTree * releaseAST();
 
+    virtual void analyseGrammar() { };
     void setRoot(ISyntaxTree * node);
     void printAST();
-    int parse();
+    virtual int parse();
     EclLexer & getLexer();
     void reportError(int errNo, const char *msg, const char * _sourcePath, int _lineno, int _column, int _position);
 
@@ -61,6 +62,7 @@ private:
 class EclLexer
 {
 public:
+    EclLexer();
     EclLexer(IFileContents * queryContents);
     ~EclLexer();
 

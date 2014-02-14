@@ -39,8 +39,7 @@ class AnalyserPD;
  //--------------------------------------------------------------------------------
 static inline void setId(YYSTYPE * yylval, const char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, unsigned _tokenKind)
 {
-   std::cout << tokenText << "\n";
-
+    //std::cout << tokenText << "\n";
 
     yylval->kind = _tokenKind;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -50,8 +49,7 @@ static inline void setId(YYSTYPE * yylval, const char * tokenText, unsigned txtL
  //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    std::cout << (char)tokenKind << "\n";
-
+    //std::cout << (char)tokenKind << "\n";
 
     yylval->kind = tokenKind;
     yylval->setEclLocations(lineno+1, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -120,8 +118,8 @@ upper_alphanum [A-Z$_0-9]
 <PRODUCTION>"\{"         { updatepos; parser->getLexer().nestCounter++; appendProd(yytext).append("\\n"); }
 <PRODUCTION>[^\t }\n\"]+ { updatepos; appendProd(yytext); }
 <PRODUCTION>[ \t]+       { updatepos; }
-<PRODUCTION>\"           { updatepos; appendProd("\\\""); }
-<PRODUCTION>\n           { updatepos; appendProd("\\n"); }
+<PRODUCTION>\"           { updatepos; appendProd(const_cast<char *>("\\\"")); }
+<PRODUCTION>\n           { updatepos; appendProd(const_cast<char *>("\\n")); }
 <PRODUCTION>"\}"         {
                             updatepos;
                             if(!parser->getLexer().nestCounter)
@@ -149,7 +147,7 @@ upper_alphanum [A-Z$_0-9]
 <INITIAL,BISON>\n         { resetpos; }
 <INITIAL,BISON>{blank}+   { updatepos; }
 
-.                         { updatepos; std::cout << "here" << yytext[0];/*setLex(yytext[0]); return (yytext[0]);*/ }
+.                         { }
 %%
 
  int yyerror(const char *msg) {

@@ -42,7 +42,8 @@ class AnalyserParser : public EclParser
 public:
     AnalyserParser(IFileContents * queryContents, IErrorReceiver * errs);
 
-    void analyseGrammar();
+    virtual int parse();
+    virtual void analyseGrammar();
     void createSymbolList(ISyntaxTree * tree, std::vector <std::string> & symbolList, TokenKind kind);
     void printStringVector(std::vector <std::string> vector);
     AnalyserLexer & getLexer();
@@ -55,6 +56,8 @@ class AnalyserLexer : public EclLexer
 {
 public:
     AnalyserLexer(IFileContents * queryContents);
+    ~AnalyserLexer();
+    void init(IFileContents * queryContents);
 
     unsigned nestCounter;
     unsigned productionLineNo;

@@ -218,14 +218,14 @@ ISyntaxTree * AnalyserPuncST::createSyntaxTree(const ECLlocation & _pos, const T
     return new AnalyserPuncST(_pos, _kind);
 }
 
-AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind) : PuncSyntaxTree(_pos, _kind) {}
+AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind) : AnalyserST(), PuncSyntaxTree(_pos, _kind) {}
 //-----------------------------------------------------------------------------------------------------------------------
 ISyntaxTree * AnalyserIdST::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind)
 {
     return new AnalyserIdST(_pos, _id, _kind);
 }
 
-AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind) : IdSyntaxTree(_pos, _id)
+AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind) : AnalyserST(), IdSyntaxTree(_pos, _id)
 {
     kind = _kind;
 }
