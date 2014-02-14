@@ -87,10 +87,11 @@ ISyntaxTree * ParserData::createSyntaxTree(const ParserData & token2add)
 {
     switch(token2add.kind)
     {
-    //case BOOLEAN :
-    case INTEGER :
+    case BOOLEAN :
+    case CHARACTER :
     case DECIMAL :
-    case FLOAT : return createConstSyntaxTree(token2add.pos, value); break;
+    case FLOAT:
+    case INTEGER  : return createConstSyntaxTree(token2add.pos, value); break;
     case ID : return createIdSyntaxTree(token2add.pos, token2add.id); break;
     default : return createPuncSyntaxTree(token2add.pos, token2add.kind);
     }

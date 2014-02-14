@@ -86,8 +86,29 @@ static inline void setReal(YYSTYPE * yylval, unsigned tokenKind, char * tokenTex
     //std::cout << tokenText << "\n";
 
     yylval->kind = tokenKind;
-    //yylval->real = atof(tokenText);
     yylval->value = createRealValue(atof(tokenText), 8);
+
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    lexer.updatePos(txtLen);
+}
+  //--------------------------------------------------------------------------------
+static inline void setChar(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+{
+    //std::cout << tokenText << "\n";
+
+    yylval->kind = CHARACTER;
+    yylval->value = createStringValue(tokenText, 32); //Might need to be UTF8
+
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    lexer.updatePos(txtLen);
+}
+  //--------------------------------------------------------------------------------
+static inline void setBool(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+{
+    //std::cout << tokenText << "\n";
+
+    yylval->kind = BOOLEAN;
+    yylval->value = createBoolValue(tokenText);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -132,6 +153,8 @@ static char foldMinus(char * & tokenText, unsigned txtLen)
 #define manSetInt(x,y,z) setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), x,y,z)
 #define setInt setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), str2int64(yyleng, yytext, 10), 8, false)
 #define setReal(x) setReal(yylval, x, yytext, yyleng, yylineno, parser->getLexer())
+#define setChar setChar(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define setBool setBool(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
 #define setId setId(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define updatepos parser->getLexer().updatePos(yyleng)
@@ -179,9 +202,16 @@ xpathseq      ([^}\r\n])+
 
 AS                       { setLex(AS); return AS; }
 END                      { setLex(END); return END; }
+FALSE                    { setBool; return BOOLEAN; }
 FROM                     { setLex(FROM); return FROM; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 RECORD                   { setLex(RECORD); return RECORD; }
+TRUE                     { setBool; return BOOLEAN; }
+TYPE                     { setLex; return TYPE; }
+".^"                     { setLex('^'); return UPDIR; }
+".."                     { setLex; return DOTDOT; }
+
+
 
 {digit}+                 { manSetInt(str2int64(yyleng, yytext, 10), 8, true); return INTEGER; }
 {digit}+U                { manSetInt(str2int64(yyleng-1, yytext, 10), 8, false); return INTEGER; }
@@ -199,6 +229,10 @@ RECORD                   { setLex(RECORD); return RECORD; }
 {digit}*\.{digit}+((e|E)("+"|"-")?{digit}+)? {
                           setReal(FLOAT); return FLOAT; }
 {digit}*\.?{digit}+(d|D) { setReal(DECIMAL); return DECIMAL; }
+
+\'[^\n]*\'               { setChar; return CHARACTER; }
+
+
 
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
