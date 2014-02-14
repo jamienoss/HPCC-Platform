@@ -21,15 +21,13 @@ define([
     "dojo/i18n!./nls/GetDFUWorkunitsWidget",
     "dojo/_base/array",
     "dojo/_base/Deferred",
-    "dojo/data/ObjectStore",
-    "dojo/store/util/QueryResults",
     "dojo/store/Observable",
 
     "hpcc/FileSpray",
     "hpcc/ESPUtil",
     "hpcc/ESPRequest",
     "hpcc/ESPResult"
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, Deferred, ObjectStore, QueryResults, Observable,
+], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, Deferred, Observable,
     FileSpray, ESPUtil, ESPRequest, ESPResult) {
 
     var i18n = lang.mixin(nlsCommon, nlsSpecific);
@@ -205,7 +203,12 @@ define([
         },
         _action: function (action, callback) {
         },
-        abort: function (callback) {
+        abort: function () {
+            return FileSpray.AbortDFUWorkunit({
+                request: {
+                    wuid: this.Wuid
+                }
+            });
         },
         doDelete: function (callback) {
         },
@@ -238,9 +241,9 @@ define([
         },
         getProtectedImage: function () {
             if (this.isProtected) {
-                return "img/locked.png"
+                return "/esp/files/img/locked.png"
             }
-            return "img/unlocked.png"
+            return "/esp/files/img/unlocked.png"
         },
         getStateIconClass: function () {
             switch (this.StateID) {
@@ -268,27 +271,31 @@ define([
         getStateImage: function () {
             switch (this.State) {
                 case 1:
-                    return "img/workunit_warning.png";
+                    return "/esp/files/img/workunit_warning.png";
                 case 2:
-                    return "img/workunit_submitted.png";
+                    return "/esp/files/img/workunit_submitted.png";
                 case 3:
-                    return "img/workunit_running.png";
+                    return "/esp/files/img/workunit_running.png";
                 case 4:
-                    return "img/workunit_failed.png";
+                    return "/esp/files/img/workunit_failed.png";
                 case 5:
-                    return "img/workunit_failed.png";
+                    return "/esp/files/img/workunit_failed.png";
                 case 6:
-                    return "img/workunit_completed.png";
+                    return "/esp/files/img/workunit_completed.png";
                 case 7:
-                    return "img/workunit_running.png";
+                    return "/esp/files/img/workunit_running.png";
                 case 8:
-                    return "img/workunit_aborting.png";
+                    return "/esp/files/img/workunit_aborting.png";
             }
-            return "img/workunit.png";
+            return "/esp/files/img/workunit.png";
         }
     });
 
     return {
+        isInstanceOfWorkunit: function (obj) {
+            return obj.isInstanceOf(Workunit);
+        },
+
         Get: function (wuid) {
             var store = new Store();
             return store.get(wuid);
@@ -298,13 +305,6 @@ define([
             var store = new Store(options);
             store = Observable(store);
             return store;
-        },
-
-        CreateWUQueryObjectStore: function (options) {
-            var objStore = new ObjectStore({
-                objectStore: this.CreateWUQueryStore()
-            });
-            return objStore;
         }
     };
 });

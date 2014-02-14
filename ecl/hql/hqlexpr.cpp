@@ -1637,7 +1637,6 @@ bool checkConstant(node_operator op)
     case no_xmlencode:
     case no_sortpartition:
     case no_clustersize:
-    case no_debug_option_value:
         return false;
     }
     return true;
@@ -11668,8 +11667,17 @@ extern IHqlExpression *createRow(node_operator op, HqlExprArray & args)
             break;
         }
     case no_getresult:
+    case no_getgraphresult:
         {
             IHqlExpression * record = &args.item(0);
+            type = makeRowType(record->getType());
+            if (recordRequiresLinkCount(record))
+                type = makeAttributeModifier(type, getLinkCountedAttr());
+            break;
+        }
+    case no_readspill:
+        {
+            IHqlExpression * record = queryOriginalRecord(&args.item(0));
             type = makeRowType(record->getType());
             if (recordRequiresLinkCount(record))
                 type = makeAttributeModifier(type, getLinkCountedAttr());
@@ -15754,14 +15762,20 @@ IHqlExpression * closeAndLink(IHqlExpression * expr)
 }
 
 //MORE: This should probably be handled via the Lookup context instead (which shoudl be renamed parse
-static bool legacyEclMode = false;
-extern HQL_API void setLegacyEclSemantics(bool _value)
+static bool legacyImportMode = false;
+static bool legacyWhenMode = false;
+extern HQL_API void setLegacyEclSemantics(bool _legacyImport, bool _legacyWhen)
 {
-    legacyEclMode = _value;
+    legacyImportMode = _legacyImport;
+    legacyWhenMode = _legacyWhen;
 }
-extern HQL_API bool queryLegacyEclSemantics()
+extern HQL_API bool queryLegacyImportSemantics()
 {
-    return legacyEclMode;
+    return legacyImportMode;
+}
+extern HQL_API bool queryLegacyWhenSemantics()
+{
+    return legacyWhenMode;
 }
 
 

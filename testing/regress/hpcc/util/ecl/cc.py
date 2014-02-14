@@ -29,6 +29,7 @@ class ECLCC(Shell):
     def __init__(self):
         self.defaults = []
         self.cmd = self.which('eclcc')
+        self.makeArchiveError=''
 
     def __ECLCC(self):
         return self.command(self.cmd, *self.defaults)
@@ -37,6 +38,7 @@ class ECLCC(Shell):
         try:
             return self.__ECLCC()('-E', file)
         except Error as err:
+            logging.debug("getArchive exception:'%s'",  repr(err))
             self.makeArchiveError = str(err)
             return repr(err)
 

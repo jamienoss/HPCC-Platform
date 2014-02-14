@@ -90,12 +90,17 @@ define([
 
         _onRowDblClick: function (row) {
             var tab = this.ensurePane(row);
-            this.selectChild(tab);
+            if (tab) {
+                this.selectChild(tab);
+            }
         },
 
         //  Implementation  ---
         initGrid: function() {
             var context = this;
+            this.noDataMessage = this.i18n.noDataMessage;
+            this.loadingMessage = this.i18n.loadingMessage;
+
             var store = new Memory({
                 idProperty: this.idProperty,
                 data: []
@@ -120,10 +125,10 @@ define([
                 context._refreshActionState();
             });
             if (!this.grid.get("noDataMessage")) {
-                this.grid.set("noDataMessage", "<span class='dojoxGridNoData'>" + this.i18n.noDataMessage + "</span>");
+                this.grid.set("noDataMessage", "<span class='dojoxGridNoData'>" + this.noDataMessage + "</span>");
             }
             if (!this.grid.get("loadingMessage")) {
-                this.grid.set("loadingMessage", "<span class='dojoxGridNoData'>" + this.i18n.loadingMessage + "</span>");
+                this.grid.set("loadingMessage", "<span class='dojoxGridNoData'>" + this.loadingMessage + "</span>");
             }
             this.grid.startup();
         },
@@ -186,7 +191,9 @@ define([
             var retVal = registry.byId(id);
             if (!retVal) {
                 retVal = this.createDetail(id, row, params);
-                this.addChild(retVal);
+                if (retVal) {
+                    this.addChild(retVal);
+                }
             } else {
                 lang.mixin(retVal.hpcc, {
                     refreshParams: params

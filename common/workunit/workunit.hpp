@@ -945,7 +945,7 @@ interface IConstWorkUnit : extends IInterface
     virtual unsigned __int64 getHash() const = 0;
     virtual IStringIterator *getLogs(const char *type, const char *instance=NULL) const = 0;
     virtual IStringIterator *getProcesses(const char *type) const = 0;
-    virtual IPropertyTreeIterator& getProcesses(const char *type, const char *instance) const = 0;
+    virtual IPropertyTreeIterator* getProcesses(const char *type, const char *instance) const = 0;
 };
 
 
@@ -1235,9 +1235,9 @@ extern WORKUNIT_API IWorkUnitFactory * getWorkUnitFactory();
 extern WORKUNIT_API IWorkUnitFactory * getSecWorkUnitFactory(ISecManager &secmgr, ISecUser &secuser);
 extern WORKUNIT_API IWorkUnitFactory * getWorkUnitFactory(ISecManager *secmgr, ISecUser *secuser);
 extern WORKUNIT_API ILocalWorkUnit* createLocalWorkUnit();
-extern WORKUNIT_API IStringVal& exportWorkUnitToXML(const IConstWorkUnit *wu, IStringVal &str, bool unpack);
-extern WORKUNIT_API StringBuffer &exportWorkUnitToXML(const IConstWorkUnit *wu, StringBuffer &str, bool unpack);
-extern WORKUNIT_API void exportWorkUnitToXMLFile(const IConstWorkUnit *wu, const char * filename, unsigned extraXmlFlags, bool unpack);
+extern WORKUNIT_API IStringVal& exportWorkUnitToXML(const IConstWorkUnit *wu, IStringVal &str, bool unpack, bool includeProgress);
+extern WORKUNIT_API StringBuffer &exportWorkUnitToXML(const IConstWorkUnit *wu, StringBuffer &str, bool unpack, bool includeProgress);
+extern WORKUNIT_API void exportWorkUnitToXMLFile(const IConstWorkUnit *wu, const char * filename, unsigned extraXmlFlags, bool unpack, bool includeProgress);
 extern WORKUNIT_API void submitWorkUnit(const char *wuid, const char *username, const char *password);
 extern WORKUNIT_API void abortWorkUnit(const char *wuid);
 extern WORKUNIT_API void submitWorkUnit(const char *wuid, ISecManager *secmgr, ISecUser *secuser);

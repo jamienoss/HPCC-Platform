@@ -181,6 +181,12 @@ public:
         }
         result = (byte **)_rowset.getClear();
     }
+    virtual const void * getLinkedRowResult()
+    {
+        assertex(rowStreamCount==1); // catch, just in case
+        Owned<IRowStream> stream = getRowStream();
+        return stream->nextRow();
+    }
 };
 
 /////
@@ -885,6 +891,8 @@ bool isGlobalActivity(CGraphElementBase &container)
         {
             Owned<IHThorCsvReadArg> helper = (IHThorCsvReadArg *)container.helperFactory();
             // if header lines, then [may] need to co-ordinate across slaves
+            if (container.queryOwner().queryOwner() && (!container.queryOwner().isGlobal())) // I am in a child query
+                return false;
             return helper->queryCsvParameters()->queryHeaderLen() > 0;
         }
 // dependent on child acts?
@@ -1977,6 +1985,12 @@ void CGraphBase::getLinkedResult(unsigned & count, byte * * & ret, unsigned id)
 {
     Owned<IThorResult> result = getResult(id, true); // will get collated distributed result
     result->getLinkedResult(count, ret);
+}
+
+const void * CGraphBase::getLinkedRowResult(unsigned id)
+{
+    Owned<IThorResult> result = getResult(id, true); // will get collated distributed result
+    return result->getLinkedRowResult();
 }
 
 // IThorChildGraph impl.

@@ -168,6 +168,8 @@ public:
     virtual void outputUDecimal(const void *field, unsigned size, unsigned precision, const char *fieldname) = 0;
     virtual void outputUnicode(unsigned len, const UChar *field, const char *fieldname) = 0;
     virtual void outputQString(unsigned len, const char *field, const char *fieldname) = 0;
+    virtual void outputBeginDataset(const char *dsname, bool nestChildren) = 0;
+    virtual void outputEndDataset(const char *dsname) = 0;
     virtual void outputBeginNested(const char *fieldname, bool nestChildren) = 0;
     virtual void outputEndNested(const char *fieldname) = 0;
     virtual void outputSetAll() = 0;
@@ -522,6 +524,7 @@ interface IEclGraphResults : public IInterface
 {
     virtual void getLinkedResult(unsigned & count, byte * * & ret, unsigned id) = 0;
     virtual void getDictionaryResult(size32_t & tcount, byte * * & tgt, unsigned id) = 0;
+    virtual const void * getLinkedRowResult(unsigned id) = 0;
 };
 
 //Provided by engine=>can extent
@@ -1822,6 +1825,7 @@ enum
 {
     POFextend           = 0x0001,
     POFgrouped          = 0x0002,
+    POFmaxsize          = 0x0004,
 };
 
 struct IHThorWorkUnitWriteArg : public IHThorArg
@@ -1830,6 +1834,7 @@ struct IHThorWorkUnitWriteArg : public IHThorArg
     virtual void serializeXml(const byte * self, IXmlWriter & out) = 0;
     virtual const char * queryName() = 0;
     virtual unsigned getFlags() = 0;
+    virtual unsigned getMaxSize() = 0; // size in Mb
 };
 
 struct IHThorXmlWorkunitWriteArg : public IHThorWorkUnitWriteArg

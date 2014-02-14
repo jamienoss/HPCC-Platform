@@ -3617,8 +3617,8 @@ IHqlExpression * createScalarFromGraphResult(ITypeInfo * scalarType, ITypeInfo *
     args.append(*LINK(represents));
     args.append(*getSizetConstant(seq));
     args.append(*createAttribute(rowAtom));
-    OwnedHqlExpr counterResult = createDataset(no_getgraphresult, args);
-    OwnedHqlExpr select = createNewSelectExpr(createRow(no_selectnth, LINK(counterResult), getSizetConstant(1)), LINK(counterField));
+    OwnedHqlExpr counterResult = createRow(no_getgraphresult, args);
+    OwnedHqlExpr select = createNewSelectExpr(LINK(counterResult), LINK(counterField));
     return ensureExprType(select, scalarType);
 }
 
@@ -8231,7 +8231,7 @@ IHqlExpression * expandMacroDefinition(IHqlExpression * expr, HqlLookupContext &
     //with implicitly importing myModule.
     Owned<IFileContents> mappedContents = createFileContentsFromText(macroText.length(), macroText.str(), macroContents->querySourcePath());
     Owned<IHqlScope> scope = createPrivateScope();
-    if (queryLegacyEclSemantics())
+    if (queryLegacyImportSemantics())
         importRootModulesToScope(scope, ctx);
     return parseQuery(scope, mappedContents, ctx, NULL, macroParms, true);
 }

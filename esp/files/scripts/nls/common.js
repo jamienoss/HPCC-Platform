@@ -9,8 +9,8 @@ define({ root:
     Filter: "Filter",
     HPCCSystems: "HPCC Systems",
     Loading: "Loading",
-    loadingMessage: "Loading...",
-    noDataMessage: "Zero Rows...",
+    loadingMessage: "...Loading...",
+    noDataMessage: "...Zero Rows...",
     OK: "OK",
     Open: "Open",
     OpenInNewPage: "Open in New Page",
@@ -20,5 +20,6 @@ define({ root:
 //end v1.x content
 ,
 "es": true,
-"zh": true
+"zh": true,
+"hu": true
 });

@@ -2476,7 +2476,7 @@ bool CWsWorkunitsEx::onWUQuery(IEspContext &context, IEspWUQueryRequest & req, I
     return true;
 }
 
-void appendResultSet(MemoryBuffer& mb, INewResultSet* result, const char *name, __int64 start, unsigned& count, __int64& total, bool bin, bool xsd)
+void appendResultSet(MemoryBuffer& mb, INewResultSet* result, const char *name, __int64 start, unsigned& count, __int64& total, bool bin, bool xsd, ESPSerializationFormat fmt)
 {
     if (!result)
         return;
@@ -2502,7 +2502,10 @@ void appendResultSet(MemoryBuffer& mb, INewResultSet* result, const char *name, 
             MemoryBuffer & buffer;
         } adaptor(mb);
 
-        count = getResultXml(adaptor, result, name, (unsigned) start, count, (xsd) ? "myschema" : NULL);
+        if (fmt==ESPSerializationJSON)
+            count = getResultJSON(adaptor, result, name, (unsigned) start, count);
+        else
+            count = getResultXml(adaptor, result, name, (unsigned) start, count, (xsd) ? "myschema" : NULL);
     }
 }
 
@@ -2549,7 +2552,7 @@ void getWsWuResult(IEspContext &context, const char* wuid, const char *name, con
     }
     else
         rs.setown(resultSetFactory->createNewResultSet(result, wuid));
-    appendResultSet(mb, rs, name, start, count, total, bin, xsd);
+    appendResultSet(mb, rs, name, start, count, total, bin, xsd, context.getResponseFormat());
 }
 
 void openSaveFile(IEspContext &context, int opt, const char* filename, const char* origMimeType, MemoryBuffer& buf, IEspWULogFileResponse &resp)
@@ -2910,7 +2913,7 @@ void getFileResults(IEspContext &context, const char* logicalName, const char* c
 {
     Owned<IResultSetFactory> resultSetFactory = getSecResultSetFactory(context.querySecManager(), context.queryUser(), context.queryUserId(), context.queryPassword());
     Owned<INewResultSet> result(resultSetFactory->createNewFileResultSet(logicalName, cluster));
-    appendResultSet(buf, result, resname.str(), start, count, total, bin, xsd);
+    appendResultSet(buf, result, resname.str(), start, count, total, bin, xsd, context.getResponseFormat());
 }
 
 void getWorkunitCluster(IEspContext &context, const char* wuid, SCMStringBuffer& cluster, bool checkArchiveWUs)
@@ -2963,6 +2966,8 @@ bool CWsWorkunitsEx::onWUResult(IEspContext &context, IEspWUResultRequest &req, 
         filter.appendf(";seq=%d;", seq);
         if (inclXsd)
             filter.append("xsd;");
+        if (context.getResponseFormat()==ESPSerializationJSON)
+            filter.append("json;");
 
         const char* logicalName = req.getLogicalName();
         const char* clusterName = req.getCluster();
@@ -3181,7 +3186,7 @@ bool CWsWorkunitsEx::onWUExport(IEspContext &context, IEspWUExportRequest &req, 
         {
             Owned<IConstWorkUnit> cw = factory->openWorkUnit(it->c_str(), false);
             if (cw)
-                exportWorkUnitToXML(cw, xml, true);
+                exportWorkUnitToXML(cw, xml, true, false);
         }
         xml.append("</Workunits>");
 
@@ -3915,15 +3920,16 @@ bool CWsWorkunitsEx::onWUDeployWorkunit(IEspContext &context, IEspWUDeployWorkun
 
 void CWsWorkunitsEx::addProcessLogfile(IZZIPor* zipper, Owned<IConstWorkUnit> &cwu, WsWuInfo &winfo, const char * process, PointerArray &mbArr)
 {
-    IPropertyTreeIterator& proc = cwu->getProcesses(process, NULL);
-    ForEach (proc)
+    Owned<IPropertyTreeIterator> procs = cwu->getProcesses(process, NULL);
+    ForEach (*procs)
     {
         StringBuffer logSpec;
-        proc.query().getProp("@log",logSpec);
+        IPropertyTree& proc = procs->query();
+        proc.getProp("@log",logSpec);
         if (!logSpec.length())
             continue;
         StringBuffer pid;
-        pid.appendf("%d",proc.query().getPropInt("@pid"));
+        pid.appendf("%d",proc.getPropInt("@pid"));
         MemoryBuffer * pMB = NULL;
         try
         {
@@ -4035,16 +4041,45 @@ bool CWsWorkunitsEx::onWUCreateZAPInfo(IEspContext &context, IEspWUCreateZAPInfo
 
             //add ECL query/archive to zip
             Owned<IConstWUQuery> query = cwu->getQuery();
-            StringBuffer ecl;//String buffers containing file contents must persist until ziptofile is called !
+            StringBuffer eclContents;//String buffers containing file contents must persist until ziptofile is called !
+            StringBuffer archiveContents;//String buffers containing file contents must persist until ziptofile is called !
             if(query)
             {
+                //Add archive if present
+                Owned<IConstWUAssociatedFileIterator> iter = &query->getAssociatedFiles();
+                ForEach(*iter)
+                {
+                    IConstWUAssociatedFile & cur = iter->query();
+                    SCMStringBuffer ssb;
+                    cur.getDescription(ssb);
+                    if (0 == stricmp(ssb.str(), "archive"))
+                    {
+                        cur.getName(ssb);
+                        if (ssb.length())
+                        {
+                            fs.clear().append("ZAPReport_").append(req.getWuid()).append('_').append(userName.str()).append(".archive");
+                            try
+                            {
+                                archiveContents.loadFile(ssb.str());
+                                zipper->addContentToZIP(archiveContents.length(), (void*)archiveContents.str(), (char*)fs.str(), true);
+                            }
+                            catch (IException *E)
+                            {
+                                DBGLOG("Error accessing archive file %s", ssb.str());
+                                E->Release();
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                //Add Query
                 query->getQueryText(temp);
                 if (temp.length())
                 {
-                    fs.clear().append("ZAPReport_").append(req.getWuid()).append('_').append(userName.str()).append(".");
-                    fs.append(isArchiveQuery(temp.str()) ? "archive" : "ecl");
-                    ecl.append(temp.str());
-                    zipper->addContentToZIP(ecl.length(), (void*)ecl.str(), (char*)fs.str(), true);
+                    fs.clear().append("ZAPReport_").append(req.getWuid()).append('_').append(userName.str()).append(".ecl");
+                    eclContents.append(temp.str());
+                    zipper->addContentToZIP(eclContents.length(), (void*)eclContents.str(), (char*)fs.str(), true);
                 }
             }
 

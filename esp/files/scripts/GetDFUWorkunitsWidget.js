@@ -266,21 +266,21 @@ define([
                 this.menuFilterJobname = this.addMenuItem(pSubMenu, {
                     onClick: function (args) {
                         context.filter.clear();
-                        context.filter.setValue(context.id + "Jobname", context.menuFilterOwner.get("hpcc_value"));
+                        context.filter.setValue(context.id + "Jobname", context.menuFilterJobname.get("hpcc_value"));
                         context.refreshGrid();
                     }
                 });
                 this.menuFilterCluster = this.addMenuItem(pSubMenu, {
                     onClick: function (args) {
                         context.filter.clear();
-                        context.filter.setValue(context.id + "ClusterTargetSelect", context.menuFilterOwner.get("hpcc_value"));
+                        context.filter.setValue(context.id + "ClusterTargetSelect", context.menuFilterCluster.get("hpcc_value"));
                         context.refreshGrid();
                     }
                 });
                 this.menuFilterState = this.addMenuItem(pSubMenu, {
                     onClick: function (args) {
                         context.filter.clear();
-                        context.filter.setValue(context.id + "StateSelect", context.menuFilterOwner.get("hpcc_value"));
+                        context.filter.setValue(context.id + "StateSelect", context.menuFilterState.get("hpcc_value"));
                         context.refreshGrid();
                     }
                 });
@@ -319,13 +319,13 @@ define([
                     }),
                     isProtected: {
                         renderHeaderCell: function (node) {
-                            node.innerHTML = "<img src='../files/img/locked.png'>";
+                            node.innerHTML = "<img src='/esp/files/img/locked.png'>";
                         },
                         width: 25,
                         sortable: false,
                         formatter: function (_protected) {
                             if (_protected == true) {
-                                return ("<img src='../files/img/locked.png'>");
+                                return ("<img src='/esp/files/img/locked.png'>");
                             }
                             return "";
                         }
@@ -335,7 +335,7 @@ define([
                         width: 180,
                         formatter: function (ID, idx) {
                             var wu = ESPDFUWorkunit.Get(ID);
-                            return "<img src='../files/" + wu.getStateImage() + "'>&nbsp;<a href='#' rowIndex=" + idx + " class='" + context.id + "IDClick'>" + ID + "</a>";
+                            return "<img src='" + wu.getStateImage() + "'>&nbsp;<a href='#' rowIndex=" + idx + " class='" + context.id + "IDClick'>" + ID + "</a>";
                         }
                     },
                     Command: {

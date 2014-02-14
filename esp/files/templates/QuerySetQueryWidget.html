@@ -1,7 +1,7 @@
 <div class="${baseClass}">
 	<div id="${id}BorderContainer" class="${baseClass}BorderContainer" style="width: 100%; height: 100%" data-dojo-type="dijit.layout.BorderContainer">
 		<div id="${id}TabContainer" data-dojo-props="region: 'center', tabPosition: 'top'" style="width: 100%; height: 100%" data-dojo-type="dijit.layout.TabContainer">
-			<div id="${id}_Queries" style="width: 100%; height: 100%" data-dojo-props="title:'${i18n.title}', iconClass:'iconCluster'" data-dojo-type="dijit.layout.BorderContainer">
+			<div id="${id}_PublishedQueries" style="width: 100%; height: 100%" data-dojo-props="title:'${i18n.title}', iconClass:'iconCluster'" data-dojo-type="dijit.layout.BorderContainer">
 				<div id="${id}QueryToolbar" class="topPanel" data-dojo-props="region: 'top'" data-dojo-type="dijit.Toolbar">
 					<div id="${id}Refresh" data-dojo-attach-event="onClick:_onRefresh" data-dojo-type="dijit.form.Button" data-dojo-props='iconClass:"iconRefresh"'>${i18n.Refresh}</div>
 					<span data-dojo-type="dijit.ToolbarSeparator"></span>
@@ -14,7 +14,7 @@
 					<div id="${id}Activate" data-dojo-attach-event="onClick:_onActivate" data-dojo-type="dijit.form.Button">${i18n.Activate}</div>
 					<div id="${id}Deactivate" data-dojo-attach-event="onClick:_onDeactivate" data-dojo-type="dijit.form.Button">${i18n.Deactivate}</div>
 					<span data-dojo-type="dijit.ToolbarSeparator"></span>
-					<img id="${id}IconFilter" src="img/noFilter.png" class="iconNoFilter"/>
+					<img id="${id}IconFilter" src="/esp/files/img/noFilter.png" class="iconNoFilter"/>
                     <div id="${id}FilterDropDown" data-dojo-type="dijit.form.DropDownButton">
                         <span>${i18n.Filter}</span>
                         <div data-dojo-type="dijit.TooltipDialog" class="toolTip">

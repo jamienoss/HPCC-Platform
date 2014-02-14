@@ -34,6 +34,7 @@ define({ root:
     SplitPrefix: "Split Prefix",
     Summary: "Summary",
     Target: "Target",
+    TargetName: "Target Name",
     UseSingleConnection: "Use Single Connection",
     Workunit: "Workunit",
     Wrap: "Wrap",
@@ -42,5 +43,6 @@ define({ root:
 //end v1.x content
 ,
 "es": true,
-"zh": true
+"zh": true,
+"hu": true
 });

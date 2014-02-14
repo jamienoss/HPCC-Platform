@@ -667,7 +667,7 @@ importItem
                         }
     | importSelectorList AS '*'
                         {
-                            if (queryLegacyEclSemantics())
+                            if (queryLegacyImportSemantics())
                                 parser->reportWarning(ERR_DEPRECATED, $1.pos, "IMPORT <module> AS * is deprecated, use IMPORT * FROM <module>");
                             else
                                 parser->reportError(ERR_DEPRECATED, $1.pos, "IMPORT <module> AS * is deprecated, use IMPORT * FROM <module>");
@@ -3475,6 +3475,12 @@ outputWuFlag
                             $$.setPosition($1);
                         }
     | commonAttribute
+    | MAXSIZE '(' constExpression ')'
+                        {
+                            parser->normalizeExpression($3, type_int, false);
+                            $$.setExpr(createExprAttribute(maxSizeAtom, $3.getExpr()));
+                            $$.setPosition($1);
+                        }
     ;
 
 optCommaTrim
@@ -3850,22 +3856,10 @@ funcRetType
     | propType
     | setType
     | explicitDatasetType
+    | explicitRowType
     | explicitDictionaryType
     | transformType
  // A plain record would be better, but that then causes a s/r error in knownOrUnknownId because scope
-    | ROW '(' recordDef ')'     
-                        {
-                            OwnedHqlExpr expr = $3.getExpr();
-                            $$.setType(makeOriginalModifier(makeRowType(expr->getType()), LINK(expr)));
-                            $$.setPosition($1);
-                        }
-    | LINKCOUNTED ROW '(' recordDef ')'       
-                        {
-                            OwnedHqlExpr expr = $4.getExpr();
-                            Owned<ITypeInfo> rowType = makeOriginalModifier(makeRowType(expr->getType()), LINK(expr));
-                            $$.setType(setLinkCountedAttr(rowType, true));
-                            $$.setPosition($1);
-                        }
     | recordDef         {
                             OwnedHqlExpr expr = $1.getExpr();
 //                          $$.setType(makeOriginalModifier(makeRowType(expr->getType()), LINK(expr)));
@@ -6038,10 +6032,7 @@ primexpr1
                         }
     | COUNT             {
                             $$.setExpr(parser->getActiveCounter($1));
-                            if (queryLegacyEclSemantics())
-                                parser->reportWarning(ERR_COUNTER_NOT_COUNT, $1.pos, "Use of COUNT instead of COUNTER is deprecated");
-                            else
-                                parser->reportError(ERR_COUNTER_NOT_COUNT, $1.pos, "Use of COUNT instead of COUNTER is deprecated");
+                            parser->reportError(ERR_COUNTER_NOT_COUNT, $1.pos, "Use of COUNT instead of COUNTER is deprecated");
                         }
     | COUNTER               {
                             $$.setExpr(parser->getActiveCounter($1));
