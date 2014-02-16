@@ -233,10 +233,15 @@ records
     ;
 
 recordset
-    : RECORD record_options fields END
+    : RECORD all_record_options fields END
                                     { $$.first($1).add($2).add($3).add($4); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
     | '{' fields '}'                { $$.first($1).add($2).add($3); }
 //   'records' used to be, still could/should be, fields
+    ;
+
+all_record_options
+    : record_options                { $$.first($1); }
+    | '(' expr ')'                  { $$.first($1).add($2).add($3); }//Could add '(' to list and "( )" as the parent node.
     ;
 
 record_options
@@ -251,10 +256,9 @@ rhs
     ;
 
 set
-    : '[' records ']'               { $$.first($1).add($2).add($3); }
-    | '[' ']'                       { $$.first($1).add($2); }
+    : '[' records ']'               { $$.first($2).add($1).add($3); }
+    | '[' ']'                       { $$.first().add($1).add($2); }
     ;
-
 
 type
     : TYPE fields END             { $$.first($1).add($2).add($3); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics

@@ -38,11 +38,20 @@ public:
     virtual ParserData & add(const ParserData & token2add);
     virtual ParserData & add(const TokenKind & _kind, const ECLlocation & _pos);
 
+    /*
+    virtual ParserData & addLeft(const ParserData & token2add);
+    virtual ParserData & addRight(const ParserData & token2add);
+    virtual ParserData & addLeft(const TokenKind & _kind, const ECLlocation & _pos);
+    virtual ParserData & addRight(const TokenKind & _kind, const ECLlocation & _pos);
+	*/
+
     const ECLlocation & queryNodePosition() const;
     ISyntaxTree * getNode();
     virtual ISyntaxTree * createSyntaxTree(const ParserData & token2add);
     virtual ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
+
+
 
 
 public:

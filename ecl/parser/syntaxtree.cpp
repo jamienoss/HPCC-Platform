@@ -85,6 +85,10 @@ void SyntaxTree::printTree()
     str = "}\n";
     out->write(str.length(), str.str());
     io->close();
+
+    StringBuffer runDot = "dot -Tpdf -O ";
+    runDot.append(fileName);
+    system(runDot.str());
 }
 
 void SyntaxTree::printXml(Printer * print)
