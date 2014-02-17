@@ -25,6 +25,17 @@
 class ISyntaxTree;
 typedef unsigned short TokenKind;
 
+enum nodeKinds
+{
+	unknown,
+	parent,
+	emptyParent,
+	child,
+	left,
+	right
+};
+
+
 //----------------------------------ParserData--------------------------------------------------------------------
 class ParserData
 {
@@ -32,11 +43,12 @@ public:
     ParserData();
     ~ParserData();
 
-	ParserData & first();
-    ParserData & first(const ParserData & token2add);
-    ParserData & first(const TokenKind & _kind, const ECLlocation & _pos);
-    virtual ParserData & add(const ParserData & token2add);
-    virtual ParserData & add(const TokenKind & _kind, const ECLlocation & _pos);
+    ParserData & clearToken();
+	ParserData & setEmptyNode();
+    ParserData & setNode(const ParserData & token2add);
+    ParserData & setNode(const TokenKind & _kind, const ECLlocation & _pos);
+    virtual ParserData & addChild(const ParserData & token2add);
+    virtual ParserData & addChild(const TokenKind & _kind, const ECLlocation & _pos);
 
     /*
     virtual ParserData & addLeft(const ParserData & token2add);
@@ -51,11 +63,12 @@ public:
     virtual ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
 
-
-
+// add an enum for ParserData type, i.e. emptyParent, parent, child, left, right etc. Then use this as an extra condition test in add() to emulate transferChildren().
+// then add functions, parent(), emptyParent(), addLeft, addRight.
 
 public:
     ECLlocation pos;
+    nodeKinds nodeKind;
     unsigned kind;
     union
     {

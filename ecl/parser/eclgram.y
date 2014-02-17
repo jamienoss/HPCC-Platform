@@ -58,11 +58,18 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     DIR
     DOTDOT ".."
     END
+    EQ "=="
     FLOAT
     FROM
+    GE ">="
+    GT ">"
     ID
+    IFBLOCK
     IMPORT
     INTEGER
+    LE "<="
+    LT "<"
+    NE "!="
     REAL
     RECORD
     TYPE
@@ -74,14 +81,10 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 %left ';' ',' '.'
 %left '+' '*' '/'
 %left UPDIR
-
+%left NE EQ LE GE LT GT
 
 %right '-'
 %right '='
-
-
-// When writing actions $$.first($n) must be used before $$.add($n)
-
 
 %%
 //================================== begin of syntax section ==========================
@@ -91,177 +94,193 @@ code
     ;
 
 eclQuery
-    : eclQuery ';' eclQuery _EOF_   { $$.first($2).add($1).add($3); }
-    | eclQuery ';'                  { $$.first($2).add($1); }
-    | line_of_code                  { $$.first($1); }
-    | ';' line_of_code              { $$.first($2); }
+    : eclQuery ';' eclQuery _EOF_   { $$.setNode($2).addChild($1).addChild($3); }
+    | eclQuery ';'                  { $$.setNode($2).addChild($1); }
+    | line_of_code                  { $$.setNode($1); }
+    | ';' line_of_code              { $$.setNode($2); }
     ;
 
 line_of_code
-    : expr                          { $$.first($1); }
-    | IMPORT imports                { $$.first($1).add($2); }
-    | assignment                    { $$.first($1); }
+    : expr                          { $$.setNode($1); }
+    | IMPORT imports                { $$.setNode($1).addChild($2); }
+    | assignment                    { $$.setNode($1); }
     ;
 
 //-----------Listed Alphabetical from here on in------------------------------------------
 
+all_record_options
+    : record_options                { $$.setNode($1); }
+    | '(' expr ')'                  { $$.setEmptyNode().addChild($1).addChild($2).addChild($3); }//Could add '(' to list and "( )" as the parent node.
+    ;
+
 assignment
-    : lhs ASSIGN rhs                { $$.first($2).add($1).add($3); } /*should this be an expr???*/
+    : lhs ASSIGN rhs                { $$.setNode($2).addChild($1).addChild($3); } /*should this be an expr???*/
     ;
 
 constant
-    : BOOLEAN                       { $$.first($1); }
-    | CHARACTER                     { $$.first($1); }
-    | DECIMAL                       { $$.first($1); }
-    | FLOAT                         { $$.first($1); }
-    | INTEGER                       { $$.first($1); }
+    : BOOLEAN                       { $$.setNode($1); }
+    | CHARACTER                     { $$.setNode($1); }
+    | DECIMAL                       { $$.setNode($1); }
+    | FLOAT                         { $$.setNode($1); }
+    | INTEGER                       { $$.setNode($1); }
     ;
 
 expr
-    : '+' expr                      { $$.first($1).add($2); }
-    | '-' expr                      { $$.first($1).add($2); }
-    | expr '+' expr                 { $$.first($2).add($1).add($3); }
-    | expr '-' expr                 { $$.first($2).add($1).add($3); }
-    | expr '*' expr                 { $$.first($2).add($1).add($3); }
-    | expr '/' expr                 { $$.first($2).add($1).add($3); }
-    | expr '=' expr                 { $$.first($2).add($1).add($3); }
-    | constant                      { $$.first($1); }
-    | set                           { $$.first($1); }
-    | id_list                           { $$.first($1); } /* ugly, re-think, especially since rhs can be an expr!!! */
-    | '(' expr ')'                  { $$.first($2); } /*might want to re-think discarding parens - I don't think so!*/
-    | '(' ')'                       { $$.first($1).add($2); }
+    : '+' expr                      { $$.setNode($1).addChild($2); }
+    | '-' expr                      { $$.setNode($1).addChild($2); }
+    | expr_op_expr                  { $$.setNode($1); }
+    | constant                      { $$.setNode($1); }
+    | set                           { $$.setNode($1); }
+    | id_list                       { $$.setNode($1); }
+    | '(' expr ')'                  { $$.setNode($2); } /*might want to re-think discarding parens - I don't think so!*/
+    | '(' ')'                       { $$.setNode($1).addChild($2); }
+    ;
+
+expr_op_expr
+    : expr '+' expr                 { $$.setNode($2).addChild($1).addChild($3); }
+    | expr '-' expr                 { $$.setNode($2).addChild($1).addChild($3); }
+    | expr '*' expr                 { $$.setNode($2).addChild($1).addChild($3); }
+    | expr '/' expr                 { $$.setNode($2).addChild($1).addChild($3); }
+    | expr '=' expr                 { $$.setNode($2).addChild($1).addChild($3); }
+    | expr NE expr                  { $$.setNode($2).addChild($1).addChild($3); }
+    | expr EQ expr                  { $$.setNode($2).addChild($1).addChild($3); }
+    | expr LE expr                  { $$.setNode($2).addChild($1).addChild($3); }
+    | expr LT expr                  { $$.setNode($2).addChild($1).addChild($3); }
+    | expr GE expr                  { $$.setNode($2).addChild($1).addChild($3); }
+    | expr GT expr                  { $$.setNode($2).addChild($1).addChild($3); }
     ;
 
 field
-    : id_list                           { $$.first($1); }
-    | assignment                    { $$.first($1); }
- //   | identifier                    { $$.first($1); }
+    : id_list                       { $$.setNode($1); }
+    | assignment                    { $$.setNode($1); }
+    | ifblock                       { $$.setNode($1); }
+ //   | identifier                    { $$.setNode($1); }
     ;
 
 fields
-    : fields field ';'              { $$.first($1).add($2); }
-    | field ';'                     { $$.first(',', $1.queryNodePosition()).add($1); }
+    : fields field ';'              { $$.setNode($1).addChild($2); }
+    | field ';'                     { $$.setNode(',', $1.queryNodePosition()).addChild($1); }
     ;
 
 functions
-    : ID '(' parameters ')'         { $$.first($1).add($2).add($3).add($4); }
-    | ID '(' ')'                    { $$.first($1).add($2).add($3); }
-    | ID '{' parameters '}'         { $$.first($1).add($2).add($3).add($4); }
-    | ID '[' index_range ']'        { $$.first($1).add($2).add($3).add($4); }
+    : ID '(' parameters ')'         { $$.setNode($1).addChild($2).addChild($3).addChild($4); }
+    | ID '(' ')'                    { $$.setNode($1).addChild($2).addChild($3); }
+    | ID '{' parameters '}'         { $$.setNode($1).addChild($2).addChild($3).addChild($4); }
+    | ID '[' index_range ']'        { $$.setNode($1).addChild($2).addChild($3).addChild($4); }
     ;
 
 identifier
-    : identifier '.' identifier     { $$.first($2).add($1).add($3); } //Might want to make '.' abstract
-    | functions                     { $$.first($1); }
-    | ID                            { $$.first($1); }
+    : identifier '.' identifier     { $$.setNode($2).addChild($1).addChild($3); } //Might want to make '.' abstract
+    | functions                     { $$.setNode($1); }
+    | ID                            { $$.setNode($1); }
+    ;
+
+ifblock
+    : IFBLOCK '(' expr ')' fields END
+                                    { $$.setNode($1).addChild($2).addChild($3).addChild($4).addChild($5); }
     ;
 
 imports
-    : module_list                   { $$.first($1); }
-    | module_symbols AS ID          { $$.first($2).add($1).add($3); }
-    | module_list FROM  module_from { $$.first($2).add($1).add($3); }
+    : module_list                   { $$.setNode($1); }
+    | module_symbols AS ID          { $$.setNode($2).addChild($1).addChild($3); }
+    | module_list FROM  module_from { $$.setNode($2).addChild($1).addChild($3); }
     ;
 
 id_list
-    : id_list identifier            { $$.first($1).add($2); }  /*This needs further thought inc. whether to swap order of $1 & $2*/
-    | identifier                    { $$.first($1); }
+    : id_list identifier            { $$.setNode($1).addChild($2); }  /*This needs further thought inc. whether to swap order of $1 & $2*/
+    | identifier                    { $$.setNode($1); }
     ;
 
 index
-    : INTEGER                       { $$.first($1); }
-    | identifier                    { $$.first($1); }//maybe reduce to just ID
+    : INTEGER                       { $$.setNode($1); }
+    | identifier                    { $$.setNode($1); }//maybe reduce to just ID
     ;
 
 index_range
-    : index_range range_op index    { $$.first($2).add($1).add($3); }
-    | index_range range_op          { $$.first($2).add($1); }
-    | range_op index                { $$.first($1).add($2); }
-    | index                         { $$.first($1); }
+    : index_range range_op index    { $$.setNode($2).addChild($1).addChild($3); }
+    | index_range range_op          { $$.setNode($2).addChild($1); }
+    | range_op index                { $$.setNode($1).addChild($2); }
+    | index                         { $$.setNode($1); }
     ;
 
 lhs
-    : id_list                       { $$.first($1); }
+    : id_list                       { $$.setNode($1); }
     ;
 
 module_from
-    : identifier                    { $$.first($1); }
-    | DIR                           { $$.first($1); }
+    : identifier                    { $$.setNode($1); }
+    | DIR                           { $$.setNode($1); }
     ;
 
 module_list
     : module_list ',' module_symbols
-                                    { $$.first($1).add($3); }
-    | module_symbols                { $$.first(',', $1.queryNodePosition()).add($1); }
+                                    { $$.setNode($1).addChild($3); }
+    | module_symbols                { $$.setNode(',', $1.queryNodePosition()).addChild($1); }
     ;
 
 module_symbols
-//    : module_symbols '.' identifier  { $$.first($1).add($2).add($3); }
+//    : module_symbols '.' identifier  { $$.setNode($1).addChild($2).addChild($3); }
     : module_symbols UPDIR module_symbols
-                                    { $$.first($2).add($1).add($3); }
-    | module_symbols UPDIR          { $$.first($2).add($1); } //MORE might need to consider strings and not just char tokens
-    | identifier                    { $$.first($1); }
-    | '$'                           { $$.first($1); }
-//    | ID                            { $$.first($1); }
+                                    { $$.setNode($2).addChild($1).addChild($3); }
+    | module_symbols UPDIR          { $$.setNode($2).addChild($1); } //MORE might need to consider strings and not just char tokens
+    | identifier                    { $$.setNode($1); }
+    | '$'                           { $$.setNode($1); }
+//    | ID                            { $$.setNode($1); }
     ;
 
 parameter
-    : expr                          { $$.first($1); }
-    | ','                           { $$.first($1); }
-    | ',' assignment                { $$.first($2); } /* not obvious why you'd want to shape the ST like this, i.e. miss out the ','*/
-    | assignment                    { $$.first($1); }
+    : expr                          { $$.setNode($1); }
+    | ','                           { $$.setNode($1); }
+    | ',' assignment                { $$.setNode($2); } /* not obvious why you'd want to shape the ST like this, i.e. miss out the ','*/
+    | assignment                    { $$.setNode($1); }
     ;
 
 parameters
-    : parameters ',' parameter      { $$.first($1).add($2).add($3); }
-    | parameters ','                { $$.first($1).add($2); }
-    | parameter                     { $$.first(',', $1.queryNodePosition()).add($1); } /*perhaps re-think - this creates a comma list even if only one parameter*/
+    : parameters ',' parameter      { $$.setNode($1).addChild($2).addChild($3); }
+    | parameters ','                { $$.setNode($1).addChild($2); }
+    | parameter                     { $$.setNode(',', $1.queryNodePosition()).addChild($1); } /*perhaps re-think - this creates a comma list even if only one parameter*/
     ;
 
 range_op
-    : DOTDOT                        { $$.first($1); }
-    | ':'                           { $$.first($1); }//If this conflicts with existing ecl then take out
+    : DOTDOT                        { $$.setNode($1); }
+    | ':'                           { $$.setNode($1); }//If this conflicts with existing ecl then take out
                                                      //otherwise might help, most math lang uses this.
     ;
 
 record
-    : expr                          { $$.first($1); }
+    : expr                          { $$.setNode($1); }
     ;
 
 records
-    : records ',' record            { $$.first($1).add($2).add($3); }
-    | record                        { $$.first(',', $1.queryNodePosition()).add($1); }
+    : records ',' record            { $$.setNode($1).addChild($2).addChild($3); }
+    | record                        { $$.setNode(',', $1.queryNodePosition()).addChild($1); }
     ;
 
 recordset
     : RECORD all_record_options fields END
-                                    { $$.first($1).add($2).add($3).add($4); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
-    | '{' fields '}'                { $$.first($1).add($2).add($3); }
+                                    { $$.setNode($1).addChild($2).addChild($3); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
+    | '{' fields '}'                { $$.setNode($1).addChild($2).addChild($3); }
 //   'records' used to be, still could/should be, fields
     ;
 
-all_record_options
-    : record_options                { $$.first($1); }
-    | '(' expr ')'                  { $$.first($1).add($2).add($3); }//Could add '(' to list and "( )" as the parent node.
-    ;
-
 record_options
-    : record_options ',' identifier { $$.first($2).add($1).add($3); }
-    |                               { }//Need to change first & add to not account for empty
+    : record_options ',' identifier { $$.setNode($2).addChild($1).addChild($3); }
+    |                               { $$.setEmptyNode(); }//Need to change first & add to not account for empty
     ;
 
 rhs
-    : expr                          { $$.first($1); }
-    | recordset                     { $$.first($1); }
-    | type                          { $$.first($1); }
+    : expr                          { $$.setNode($1); }
+    | recordset                     { $$.setNode($1); }
+    | type                          { $$.setNode($1); }
     ;
 
 set
-    : '[' records ']'               { $$.first($2).add($1).add($3); }
-    | '[' ']'                       { $$.first().add($1).add($2); }
+    : '[' records ']'               { $$.setNode($2).addChild($1).addChild($3); }
+    | '[' ']'                       { $$.setEmptyNode().addChild($1).addChild($2); }
     ;
 
 type
-    : TYPE fields END             { $$.first($1).add($2).add($3); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
+    : TYPE fields END             { $$.setNode($1).addChild($2); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
     ;
 
 %%

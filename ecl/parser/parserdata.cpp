@@ -32,27 +32,38 @@ const ECLlocation & ParserData::queryNodePosition() const
     return node->queryPosition();
 }
 
-ParserData & ParserData::first()
+ParserData & ParserData::clearToken()
 {
     pos.clear();
-    kind = 0;
-    node.set(NULL);//needs to change
+    kind = 0;//This is 'end of file', pick another?
+    nodeKind = unknown;
+    node.clear();
     return *this;
 }
 
-ParserData & ParserData::first(const ParserData & token2add)
+ParserData & ParserData::setEmptyNode()
 {
-    first();
-    return add(token2add);
+	//clearToken();
+	node.clear();
+	nodeKind = emptyParent;
+	node.set(createSyntaxTree(0, pos));//Might want to better this?
+	return *this;
+}
+ParserData & ParserData::setNode(const ParserData & token2add)
+{
+    clearToken();
+	nodeKind = token2add.nodeKind;
+    return addChild(token2add);
 }
 
-ParserData & ParserData::first(const TokenKind & _kind, const ECLlocation & _pos)
+ParserData & ParserData::setNode(const TokenKind & _kind, const ECLlocation & _pos)
 {
-    first();
-    return add(_kind, _pos);
+    clearToken();
+	nodeKind = parent;
+    return addChild(_kind, _pos);
 }
 
-ParserData & ParserData::add(const TokenKind & _kind, const ECLlocation & _pos)
+ParserData & ParserData::addChild(const TokenKind & _kind, const ECLlocation & _pos)
 {
     if(!node)
         node.set(createSyntaxTree(_kind, _pos));
@@ -62,17 +73,21 @@ ParserData & ParserData::add(const TokenKind & _kind, const ECLlocation & _pos)
     return *this;
 }
 
-ParserData & ParserData::add(const ParserData & token2add)
+ParserData & ParserData::addChild(const ParserData & token2add)
 {
+	bool emptyToken2add  = token2add.nodeKind == emptyParent ? true : false;
     if(!token2add.node && !node)
     {
         node.set(createSyntaxTree(token2add));
     }
     else if(token2add.node && node)
     {
-        node->addChild(token2add.node);
+        if(!emptyToken2add)
+            node->addChild(token2add.node);
+        else
+            node->transferChildren(token2add.node);
     }
-    else if(token2add.node && !node)
+    else if(token2add.node && !node)// this propergates possible emptyNode up tree, do we want this? Perhaps.
     {
         node.set(token2add.node);
     }

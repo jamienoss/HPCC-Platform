@@ -81,36 +81,36 @@ bison_file
     ;
 
 grammar_item
-    : grammar_item grammar_rule     { $$.first($1).add($2); }
-    | grammar_rule                  { $$.first(',', $1.pos).add($1); }
+    : grammar_item grammar_rule     { $$.setNode($1).addChild($2); }
+    | grammar_rule                  { $$.setNode(',', $1.pos).addChild($1); }
     ;
 
 grammar_rule
     : NONTERMINAL grammar_rules ';'
-                                    { $1.kind = 300;/*nonTerminalDefKind*/ $$.first($1).add($2);}
+                                    { $1.kind = 300;/*nonTerminalDefKind*/ $$.setNode($1).addChild($2);}
     ;
 
 grammar_rules
     : grammar_rules '|' terminal_productions
-                                    { $$.first($2).add($3).add($1); }/*
+                                    { $$.setNode($2).addChild($3).addChild($1); }/*
                                         /*$$ = $1;
                                         ASyntaxTree * temp = temp->createASyntaxTree($2);
                                         temp->transferChildren($3);
                                         $$->addChild(temp);
                                     }*/
     | grammar_rules '|'
-                                    { $$.first($2).add($1); }/*
+                                    { $$.setNode($2).addChild($1); }/*
                                         /*$$ = $1;
                                         ASyntaxTree * temp = temp->createASyntaxTree($2);
                                         $$->addChild(temp);
                                     }*/
-    | ':' terminal_productions      { $$.first($1).add($2); }/*
+    | ':' terminal_productions      { $$.setNode($1).addChild($2); }/*
                                         /*$$ = $$->createASyntaxTree();
                                         ASyntaxTree * temp = temp->createASyntaxTree($1);
                                         temp->transferChildren($2);
                                         $$->addChild(temp);
                                     }*/
-    | ':'                           { $$.first($1); }/*
+    | ':'                           { $$.setNode($1); }/*
                                         /*$$ = $$->createASyntaxTree();
                                         ASyntaxTree * temp = temp->createASyntaxTree($1);
                                         $$->addChild(temp);
@@ -118,25 +118,25 @@ grammar_rules
     ;
 
 terminal_productions
-    : terminal_list                 { $$.first($1); }
+    : terminal_list                 { $$.setNode($1); }
   //  | terminal_list production      { $$ = $1; $$->addChild($2); }
   //  | production                    { $$ = $$->createASyntaxTree(); $$->addChild($1); }
     ;
 
 production
-    : CODE                          { $$.first($1); }
+    : CODE                          { $$.setNode($1); }
     ;
 
 terminals
-    : NONTERMINAL                   { $$.first($1); }
-    | TERMINAL                      { $$.first($1); }
-    | PREC                          { $$.first($1); }
-    | production                    { $$.first($1); }
+    : NONTERMINAL                   { $$.setNode($1); }
+    | TERMINAL                      { $$.setNode($1); }
+    | PREC                          { $$.setNode($1); }
+    | production                    { $$.setNode($1); }
     ;
 
 terminal_list
-    : terminal_list terminals       { $$.first($1).add($2); }
-    | terminals                     { $$.first(',', $1.pos).add($1); }
+    : terminal_list terminals       { $$.setNode($1).addChild($2); }
+    | terminals                     { $$.setNode(',', $1.pos).addChild($1); }
     ;
 
 %%

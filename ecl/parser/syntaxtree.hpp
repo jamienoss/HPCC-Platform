@@ -45,6 +45,7 @@ public :
     inline void tabDecrease() { --indentation; }
 };
 
+typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 interface ISyntaxTree : public IInterface
 {
@@ -55,13 +56,14 @@ interface ISyntaxTree : public IInterface
     virtual void appendSTvalue(StringBuffer & str) = 0;
 
     virtual ISyntaxTree * queryChild(unsigned i) = 0;
+    virtual SyntaxTreeArray & getChildren() = 0;
 
     virtual void addChild(ISyntaxTree * addition) = 0;
+    virtual void transferChildren(ISyntaxTree * addition) = 0;
+
     //virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
     virtual void extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind) = 0;
 };
-
-typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
 
 class SyntaxTree : public CInterfaceOf<ISyntaxTree>
 {
@@ -76,7 +78,10 @@ public:
     void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
     virtual ISyntaxTree * queryChild(unsigned i);
+    virtual SyntaxTreeArray & getChildren();
+
     virtual void addChild(ISyntaxTree * addition);
+    virtual void transferChildren(ISyntaxTree * addition);
 
     //virtual TokenKind getKind();
     virtual const ECLlocation & queryPosition() const { return pos; }

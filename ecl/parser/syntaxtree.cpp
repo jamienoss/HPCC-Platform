@@ -51,8 +51,6 @@ void SyntaxTree::printTree()
 
     fileName.append(pos.sourcePath->str());
 
-    std::cout << "Filename\n" << fileName.str() << "\n";
-
     if(XML)
         fileName.append(".xgmml");
     else
@@ -159,10 +157,23 @@ void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
     printNode(nodeNum, out, text, "\"0.66,0.5,1\"");
 }
 
-void SyntaxTree::addChild(ISyntaxTree * addition) //MORE: Should maybe use vectors here, talk to Gavin.
+void SyntaxTree::addChild(ISyntaxTree * addition)
 {
     children.append(*addition);
     addition = NULL;
+}
+
+void SyntaxTree::transferChildren(ISyntaxTree * addition)
+{
+    ForEachItemIn(i,addition->getChildren())
+	{
+        children.append(*addition->queryChild(i));
+	}
+}
+
+SyntaxTreeArray & SyntaxTree::getChildren()
+{
+	return children;
 }
 
 ISyntaxTree * SyntaxTree::queryChild(unsigned i)

@@ -204,6 +204,7 @@ AS                       { setLex(AS); return AS; }
 END                      { setLex(END); return END; }
 FALSE                    { setBool; return BOOLEAN; }
 FROM                     { setLex(FROM); return FROM; }
+IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 RECORD                   { setLex(RECORD); return RECORD; }
 TRUE                     { setBool; return BOOLEAN; }
@@ -232,11 +233,15 @@ TYPE                     { setLex; return TYPE; }
 
 \'[^\n]*\'               { setChar; return CHARACTER; }
 
-
-
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
 ";"+[; \t\r]*            { setLex(';'); return ';'; }
+"!="                     { setLex(NE); return NE; }
+"=="                     { setLex(EQ); return EQ; }
+"<="                     { setLex(LE); return LE; }
+">="                     { setLex(GE); return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
+"<"                      { setLex(LT); return LT; }
+">"                      { setLex(GT); return GT; }
 
 "+"+[+ \t\r]*            { setLex('+'); return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
 "-"+[- \t\r]*            { char op = foldMinus(yytext, yyleng); setLex(op); return op; }
