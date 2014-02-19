@@ -64,7 +64,7 @@ class EclLexer
 public:
     EclLexer();
     EclLexer(IFileContents * queryContents);
-    ~EclLexer();
+    virtual ~EclLexer();
 
     void updatePos(unsigned delta);
     void resetPos();

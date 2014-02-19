@@ -37,7 +37,7 @@ class AnalyserPD;
 #define YY_DECL extern int ecl3yylex(YYSTYPE * yylval_param, AnalyserParser * parser, yyscan_t yyscanner)
 
  //--------------------------------------------------------------------------------
-static inline void setId(YYSTYPE * yylval, const char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, unsigned _tokenKind)
+static inline void setId(YYSTYPE * yylval, const char * tokenText, unsigned txtLen, int lineno, AnalyserLexer & lexer, unsigned _tokenKind)
 {
     //std::cout << tokenText << "\n";
 
@@ -47,7 +47,7 @@ static inline void setId(YYSTYPE * yylval, const char * tokenText, unsigned txtL
     lexer.updatePos(txtLen);
 }
  //--------------------------------------------------------------------------------
-static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
+static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, AnalyserLexer & lexer)
 {
     //std::cout << (char)tokenKind << "\n";
 

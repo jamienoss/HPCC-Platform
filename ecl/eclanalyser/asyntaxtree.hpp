@@ -38,7 +38,8 @@ public :
     void setSymbolList(std::vector <std::string> & list);
     void printSymbolList();
 
-    static std::vector <std::string> * symbolList;
+    //static std::vector <std::string> * symbolList;
+    static IArrayOf<StringBuffer> symbolList;
 
 protected:
     AnalyserST();

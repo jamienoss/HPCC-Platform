@@ -22,7 +22,7 @@
 #include <cstring>
 #include "bisongram.h"
 
-std::vector <std::string> * AnalyserST::symbolList = NULL;
+//std::vector <std::string> * AnalyserST::symbolList = NULL;
 
 ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind)
 {
@@ -34,7 +34,7 @@ ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const 
     return AnalyserIdST::createSyntaxTree(_pos, _id, _kind);
 }
 //----------------------------------AnalyserST--------------------------------------------------------------------
-AnalyserST::AnalyserST() { symbolList = NULL; }
+AnalyserST::AnalyserST() { /*symbolList = NULL;*/ }
 
 /*void AnalyserIdST::printTree()
 {

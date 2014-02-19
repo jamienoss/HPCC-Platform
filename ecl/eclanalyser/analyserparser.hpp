@@ -56,8 +56,8 @@ class AnalyserLexer : public EclLexer
 {
 public:
     AnalyserLexer(IFileContents * queryContents);
-    ~AnalyserLexer();
-    void init(IFileContents * queryContents);
+    virtual ~AnalyserLexer();
+    virtual void init(IFileContents * queryContents);
 
     unsigned nestCounter;
     unsigned productionLineNo;
