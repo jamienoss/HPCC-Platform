@@ -25,10 +25,13 @@
 class AnalyserPD : public ParserData
 {
 public:
-    virtual ISyntaxTree * createSyntaxTree(const AnalyserPD & token2add);
+    AnalyserPD() : ParserData() {}
+
+    virtual ParserData & setEmptyNode();
+    virtual ISyntaxTree * createSyntaxTree(const ParserData & token2add);
     virtual ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
-    virtual ParserData & add(const AnalyserPD & token2add);
-    virtual ParserData & add(const TokenKind & _kind, const ECLlocation & _pos);
+    virtual ParserData & addChild(const ParserData & token2add);
+    virtual ParserData & addChild(const TokenKind & _kind, const ECLlocation & _pos);
 };
 
 #endif

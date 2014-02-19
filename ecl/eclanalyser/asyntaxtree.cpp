@@ -33,6 +33,11 @@ ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const 
 {
     return AnalyserIdST::createSyntaxTree(_pos, _id, _kind);
 }
+
+ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind)
+{
+    return AnalyserStringST::createSyntaxTree(_pos, _text, _kind);
+}
 //----------------------------------AnalyserST--------------------------------------------------------------------
 AnalyserST::AnalyserST() { /*symbolList = NULL;*/ }
 
@@ -210,6 +215,7 @@ void AnalyserST::printSymbolList()
 
 */
 
+extern void analyserAppendParserTokenText(StringBuffer & target, unsigned tok);
 
 //-----------------------------------------------------------------------------------------------------------------------
 
@@ -219,6 +225,22 @@ ISyntaxTree * AnalyserPuncST::createSyntaxTree(const ECLlocation & _pos, const T
 }
 
 AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind) : AnalyserST(), PuncSyntaxTree(_pos, _kind) {}
+
+void AnalyserPuncST::printNode(unsigned * nodeNum, IIOStream * out)
+{
+    StringBuffer text;
+    analyserAppendParserTokenText(text, value);
+    //text.append(value);
+    if(value < 256)
+        SyntaxTree::printNode(nodeNum, out, text, "\"0.25,0.5,1\"");
+    else
+        SyntaxTree::printNode(nodeNum, out, text, "\"1.0,0.5,1\"");
+}
+
+void AnalyserPuncST::appendSTvalue(StringBuffer & str)
+{
+    analyserAppendParserTokenText(str, value);
+}
 //-----------------------------------------------------------------------------------------------------------------------
 ISyntaxTree * AnalyserIdST::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind)
 {
@@ -229,4 +251,21 @@ AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenK
 {
     kind = _kind;
 }
+//-----------------------------------------------------------------------------------------------------------------------
+ISyntaxTree * AnalyserStringST::createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind)
+{
+    return new AnalyserStringST(_pos, _text, _kind);
+}
+
+AnalyserStringST::AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind) : AnalyserST(), SyntaxTree(_pos)
+{
+    kind = _kind;
+    text = _text.str();
+}
+
+void AnalyserStringST::printNode(unsigned * nodeNum, IIOStream * out)
+{
+    SyntaxTree::printNode(nodeNum, out, text.str(), "\"1.0,0.5,1\"");
+}
+
 //-----------------------------------------------------------------------------------------------------------------------

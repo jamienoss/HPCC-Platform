@@ -46,6 +46,15 @@ static inline void setId(YYSTYPE * yylval, const char * tokenText, unsigned txtL
     yylval->id = createIdAtom(tokenText, txtLen);
     lexer.updatePos(txtLen);
 }
+static inline void setString(YYSTYPE * yylval, const char * tokenText, unsigned txtLen, int lineno, AnalyserLexer & lexer, unsigned _tokenKind)
+{
+    //std::cout << tokenText << "\n";
+
+    yylval->kind = _tokenKind;
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    yylval->text = new StringBuffer(tokenText);
+    lexer.updatePos(txtLen);
+}
  //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, AnalyserLexer & lexer)
 {
@@ -59,7 +68,7 @@ static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen,
 #define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
 #define setTerminal setId(yylval, yytext, yyleng, yylineno, parser->getLexer(), TERMINAL)
 #define setNonTerminal setId(yylval, yytext, yyleng, yylineno, parser->getLexer(), NONTERMINAL)
-#define setProduction setId(yylval, parser->getLexer().productionText.str() , yyleng, parser->getLexer().productionLineNo, parser->getLexer(), PRODUCTION)
+#define setProduction setString(yylval, parser->getLexer().productionText.str() , yyleng, parser->getLexer().productionLineNo, parser->getLexer(), CODE)
 
 #define updatepos parser->getLexer().updatePos(yyleng)
 #define resetpos parser->getLexer().resetPos()

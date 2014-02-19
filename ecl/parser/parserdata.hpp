@@ -44,7 +44,7 @@ public:
     ~ParserData();
 
     ParserData & clearToken();
-	ParserData & setEmptyNode();
+	virtual ParserData & setEmptyNode();
     ParserData & setNode(const ParserData & token2add);
     ParserData & setNode(const TokenKind & _kind, const ECLlocation & _pos);
     virtual ParserData & addChild(const ParserData & token2add);
@@ -58,10 +58,11 @@ public:
 	*/
 
     const ECLlocation & queryNodePosition() const;
-    ISyntaxTree * getNode();
+    ISyntaxTree * getNode() const;
     virtual ISyntaxTree * createSyntaxTree(const ParserData & token2add);
     virtual ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);
+    bool isNode() const;
 
 // add an enum for ParserData type, i.e. emptyParent, parent, child, left, right etc. Then use this as an extra condition test in add() to emulate transferChildren().
 // then add functions, parent(), emptyParent(), addLeft, addRight.
@@ -74,6 +75,7 @@ public:
     {
         IValue * value;
         IIdAtom * id;
+        StringBuffer * text;
     };
 
 protected:

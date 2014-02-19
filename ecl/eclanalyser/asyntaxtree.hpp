@@ -24,7 +24,6 @@
 
 #include "parserdata.hpp"
 #include "syntaxtree.hpp"
-#include "asyntaxtree.hpp"
 #include "analyserpd.hpp"
 #include <string>
 #include <vector>
@@ -50,6 +49,8 @@ class AnalyserPuncST : public AnalyserST, PuncSyntaxTree
 {
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const TokenKind & _kind);
+    virtual void printNode(unsigned * nodeNum, IIOStream * out);
+    virtual void appendSTvalue(StringBuffer & str);
 
 private:
     AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
@@ -66,12 +67,25 @@ private:
     TokenKind kind;
 };
 //-----------------------------------------------------------------------------------------------------------------------
+class AnalyserStringST : public AnalyserST, SyntaxTree
+{
+public:
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);
+    //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
+    virtual void printNode(unsigned * nodeNum, IIOStream * out);
 
+private:
+    AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);
+    TokenKind kind;
+    StringBuffer text;
+};
+//-----------------------------------------------------------------------------------------------------------------------
 
 //inline ISyntaxTree * createAnalyserST(){ return AnalyserST::createSyntaxTree(); }
 //inline ISyntaxTree * createAnalyserST(const ECLlocation & _pos){ return AnalyserST::createSyntaxTree(_pos); }
 ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
 ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
+ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);
 
 
 

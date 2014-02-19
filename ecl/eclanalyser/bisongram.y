@@ -82,7 +82,7 @@ bison_file
 
 grammar_item
     : grammar_item grammar_rule     { $$.setNode($1).addChild($2); }
-    | grammar_rule                  { $$.setNode(',', $1.pos).addChild($1); }
+    | grammar_rule                  { $$.setNode($1); }
     ;
 
 grammar_rule
@@ -92,29 +92,11 @@ grammar_rule
 
 grammar_rules
     : grammar_rules '|' terminal_productions
-                                    { $$.setNode($2).addChild($3).addChild($1); }/*
-                                        /*$$ = $1;
-                                        ASyntaxTree * temp = temp->createASyntaxTree($2);
-                                        temp->transferChildren($3);
-                                        $$->addChild(temp);
-                                    }*/
+                                    { $2.addChild($2).addChild($3); $$.setEmptyNode().addChild($1).addChild($2); }
     | grammar_rules '|'
-                                    { $$.setNode($2).addChild($1); }/*
-                                        /*$$ = $1;
-                                        ASyntaxTree * temp = temp->createASyntaxTree($2);
-                                        $$->addChild(temp);
-                                    }*/
-    | ':' terminal_productions      { $$.setNode($1).addChild($2); }/*
-                                        /*$$ = $$->createASyntaxTree();
-                                        ASyntaxTree * temp = temp->createASyntaxTree($1);
-                                        temp->transferChildren($2);
-                                        $$->addChild(temp);
-                                    }*/
-    | ':'                           { $$.setNode($1); }/*
-                                        /*$$ = $$->createASyntaxTree();
-                                        ASyntaxTree * temp = temp->createASyntaxTree($1);
-                                        $$->addChild(temp);
-                                    }*/
+                                    { $$.setNode($1).addChild($2); }
+    | ':' terminal_productions      { $$.setNode($1).addChild($2); }
+    | ':'                           { $$.setNode($1); }
     ;
 
 terminal_productions
@@ -136,7 +118,26 @@ terminals
 
 terminal_list
     : terminal_list terminals       { $$.setNode($1).addChild($2); }
-    | terminals                     { $$.setNode(',', $1.pos).addChild($1); }
+    | terminals                     { $$.setEmptyNode().addChild($1); }
     ;
 
 %%
+
+void analyserAppendParserTokenText(StringBuffer & target, unsigned tok)
+{
+    if (tok == 0)
+    {
+        StringBuffer tokenName = yytname[tok];
+        tokenName.replaceString("\"", "");
+        target.append(tokenName.str());
+    }
+    else if (tok > 0 && tok < 256)
+        target.append((char)tok);
+    else if (tok > 258)
+    {
+        StringBuffer tokenName = yytname[tok-258+3];
+        tokenName.replaceString("\"", "");
+        target.append(tokenName.str()); //NOTE:+3 to buffer from '$end', '$error', and '$undefined' that Bison prefix is the list - yytname -with.
+                                          //-258 rather than 256 as Bison's 1st token starts at 258.
+    }
+}

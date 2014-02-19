@@ -19,10 +19,17 @@ ParserData::~ParserData()
 {
    //Release(value);
    //Release(id);
-    //node.clear();
+   //if(text)
+   //    delete(text);
+   //node.clear();
 }
 
-ISyntaxTree * ParserData::getNode()
+bool ParserData::isNode() const
+{
+    return node ? true : false;
+}
+
+ISyntaxTree * ParserData::getNode() const
 {
     return node.get();
 }
@@ -49,6 +56,8 @@ ParserData & ParserData::setEmptyNode()
 	node.set(createSyntaxTree(0, pos));//Might want to better this?
 	return *this;
 }
+
+
 ParserData & ParserData::setNode(const ParserData & token2add)
 {
     clearToken();
@@ -75,23 +84,25 @@ ParserData & ParserData::addChild(const TokenKind & _kind, const ECLlocation & _
 
 ParserData & ParserData::addChild(const ParserData & token2add)
 {
+    bool isNode = token2add.isNode();
 	bool emptyToken2add  = token2add.nodeKind == emptyParent ? true : false;
-    if(!token2add.node && !node)
+
+    if(!isNode && !node)
     {
         node.set(createSyntaxTree(token2add));
     }
-    else if(token2add.node && node)
+    else if(isNode && node)
     {
         if(!emptyToken2add)
             node->addChild(token2add.node);
         else
             node->transferChildren(token2add.node);
     }
-    else if(token2add.node && !node)// this propergates possible emptyNode up tree, do we want this? Perhaps.
+    else if(isNode && !node)// this propergates possible emptyNode up tree, do we want this? Perhaps.
     {
         node.set(token2add.node);
     }
-    else if(!token2add.node && node)
+    else if(!isNode && node)
     {
         node->addChild(createSyntaxTree(token2add));
     }

@@ -60,8 +60,6 @@ void SyntaxTree::printTree()
     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
     Owned<IIOStream> out = createIOStream(io);
 
-    std::cout << "\n\n\n" << fileName.str() << "\n";
-
     if(XML)
     {
         Printer * print = new Printer(0, &str);
@@ -281,7 +279,6 @@ void IdSyntaxTree::appendSTvalue(StringBuffer & str)
     str.append(id->str());
 }
 //------------------------------------------------------------------------------------------------------
-
 
 ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token)
 {
