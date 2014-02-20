@@ -19,10 +19,7 @@
 #include "asyntaxtree.hpp"
 #include "jstring.hpp"
 #include <iostream>
-#include <cstring>
 #include "bisongram.h"
-
-//std::vector <std::string> * AnalyserST::symbolList = NULL;
 
 ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind)
 {
@@ -39,7 +36,7 @@ ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffe
     return AnalyserStringST::createSyntaxTree(_pos, _text, _kind);
 }
 //----------------------------------AnalyserST--------------------------------------------------------------------
-AnalyserST::AnalyserST() { /*symbolList = NULL;*/ }
+AnalyserSymbols::AnalyserSymbols() { /*symbolList = NULL;*/ }
 
 /*void AnalyserIdST::printTree()
 {
@@ -154,52 +151,15 @@ void AnalyserIdST::printNode(unsigned * nodeNum, IIOStream * out)
 	out->write(str.length(), str.str());
 }
 */
-/*void AnalyserST::extractSymbols(std::vector <std::string> & symbolList, const TokenKind & _kind)
-{
-    if(children.ordinality())
-    {
-        ForEachItemIn(i,children)
-            children.item(i).extractSymbols(symbolList, kind);
-    }
 
-    // add only new symbols
-    unsigned m = symbolList.size();
-    std::string lexeme;
-    if(kind == _kind)
-    {
-        switch(kind)
-        {
-           case TERMINAL :
-           case NONTERMINAL :
-           {
-               lexeme = id->str();
-               for (unsigned i = 0; i < m; ++i)
-               {
-                   if(!symbolList[i].compare(lexeme))
-                       return;
-               }
-               symbolList.push_back(lexeme);
-               break;
-           }
-           case 300 :
-           {
-               lexeme = id->str();
-               symbolList.push_back(lexeme);
-               break;
-           }
-        }
-    }
+void AnalyserSymbols::setSymbolList(StringBufferArray & list)
+{
+    //symbolList = &list;
 }
 
-
-void AnalyserST::setSymbolList(std::vector <std::string> & list)
+void AnalyserSymbols::printSymbolList()
 {
-    symbolList = &list;
-}
-
-void AnalyserST::printSymbolList()
-{
-    unsigned n = symbolList->size();
+    /*unsigned n = symbolList->size();
     StringBuffer str;
     Owned<IFile> treeFile = createIFile("symbolList.txt");
     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
@@ -210,10 +170,8 @@ void AnalyserST::printSymbolList()
         str.append(((*symbolList)[i]).c_str()).append("\n");
     }
     out->write(str.length(), str.str());
-    io->close();
+    io->close();*/
 }
-
-*/
 
 extern void analyserAppendParserTokenText(StringBuffer & target, unsigned tok);
 
@@ -224,7 +182,7 @@ ISyntaxTree * AnalyserPuncST::createSyntaxTree(const ECLlocation & _pos, const T
     return new AnalyserPuncST(_pos, _kind);
 }
 
-AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind) : AnalyserST(), PuncSyntaxTree(_pos, _kind) {}
+AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind) : AnalyserSymbols(), PuncSyntaxTree(_pos, _kind) {}
 
 void AnalyserPuncST::printNode(unsigned * nodeNum, IIOStream * out)
 {
@@ -247,17 +205,42 @@ ISyntaxTree * AnalyserIdST::createSyntaxTree(const ECLlocation & _pos, IIdAtom *
     return new AnalyserIdST(_pos, _id, _kind);
 }
 
-AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind) : AnalyserST(), IdSyntaxTree(_pos, _id)
+AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind) : AnalyserSymbols(), IdSyntaxTree(_pos, _id)
 {
     kind = _kind;
 }
+
+void AnalyserIdST::extractSymbols(StringBufferArray & symbolList, TokenKind & _kind)
+{
+    if(children.ordinality())
+    {
+       ForEachItemIn(i, children)
+           children.item(i).extractSymbols(symbolList, _kind);
+    }
+
+    // add only new symbols
+    TokenKind kind = getKind();
+    if(kind == _kind)
+    {
+       StringBufferItem * idName = new StringBufferItem(id->str());
+       switch(kind)
+       {
+          case TERMINAL :
+          case NONTERMINAL :
+              symbolList.appendUniq(*LINK(idName)); break;
+          case NONTERMINALDEF :
+              symbolList.append(*LINK(idName)); break;
+       }
+   }
+}
+
 //-----------------------------------------------------------------------------------------------------------------------
 ISyntaxTree * AnalyserStringST::createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind)
 {
     return new AnalyserStringST(_pos, _text, _kind);
 }
 
-AnalyserStringST::AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind) : AnalyserST(), SyntaxTree(_pos)
+AnalyserStringST::AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind) : AnalyserSymbols(), SyntaxTree(_pos)
 {
     kind = _kind;
     text = _text.str();

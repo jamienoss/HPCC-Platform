@@ -59,11 +59,7 @@ ISyntaxTree * AnalyserPD::createSyntaxTree(const ParserData & token2add)
 {
     switch(token2add.kind)
     {
-    //case BOOLEAN :
-    //case INTEGER :
-    //case DECIMAL :
-    //case FLOAT : return createConstSyntaxTree(token2add.pos, value); break;
-    case 300 :
+    case NONTERMINALDEF :
     case NONTERMINAL :
     case TERMINAL : return createAnalyserIdST(token2add.pos, token2add.id, token2add.kind); break;
     case CODE : return createAnalyserStringST(token2add.pos, *token2add.text, token2add.kind); break;

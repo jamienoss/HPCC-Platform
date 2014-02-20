@@ -44,8 +44,8 @@ public:
 
     virtual int parse();
     virtual void analyseGrammar();
-    void createSymbolList(ISyntaxTree * tree, std::vector <std::string> & symbolList, TokenKind kind);
-    void printStringVector(std::vector <std::string> vector);
+    void createSymbolList(ISyntaxTree * tree, StringBufferArray & symbolList, TokenKind kind);
+    void printSymbolList(const StringBufferArray & list);
     AnalyserLexer & getLexer();
 
 private:

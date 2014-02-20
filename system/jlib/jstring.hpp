@@ -45,7 +45,7 @@ public:
     inline void     Release() const                     { delete this; }    // for consistency even though not link counted
     void            setLength(unsigned len);
     inline void     ensureCapacity(unsigned max)        { if (maxLen <= curLen + max) _realloc(curLen + max); }
-    
+
     StringBuffer &  append(char value);
     StringBuffer &  append(unsigned char value);
     StringBuffer &  append(const char * value);
@@ -90,13 +90,13 @@ public:
     StringBuffer &  insert(int offset, const IStringVal * value);
     StringBuffer &  reverse();
     void            setCharAt(unsigned offset, char value);
-    
+
     //Non-standard functions:
     MemoryBuffer &  deserialize(MemoryBuffer & in);
     MemoryBuffer &  serialize(MemoryBuffer & out) const;
     StringBuffer &  loadFile(const char *fname, bool binaryMode=false);
     StringBuffer &  loadFile(IFile* f);
-    
+
     StringBuffer &  append(const StringBuffer & value);
     StringBuffer &  newline();
     StringBuffer &  pad(unsigned count);
@@ -122,11 +122,11 @@ public:
     inline StringBuffer& set(const char* value) { return clear().append(value); }
     inline operator const char* () const { return str(); }
     inline StringBuffer& operator=(const char* value)
-    { 
+    {
         return clear().append(value);
     }
     inline StringBuffer& operator=(const StringBuffer& value)
-    { 
+    {
         return clear().append(value.str());
     }
 
@@ -148,7 +148,7 @@ protected:
     void _insert(unsigned offset, size32_t insertLen);
     void _realloc(size32_t newLen);
 
-private:    
+private:
     mutable char *  buffer;
     size32_t            curLen;
     size32_t            maxLen;
@@ -192,7 +192,7 @@ public:
     String(String & value);
     String(StringBuffer & value);
     ~String();
-    
+
     char    charAt(size32_t index) const;
     int     compareTo(const String & value) const;
     int     compareTo(const char* value) const;
@@ -223,9 +223,9 @@ public:
     String *  toString();               // Links this
     String *  toUpperCase() const;
     String *  trim() const;
-    
 
-    
+
+
 protected:
     char * text;
 };
@@ -240,7 +240,7 @@ public:
     StringAttr(const char * _text);
     StringAttr(const StringAttr & src);
     inline ~StringAttr(void) { free(text); }
-    
+
     inline operator const char * () const       { return text; }
     inline void clear()                         { setown(NULL); }
     inline char * detach()                      { char * ret = text; text = NULL; return ret; }
@@ -254,10 +254,10 @@ public:
     void         set(const char * _text, unsigned _len);
     void         toLowerCase();
     void         toUpperCase();
-    
+
 private:
     char *       text;
-    
+
 private:
     StringAttr &operator = (const StringAttr & from);
 };
@@ -287,7 +287,7 @@ public:
 
     virtual const char * str() const { return buffer.str(); };
     virtual void set(const char *val) { clear(); buffer.append(val); };
-    virtual void clear() { buffer.setLength(initsize); } 
+    virtual void clear() { buffer.setLength(initsize); }
     virtual void setLen(const char *val, unsigned length) { clear(); buffer.append(length, val); };
     virtual unsigned length() const { return buffer.length(); };
 
@@ -333,15 +333,15 @@ public:
     StringAttrItem(void) {}
     StringAttrItem(const char * _text) : text(_text) {}
     StringAttrItem(const char * _text, unsigned _len);
-    
+
 public:
     StringAttr      text;
 };
 
 // --$appendURL-----------------------------------------------------------------
-// appends the URL encoded version of src to dest 
-// if len is unspecified, then src is assumed to be an NTS 
-// if lower is TRUE a-f is used for hex numbers, otherwise A-F is used 
+// appends the URL encoded version of src to dest
+// if len is unspecified, then src is assumed to be an NTS
+// if lower is TRUE a-f is used for hex numbers, otherwise A-F is used
 // -----------------------------------------------------------------------------
 #define ENCODE_SPACES 1
 #define ENCODE_NEWLINES 2
@@ -524,7 +524,7 @@ inline bool streq(const char* s, const char* t) { return strcmp(s,t)==0; }
 inline bool strsame(const char* s, const char* t) { return (s == t) || (s && t && strcmp(s,t)==0); }  // also allow nulls
 
 extern jlib_decl char *j_strtok_r(char *str, const char *delim, char **saveptr);
-extern jlib_decl int j_memicmp (const void *s1, const void *s2, size32_t len); 
+extern jlib_decl int j_memicmp (const void *s1, const void *s2, size32_t len);
 extern jlib_decl size32_t memcount(size32_t len, const char * str, char search);
 
 #endif

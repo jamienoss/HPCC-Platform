@@ -54,6 +54,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, AnalyserParser * 
     CODE
     DOUBLE_PERCENT
     NONTERMINAL
+    NONTERMINALDEF
     PREC
     STUFF
     TERMINAL
@@ -87,7 +88,7 @@ grammar_item
 
 grammar_rule
     : NONTERMINAL grammar_rules ';'
-                                    { $1.kind = 300;/*nonTerminalDefKind*/ $$.setNode($1).addChild($2);}
+                                    { $1.kind = NONTERMINALDEF; $$.setNode($1).addChild($2);}
     ;
 
 grammar_rules

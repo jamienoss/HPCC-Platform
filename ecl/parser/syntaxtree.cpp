@@ -188,12 +188,14 @@ void SyntaxTree::appendSTvalue(StringBuffer & str)
     str.append("Empty tree node!!!");
 }
 
-void SyntaxTree::extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind) {}
-
-
-
-
-
+void SyntaxTree::extractSymbols(StringBufferArray & symbolList, TokenKind & _kind)
+{
+    if(children.ordinality())
+    {
+       ForEachItemIn(i, children)
+           children.item(i).extractSymbols(symbolList, _kind);
+    }
+}
 
 //----------------------------------ConstantSyntaxTree--------------------------------------------------------------------
 ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IValue * constant)
@@ -203,7 +205,6 @@ ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IVa
 
 ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, IValue * constant) : SyntaxTree(_pos)
 {
-    //value.set(createBoolValue(constant));
     value.set(LINK(constant));
 }
 

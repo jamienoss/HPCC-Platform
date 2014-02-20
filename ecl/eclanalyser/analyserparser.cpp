@@ -41,9 +41,9 @@ int AnalyserParser::parse()
 
 void AnalyserParser::analyseGrammar()
 {
-    //std::vector <std::string> terminalSymbols;
-    //createSymbolList(ast.get(), terminalSymbols, 300);
-    //printStringVector(terminalSymbols);
+    StringBufferArray nonTerminals;
+    createSymbolList(ast.get(), nonTerminals, TERMINAL);
+    printSymbolList(nonTerminals);
 
     //ast->setSymbolList(terminalSymbols);
     //ast->printSymbolList();
@@ -52,17 +52,19 @@ void AnalyserParser::analyseGrammar()
     ast->printTree();
 }
 
-void AnalyserParser::createSymbolList(ISyntaxTree *  tree, std::vector <std::string> & symbolList, TokenKind kind)
+void AnalyserParser::createSymbolList(ISyntaxTree *  tree, StringBufferArray & symbolList, TokenKind kind)
 {
     tree->extractSymbols(symbolList, kind);
 }
 
-void printStringVector(std::vector <std::string> vector)
+void AnalyserParser::printSymbolList(const StringBufferArray & list)
 {
-    unsigned n = vector.size();
-    for (unsigned i = 0; i < n; ++i)
+    if(list.ordinality())
     {
-        std::cout << vector[i] << "\n";
+        ForEachItemIn(i, list)
+        {
+            std::cout << list.item(i).str() << "\n";
+        }
     }
 }
 

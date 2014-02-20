@@ -49,7 +49,7 @@ typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 interface ISyntaxTree : public IInterface
 {
-    //virtual TokenKind getKind() = 0;
+    virtual TokenKind getKind() = 0;
     virtual const ECLlocation & queryPosition() const = 0;
     virtual void printTree() = 0;
     virtual void printXml(Printer * print) = 0;
@@ -62,7 +62,7 @@ interface ISyntaxTree : public IInterface
     virtual void transferChildren(ISyntaxTree * addition) = 0;
 
     //virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
-    virtual void extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind) = 0;
+    virtual void extractSymbols(StringBufferArray & symbolList, TokenKind & _kind) = 0;
 };
 
 class SyntaxTree : public CInterfaceOf<ISyntaxTree>
@@ -83,7 +83,7 @@ public:
     virtual void addChild(ISyntaxTree * addition);
     virtual void transferChildren(ISyntaxTree * addition);
 
-    //virtual TokenKind getKind();
+    virtual TokenKind getKind() { return 0; }
     virtual const ECLlocation & queryPosition() const { return pos; }
     virtual void appendSTvalue(StringBuffer & str);
 
@@ -92,7 +92,7 @@ protected:
     virtual void printNode(unsigned * nodeNum,  IIOStream * out);
     void printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour);
 
-    virtual void extractSymbols(std::vector <std::string> & symbolList, TokenKind & kind);
+    virtual void extractSymbols(StringBufferArray & symbolList, TokenKind & _kind);
 
     SyntaxTree * queryPrivateChild(unsigned i);
 
