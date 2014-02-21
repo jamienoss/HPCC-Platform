@@ -130,7 +130,6 @@ public:
         return clear().append(value.str());
     }
 
-
     StringBuffer &  appendlong(long value);
     StringBuffer &  appendulong(unsigned long value);
 private: // long depreciated

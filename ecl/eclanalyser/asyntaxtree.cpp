@@ -152,7 +152,7 @@ void AnalyserIdST::printNode(unsigned * nodeNum, IIOStream * out)
 }
 */
 
-void AnalyserSymbols::setSymbolList(StringBufferArray & list)
+void AnalyserSymbols::setSymbolList(StringArray & list)
 {
     //symbolList = &list;
 }
@@ -210,7 +210,7 @@ AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenK
     kind = _kind;
 }
 
-void AnalyserIdST::extractSymbols(StringBufferArray & symbolList, TokenKind & _kind)
+void AnalyserIdST::extractSymbols(StringArray & symbolList, TokenKind & _kind)
 {
     if(children.ordinality())
     {
@@ -222,14 +222,17 @@ void AnalyserIdST::extractSymbols(StringBufferArray & symbolList, TokenKind & _k
     TokenKind kind = getKind();
     if(kind == _kind)
     {
-       StringBufferItem * idName = new StringBufferItem(id->str());
+       String * idName = new String(id->str());
        switch(kind)
        {
-          case TERMINAL :
-          case NONTERMINAL :
-              symbolList.appendUniq(*LINK(idName)); break;
-          case NONTERMINALDEF :
-              symbolList.append(*LINK(idName)); break;
+       case TERMINAL :
+       case NONTERMINAL :
+       {
+
+       }
+           symbolList.appendListUniq(idName->toCharArray(), '\0'); break;
+       case NONTERMINALDEF :
+           symbolList.appendList(idName->toCharArray(), '\0'); break;
        }
    }
 }

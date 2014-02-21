@@ -32,10 +32,10 @@ class SyntaxTree;
 class AnalyserSymbols
 {
 public :
-    void setSymbolList(StringBufferArray & list);
+    void setSymbolList(StringArray & list);
     void printSymbolList();
 
-    static StringBufferArray symbolList;
+    static StringArray symbolList;
 
 protected:
     AnalyserSymbols();
@@ -59,7 +59,7 @@ public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
     //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
     virtual TokenKind getKind() { return kind; }
-    virtual void extractSymbols(StringBufferArray & symbolList, TokenKind & _kind);
+    virtual void extractSymbols(StringArray & symbolList, TokenKind & _kind);
 
 private:
     AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);

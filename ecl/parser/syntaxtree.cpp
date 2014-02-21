@@ -188,7 +188,7 @@ void SyntaxTree::appendSTvalue(StringBuffer & str)
     str.append("Empty tree node!!!");
 }
 
-void SyntaxTree::extractSymbols(StringBufferArray & symbolList, TokenKind & _kind)
+void SyntaxTree::extractSymbols(StringArray & symbolList, TokenKind & _kind)
 {
     if(children.ordinality())
     {

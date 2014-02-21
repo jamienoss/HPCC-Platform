@@ -44,8 +44,8 @@ public:
 
     virtual int parse();
     virtual void analyseGrammar();
-    void createSymbolList(ISyntaxTree * tree, StringBufferArray & symbolList, TokenKind kind);
-    void printSymbolList(const StringBufferArray & list);
+    void createSymbolList(ISyntaxTree * tree, StringArray & symbolList, TokenKind kind);
+    void printSymbolList(const StringArray & list);
     AnalyserLexer & getLexer();
 
 private:
