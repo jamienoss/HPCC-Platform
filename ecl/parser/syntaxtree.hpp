@@ -23,6 +23,7 @@
 #include"jlib.hpp"
 #include <vector>
 #include <string>
+#include <iostream>
 
 class Printer
 {
@@ -62,7 +63,10 @@ interface ISyntaxTree : public IInterface
     virtual void transferChildren(ISyntaxTree * addition) = 0;
 
     //virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
-    virtual void extractSymbols(StringArray & symbolList, TokenKind & _kind) = 0;
+    virtual void createIdNameList(CIStringArray & symbolList, TokenKind & _kind) = 0;
+    virtual void setIdNameList(CIStringArray & symbolList) = 0;
+    virtual void printIdNameList() = 0;
+
 };
 
 class SyntaxTree : public CInterfaceOf<ISyntaxTree>
@@ -92,7 +96,9 @@ protected:
     virtual void printNode(unsigned * nodeNum,  IIOStream * out);
     void printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour);
 
-    virtual void extractSymbols(StringArray & symbolList, TokenKind & _kind);
+    virtual void createIdNameList(CIStringArray & symbolList, TokenKind & _kind);
+    virtual void setIdNameList(CIStringArray & symbolList) {};
+    virtual void printIdNameList() {};
 
     SyntaxTree * queryPrivateChild(unsigned i);
 

@@ -36,6 +36,7 @@ ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffe
     return AnalyserStringST::createSyntaxTree(_pos, _text, _kind);
 }
 //----------------------------------AnalyserST--------------------------------------------------------------------
+Owned<CIStringArray> AnalyserSymbols::idNameList = NULL;
 AnalyserSymbols::AnalyserSymbols() { /*symbolList = NULL;*/ }
 
 /*void AnalyserIdST::printTree()
@@ -152,25 +153,27 @@ void AnalyserIdST::printNode(unsigned * nodeNum, IIOStream * out)
 }
 */
 
-void AnalyserSymbols::setSymbolList(StringArray & list)
+void AnalyserSymbols::setIdNameList(CIStringArray & list)
 {
-    //symbolList = &list;
+    idNameList.setown(&list);
 }
 
-void AnalyserSymbols::printSymbolList()
+void AnalyserSymbols::printIdNameList()
 {
-    /*unsigned n = symbolList->size();
     StringBuffer str;
     Owned<IFile> treeFile = createIFile("symbolList.txt");
     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
     Owned<IFileIOStream> out = createIOStream(io);
 
-    for (unsigned i = 0; i < n; ++i)
+    if(idNameList.get()->ordinality())
     {
-        str.append(((*symbolList)[i]).c_str()).append("\n");
+        ForEachItemIn(i, *idNameList.get())
+        {
+            str.append(idNameList.get()->item(i)).newline();
+        }
     }
     out->write(str.length(), str.str());
-    io->close();*/
+    io->close();
 }
 
 extern void analyserAppendParserTokenText(StringBuffer & target, unsigned tok);
@@ -210,14 +213,13 @@ AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenK
     kind = _kind;
 }
 
-void AnalyserIdST::extractSymbols(StringArray & symbolList, TokenKind & _kind)
+void AnalyserIdST::createIdNameList(CIStringArray & symbolList, TokenKind & _kind)
 {
     if(children.ordinality())
     {
        ForEachItemIn(i, children)
-           children.item(i).extractSymbols(symbolList, _kind);
+           children.item(i).createIdNameList(symbolList, _kind);
     }
-
     // add only new symbols
     TokenKind kind = getKind();
     if(kind == _kind)
@@ -227,9 +229,6 @@ void AnalyserIdST::extractSymbols(StringArray & symbolList, TokenKind & _kind)
        {
        case TERMINAL :
        case NONTERMINAL :
-       {
-
-       }
            symbolList.appendListUniq(idName->toCharArray(), '\0'); break;
        case NONTERMINALDEF :
            symbolList.appendList(idName->toCharArray(), '\0'); break;

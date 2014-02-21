@@ -32,13 +32,12 @@ class SyntaxTree;
 class AnalyserSymbols
 {
 public :
-    void setSymbolList(StringArray & list);
-    void printSymbolList();
-
-    static StringArray symbolList;
+    virtual void setIdNameList(CIStringArray & list);
+    virtual void printIdNameList();
 
 protected:
     AnalyserSymbols();
+    static Owned<CIStringArray> idNameList;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -48,7 +47,8 @@ public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const TokenKind & _kind);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
-
+    virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
+    virtual void setIdNameList(CIStringArray & symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 private:
     AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
 };
@@ -59,7 +59,9 @@ public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
     //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
     virtual TokenKind getKind() { return kind; }
-    virtual void extractSymbols(StringArray & symbolList, TokenKind & _kind);
+    virtual void createIdNameList(CIStringArray & symbolList, TokenKind & _kind);
+    virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
+    virtual void setIdNameList(CIStringArray & symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 
 private:
     AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
@@ -73,6 +75,8 @@ public:
     //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual TokenKind getKind() { return kind; }
+    virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
+    virtual void setIdNameList(CIStringArray & symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 
 private:
     AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);

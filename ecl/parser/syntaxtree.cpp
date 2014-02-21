@@ -75,7 +75,8 @@ void SyntaxTree::printTree()
     }
 
     //printing dot
-    str = "graph \"Abstract Syntax Tree\"\n{\n";
+    //str = "graph \"Abstract Syntax Tree\"\n{\n";
+    str = ("graph \"Abstract Syntax Tree\"\n{\nordering=out\n");
     out->write(str.length(), str.str());
 
     printBranch(& parentNodeNum, & nodeNum, out);
@@ -188,12 +189,12 @@ void SyntaxTree::appendSTvalue(StringBuffer & str)
     str.append("Empty tree node!!!");
 }
 
-void SyntaxTree::extractSymbols(StringArray & symbolList, TokenKind & _kind)
+void SyntaxTree::createIdNameList(CIStringArray & symbolList, TokenKind & _kind)
 {
     if(children.ordinality())
     {
        ForEachItemIn(i, children)
-           children.item(i).extractSymbols(symbolList, _kind);
+           children.item(i).createIdNameList(symbolList, _kind);
     }
 }
 

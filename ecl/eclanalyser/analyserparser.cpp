@@ -41,29 +41,28 @@ int AnalyserParser::parse()
 
 void AnalyserParser::analyseGrammar()
 {
-    StringArray nonTerminals;
-    createSymbolList(ast.get(), nonTerminals, NONTERMINALDEF);
-    printSymbolList(nonTerminals);
-
-    //ast->setSymbolList(terminalSymbols);
-    //ast->printSymbolList();
+    CIStringArray idList;
+    createIdNameList(ast.get(), idList, NONTERMINALDEF);
+    //printIdNameList(idList);
+    ast->setIdNameList(idList);
+    ast->printIdNameList();
 
 
     ast->printTree();
 }
 
-void AnalyserParser::createSymbolList(ISyntaxTree *  tree, StringArray & symbolList, TokenKind kind)
+void AnalyserParser::createIdNameList(ISyntaxTree *  tree, CIStringArray & symbolList, TokenKind kind)
 {
-    tree->extractSymbols(symbolList, kind);
+    tree->createIdNameList(symbolList, kind);
 }
 
-void AnalyserParser::printSymbolList(const StringArray & list)
+void AnalyserParser::printIdNameList(const CIStringArray & symbolList)
 {
-    if(list.ordinality())
+    if(symbolList.ordinality())
     {
-        ForEachItemIn(i, list)
+        ForEachItemIn(i, symbolList)
         {
-            std::cout << list.item(i) << "\n";
+            std::cout << symbolList.item(i) << "\n";
         }
     }
 }
