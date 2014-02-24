@@ -36,7 +36,7 @@ ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffe
     return AnalyserStringST::createSyntaxTree(_pos, _text, _kind);
 }
 //----------------------------------AnalyserST--------------------------------------------------------------------
-Owned<CIStringArray> AnalyserSymbols::idNameList = NULL;
+Owned<IdTable > AnalyserSymbols::idNameList = NULL;
 AnalyserSymbols::AnalyserSymbols() { /*symbolList = NULL;*/ }
 
 /*void AnalyserIdST::printTree()
@@ -153,7 +153,7 @@ void AnalyserIdST::printNode(unsigned * nodeNum, IIOStream * out)
 }
 */
 
-void AnalyserSymbols::setIdNameList(CIStringArray & list)
+void AnalyserSymbols::setIdNameList(IdTable & list)
 {
     idNameList.setown(&list);
 }
@@ -169,7 +169,7 @@ void AnalyserSymbols::printIdNameList()
     {
         ForEachItemIn(i, *idNameList.get())
         {
-            str.append(idNameList.get()->item(i)).newline();
+            str.append(idNameList.get()->item(i).getIdName()).newline();
         }
     }
     out->write(str.length(), str.str());
@@ -213,7 +213,7 @@ AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenK
     kind = _kind;
 }
 
-void AnalyserIdST::createIdNameList(CIStringArray & symbolList, TokenKind & _kind)
+void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind & _kind)
 {
     if(children.ordinality())
     {
@@ -224,14 +224,15 @@ void AnalyserIdST::createIdNameList(CIStringArray & symbolList, TokenKind & _kin
     TokenKind kind = getKind();
     if(kind == _kind)
     {
-       String * idName = new String(id->str());
+       //String * idName = new String(id->str());
+       IdTableItem * idItem = new IdTableItem(*id);
        switch(kind)
        {
        case TERMINAL :
        case NONTERMINAL :
-           symbolList.appendListUniq(idName->toCharArray(), '\0'); break;
+           //symbolList.appendListUniq(idName->toCharArray(), '\0'); break;
        case NONTERMINALDEF :
-           symbolList.appendList(idName->toCharArray(), '\0'); break;
+           symbolList.append(*idItem); break;
        }
    }
 }

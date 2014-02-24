@@ -189,7 +189,7 @@ void SyntaxTree::appendSTvalue(StringBuffer & str)
     str.append("Empty tree node!!!");
 }
 
-void SyntaxTree::createIdNameList(CIStringArray & symbolList, TokenKind & _kind)
+void SyntaxTree::createIdNameList(IdTable & symbolList, TokenKind & _kind)
 {
     if(children.ordinality())
     {
@@ -295,4 +295,14 @@ ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _id)
 ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, IValue * constant)
 {
     return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
+}
+//------------------------------------------------------------------------------------------------------
+IdTableItem::~IdTableItem()
+{
+    symbol->Release();
+//Release(*node);
+}
+const char * IdTableItem::getIdName()
+{
+    return symbol->str();
 }

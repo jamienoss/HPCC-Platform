@@ -62,7 +62,7 @@ extern void hex2str(char * target, const char * digits, unsigned len);
         int mapped = lookup ? lexer->mapToken(sym) : sym; \
         if (mapped && LOOKUPSYM(mapped)) return mapped; \
         return lookupIdentifierToken(returnToken, lexer, lookup, activeState, CUR_TOKEN_TEXT)
-        
+
 #define RETURNHARD(sym) \
         setupdatepos; return sym;
 
@@ -70,7 +70,7 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
 {
     if ((tokenText[0] == '$') && tokenText[1]==0)
         return '$';
-        
+
     /* check $ */
     IIdAtom * cname = createIdAtom(tokenText);
     IAtom * name = cname->queryLower();
@@ -83,7 +83,7 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
             return lexer->yyLex(returnToken, lookup, activeState);
         }
     }
-    
+
     IHqlExpression *expr; 
     //fprintf(stderr, "\nLookupSymbol %s\n",name->str());
     //Lookup expr last otherwise it leaks.
@@ -102,8 +102,8 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
         if (alternative && alternative->queryValue())
             alternative->queryValue()->getStringValue(alternativeText);
         lexer->reportWarning(returnToken, ERR_DEPRECATED_ATTR, "Definition %s is marked as deprecated.  %s", name->str(), alternativeText.str());
-    }                   
-    
+    }
+
 #if defined(TRACE_MACRO)
     PrintLog("MACRO>> set expr at %d:%d\n",lexer->yyLineNo,lexer->yyColumn);
 #endif
@@ -111,17 +111,17 @@ int HqlLex::lookupIdentifierToken(YYSTYPE & returnToken, HqlLex * lexer, bool lo
     if (expr->isMacro())
     {
         int ret_id; 
-    
+
         if (expr->isAction())
             ret_id = DEFINITIONS_MACRO;
         else
             ret_id = VALUE_MACRO;
-        
+
         OwnedHqlExpr ownedExpr = expr;
         lexer->pushMacro(expr);
         return ret_id;
     }
-    
+
     returnToken.setExpr(expr);
     node_operator op = expr->getOperator();
     int token = UNKNOWN_ID;

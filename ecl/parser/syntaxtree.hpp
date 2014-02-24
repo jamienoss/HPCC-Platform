@@ -25,6 +25,31 @@
 #include <string>
 #include <iostream>
 
+class ISyntaxTree;
+
+//----------------------------------IdTableItem--------------------------------------------------------------------
+interface IIdTableItem : public IInterface
+{
+public :
+    virtual const char * getIdName() = 0;
+};
+
+class IdTableItem : public CInterfaceOf<IIdTableItem>
+{
+public :
+    IdTableItem();
+    IdTableItem(const IIdAtom & id) { symbol = createIdAtom(id); }
+    ~IdTableItem();
+
+    virtual const char * getIdName();
+
+protected :
+    IIdAtom * symbol;
+    ISyntaxTree * node;
+};
+typedef  IArrayOf<IIdTableItem> IdTable;
+
+//----------------------------------Printer--------------------------------------------------------------------
 class Printer
 {
 public :
@@ -63,8 +88,8 @@ interface ISyntaxTree : public IInterface
     virtual void transferChildren(ISyntaxTree * addition) = 0;
 
     //virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
-    virtual void createIdNameList(CIStringArray & symbolList, TokenKind & _kind) = 0;
-    virtual void setIdNameList(CIStringArray & symbolList) = 0;
+    virtual void createIdNameList(IdTable & symbolList, TokenKind & _kind) = 0;
+    virtual void setIdNameList(IdTable & symbolList) = 0;
     virtual void printIdNameList() = 0;
 
 };
@@ -96,8 +121,8 @@ protected:
     virtual void printNode(unsigned * nodeNum,  IIOStream * out);
     void printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour);
 
-    virtual void createIdNameList(CIStringArray & symbolList, TokenKind & _kind);
-    virtual void setIdNameList(CIStringArray & symbolList) {};
+    virtual void createIdNameList(IdTable & symbolList, TokenKind & _kind);
+    virtual void setIdNameList(IdTable & symbolList) {};
     virtual void printIdNameList() {};
 
     SyntaxTree * queryPrivateChild(unsigned i);
@@ -164,6 +189,5 @@ inline ISyntaxTree * createSyntaxTree(const ECLlocation & _pos){ return SyntaxTr
 ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token);
 ISyntaxTree * createIdSyntaxTree(const ECLlocation & _pos, IIdAtom * _id);
 ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, IValue * constant);
-
 
 #endif

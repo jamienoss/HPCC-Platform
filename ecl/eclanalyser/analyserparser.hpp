@@ -44,8 +44,8 @@ public:
 
     virtual int parse();
     virtual void analyseGrammar();
-    void createIdNameList(ISyntaxTree * tree, CIStringArray & symbolList, TokenKind kind);
-    void printIdNameList(const CIStringArray & list);
+    void createIdNameList(ISyntaxTree * tree, IdTable & symbolList, TokenKind kind);
+    void printIdNameList(const IdTable & list);
     AnalyserLexer & getLexer();
 
 private:
