@@ -30,12 +30,12 @@
 class AnalyserSymbols
 {
 public :
-    virtual void setIdNameList(IdTable & list);
+    virtual void setIdNameList(IdTable * list);
     virtual void printIdNameList();
 
 protected:
     AnalyserSymbols();
-    static Owned<IdTable > idNameList;
+    static IdTable * idNameList;
 };
 
 
@@ -48,7 +48,7 @@ public:
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
-    virtual void setIdNameList(IdTable & symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
+    virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 private:
     AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
 };
@@ -61,7 +61,7 @@ public:
     virtual TokenKind getKind() { return kind; }
     virtual void createIdNameList(IdTable & symbolList, TokenKind & _kind);
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
-    virtual void setIdNameList(IdTable & symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
+    virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 
 private:
     AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
@@ -76,7 +76,7 @@ public:
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual TokenKind getKind() { return kind; }
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
-    virtual void setIdNameList(IdTable & symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
+    virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 
 private:
     AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);

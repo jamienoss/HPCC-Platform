@@ -89,7 +89,7 @@ interface ISyntaxTree : public IInterface
 
     //virtual void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out) = 0;
     virtual void createIdNameList(IdTable & symbolList, TokenKind & _kind) = 0;
-    virtual void setIdNameList(IdTable & symbolList) = 0;
+    virtual void setIdNameList(IdTable * symbolList) = 0;
     virtual void printIdNameList() = 0;
 
 };
@@ -122,7 +122,7 @@ protected:
     void printNode(unsigned * nodeNum, IIOStream * out, const char * text, const char * colour);
 
     virtual void createIdNameList(IdTable & symbolList, TokenKind & _kind);
-    virtual void setIdNameList(IdTable & symbolList) {};
+    virtual void setIdNameList(IdTable * symbolList) {};
     virtual void printIdNameList() {};
 
     SyntaxTree * queryPrivateChild(unsigned i);

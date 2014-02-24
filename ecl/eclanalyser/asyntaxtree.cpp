@@ -36,7 +36,7 @@ ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffe
     return AnalyserStringST::createSyntaxTree(_pos, _text, _kind);
 }
 //----------------------------------AnalyserST--------------------------------------------------------------------
-Owned<IdTable > AnalyserSymbols::idNameList = NULL;
+IdTable * AnalyserSymbols::idNameList = NULL;
 AnalyserSymbols::AnalyserSymbols() { /*symbolList = NULL;*/ }
 
 /*void AnalyserIdST::printTree()
@@ -153,9 +153,9 @@ void AnalyserIdST::printNode(unsigned * nodeNum, IIOStream * out)
 }
 */
 
-void AnalyserSymbols::setIdNameList(IdTable & list)
+void AnalyserSymbols::setIdNameList(IdTable * list)
 {
-    idNameList.setown(&list);
+    idNameList = list;
 }
 
 void AnalyserSymbols::printIdNameList()
@@ -165,11 +165,11 @@ void AnalyserSymbols::printIdNameList()
     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
     Owned<IFileIOStream> out = createIOStream(io);
 
-    if(idNameList.get()->ordinality())
+    if(idNameList->ordinality())
     {
-        ForEachItemIn(i, *idNameList.get())
+        ForEachItemIn(i, *idNameList)
         {
-            str.append(idNameList.get()->item(i).getIdName()).newline();
+            str.append(idNameList->item(i).getIdName()).newline();
         }
     }
     out->write(str.length(), str.str());
@@ -224,15 +224,22 @@ void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind & _kind)
     TokenKind kind = getKind();
     if(kind == _kind)
     {
-       //String * idName = new String(id->str());
+       String * idName = new String(id->str());
        IdTableItem * idItem = new IdTableItem(*id);
        switch(kind)
        {
        case TERMINAL :
        case NONTERMINAL :
-           //symbolList.appendListUniq(idName->toCharArray(), '\0'); break;
+       {
+           ForEachItemIn(i, symbolList)
+           {
+               if(!idName->compareTo(symbolList.item(i).getIdName()))
+                   return;
+           }
+           symbolList.append(*LINK(idItem)); break;
+       }
        case NONTERMINALDEF :
-           symbolList.append(*idItem); break;
+           symbolList.append(*LINK(idItem)); break;
        }
    }
 }

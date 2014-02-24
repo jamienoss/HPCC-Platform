@@ -42,10 +42,10 @@ int AnalyserParser::parse()
 void AnalyserParser::analyseGrammar()
 {
     IdTable idList;
-    createIdNameList(ast.get(), idList, NONTERMINALDEF);
-    printIdNameList(idList);
-    //ast->setIdNameList(idList);
-    //ast->printIdNameList();
+    createIdNameList(ast.get(), idList, NONTERMINALDEF);//NOTE NONTERMINAL will only pick up when this is referenced by another, note actual rule. This should only exclude root rule
+    //printIdNameList(idList);
+    ast->setIdNameList(&idList);
+    ast->printIdNameList();
 
 
     ast->printTree();

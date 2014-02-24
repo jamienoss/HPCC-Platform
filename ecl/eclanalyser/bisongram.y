@@ -52,11 +52,9 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, AnalyserParser * 
 
 %token
     CODE
-    DOUBLE_PERCENT
     NONTERMINAL
     NONTERMINALDEF
     PREC
-    STUFF
     TERMINAL
 
     YY_LAST_TOKEN
