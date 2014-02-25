@@ -30,6 +30,7 @@
 #include "platform.h"
 #include "eclparser.hpp"
 #include "eclgram.h"
+#include "hqlerrors.hpp"
 #include <iostream>
 #include <cstring>
 
@@ -74,29 +75,77 @@ static inline void setInteger(YYSTYPE * yylval, char * tokenText, unsigned txtLe
 {
     //std::cout << tokenText << "\n";
 
-    yylval->kind = INTEGER;
+    yylval->kind = INTEGER_CONST;
     yylval->value = createIntValue(_value, size, isSigned);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
-static inline void setReal(YYSTYPE * yylval, unsigned tokenKind, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+static inline void setReal(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
     //std::cout << tokenText << "\n";
 
-    yylval->kind = tokenKind;
+    yylval->kind = FLOAT_CONST;
     yylval->value = createRealValue(atof(tokenText), 8);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
-static inline void setChar(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+static inline void setDecimal(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, EclParser * parser)
 {
     //std::cout << tokenText << "\n";
 
-    yylval->kind = CHARACTER;
+    yylval->kind = DECIMAL_CONST;
+    const char * dot = strchr(tokenText, '.');
+    Owned<ITypeInfo> type;
+    if(dot)
+    {
+        unsigned before = (size32_t)(dot-tokenText);
+        unsigned after = txtLen-2 - before;
+        if (before > MAX_DECIMAL_LEADING)
+        {
+            StringBuffer msg = "Decimal constant contains too many integral digits: Max allowed = ";
+            msg.append(MAX_DECIMAL_LEADING);
+            parser->reportError(ERR_ILLSIZE_DECIMAL, msg, lexer.sourcePath->str(), lineno, lexer.yyColumn, lexer.yyPosition);
+            //lexer->reportError(returnToken, ERR_ILLSIZE_DECIMAL, "Decimal constant contains too many integral digits (>%d)", MAX_DECIMAL_LEADING);
+            before = MAX_DECIMAL_LEADING;
+            after = 0;
+        }
+        if (after > MAX_DECIMAL_PRECISION)
+        {
+            StringBuffer msg = "Decimal constant may lose significant digits; Max allowed = ";
+            msg.append(MAX_DECIMAL_PRECISION);
+            parser->reportError(ERR_ILLSIZE_DECIMAL, msg, lexer.sourcePath->str(), lineno, lexer.yyColumn, lexer.yyPosition);
+            //lexer->reportWarning(returnToken, ERR_ILLSIZE_DECIMAL, "Decimal constant may lose significant digits (>%d)", MAX_DECIMAL_PRECISION);
+            after = MAX_DECIMAL_PRECISION;
+        }
+        type.set(makeDecimalType(before+after, after, true));
+    }
+    else
+    {
+        unsigned digits = txtLen-1;
+        if (digits > MAX_DECIMAL_LEADING)
+        {
+            //lexer.reportError(returnToken, ERR_ILLSIZE_DECIMAL, "Decimal constant contains too many digits (>%d)", MAX_DECIMAL_LEADING);
+            StringBuffer msg = "Decimal constant contains too many digits";
+            parser->reportError(ERR_ILLSIZE_DECIMAL, msg, lexer.sourcePath->str(), lineno, lexer.yyColumn, lexer.yyPosition);
+            digits = MAX_DECIMAL_LEADING;
+        }
+        type.set(makeDecimalType(digits, 0, true));
+    }
+    yylval->value = type->castFrom(txtLen-1, tokenText);
+
+    yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
+    lexer.updatePos(txtLen);
+}
+  //--------------------------------------------------------------------------------
+static inline void setString(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
+{
+    //std::cout << tokenText << "\n";
+
+    yylval->kind = STRING_CONST;
     yylval->value = createStringValue(tokenText, 32); //Might need to be UTF8
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -107,7 +156,7 @@ static inline void setBool(YYSTYPE * yylval, char * tokenText, unsigned txtLen, 
 {
     //std::cout << tokenText << "\n";
 
-    yylval->kind = BOOLEAN;
+    yylval->kind = BOOLEAN_CONST;
     yylval->value = createBoolValue(tokenText);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -150,10 +199,12 @@ static char foldMinus(char * & tokenText, unsigned txtLen)
 
     return '-';
 }
-#define manSetInt(x,y,z) setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), x,y,z)
+
+#define manSetInt(value, size, isSigned) setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), value, size, isSigned)
 #define setInt setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), str2int64(yyleng, yytext, 10), 8, false)
-#define setReal(x) setReal(yylval, x, yytext, yyleng, yylineno, parser->getLexer())
-#define setChar setChar(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define setReal setReal(yylval, yytext, yyleng, yylineno, parser->getLexer())
+#define setDecimal setDecimal(yylval, yytext, yyleng, yylineno, parser->getLexer(), parser)
+#define setString setString(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define setBool setBool(yylval, yytext, yyleng, yylineno, parser->getLexer())
 #define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
 #define setId setId(yylval, yytext, yyleng, yylineno, parser->getLexer())
@@ -202,42 +253,42 @@ xpathseq      ([^}\r\n])+
 
 AS                       { setLex(AS); return AS; }
 END                      { setLex(END); return END; }
-FALSE                    { setBool; return BOOLEAN; }
+FALSE                    { setBool; return BOOLEAN_CONST; }
 FROM                     { setLex(FROM); return FROM; }
 IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 RECORD                   { setLex(RECORD); return RECORD; }
-TRUE                     { setBool; return BOOLEAN; }
+TRUE                     { setBool; return BOOLEAN_CONST; }
 TYPE                     { setLex; return TYPE; }
 ".^"                     { setLex('^'); return UPDIR; }
 ".."                     { setLex; return DOTDOT; }
 
 
 
-{digit}+                 { manSetInt(str2int64(yyleng, yytext, 10), 8, true); return INTEGER; }
-{digit}+U                { manSetInt(str2int64(yyleng-1, yytext, 10), 8, false); return INTEGER; }
+{digit}+                 { manSetInt(str2int64(yyleng, yytext, 10), 8, true); return INTEGER_CONST; }
+{digit}+U                { manSetInt(str2int64(yyleng-1, yytext, 10), 8, false); return INTEGER_CONST; }
 
-0x{hexdigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 16), 8, true); return INTEGER;  }
-0x{hexdigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 16), 8, false); return INTEGER;  }
-{digit}{hexdigit}+X      { manSetInt(str2int64(yyleng-1, yytext+2, 16), 8, true); return INTEGER;  }
-{digit}{hexdigit}+XU     { manSetInt(str2int64(yyleng-2, yytext+2, 16), 8, false); return INTEGER;  }
+0x{hexdigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 16), 8, true); return INTEGER_CONST;  }
+0x{hexdigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 16), 8, false); return INTEGER_CONST;  }
+{digit}{hexdigit}+X      { manSetInt(str2int64(yyleng-1, yytext, 16), 8, true); return INTEGER_CONST;  }
+{digit}{hexdigit}+XU     { manSetInt(str2int64(yyleng-2, yytext, 16), 8, false); return INTEGER_CONST;  }
 
-0b{bindigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 2), 8, true); return INTEGER; }
-0b{bindigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 2), 8, false); return INTEGER; }
-{bindigit}+B             { manSetInt(str2int64(yyleng-1, yytext, 2), 8, true); return INTEGER; }
-{bindigit}+BU            { manSetInt(str2int64(yyleng-2, yytext, 2), 8, false); return INTEGER; }
+0b{bindigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 2), 8, true); return INTEGER_CONST; }
+0b{bindigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 2), 8, false); return INTEGER_CONST; }
+{bindigit}+B             { manSetInt(str2int64(yyleng-1, yytext, 2), 8, true); return INTEGER_CONST; }
+{bindigit}+BU            { manSetInt(str2int64(yyleng-2, yytext, 2), 8, false); return INTEGER_CONST; }
 
 {digit}*\.{digit}+((e|E)("+"|"-")?{digit}+)? {
-                          setReal(FLOAT); return FLOAT; }
-{digit}*\.?{digit}+(d|D) { setReal(DECIMAL); return DECIMAL; }
+                          setReal; return FLOAT_CONST; }
+{digit}*\.?{digit}+(d|D) { setDecimal; return DECIMAL_CONST; }
 
-\'[^\n]*\'               { setChar; return CHARACTER; }
+\'[^\n]*\'               { setString; return STRING_CONST; }
 
 (\$|{letter}){alphanum}* { setId; return ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
 ";"+[; \t\r]*            { setLex(';'); return ';'; }
 "!="                     { setLex(NE); return NE; }
-"=="                     { setLex(EQ); return EQ; }
+"="                      { setLex(EQ); return EQ; }
 "<="                     { setLex(LE); return LE; }
 ">="                     { setLex(GE); return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
 "<"                      { setLex(LT); return LT; }

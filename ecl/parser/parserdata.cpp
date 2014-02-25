@@ -26,10 +26,10 @@ ParserData::~ParserData()
 
 bool ParserData::isNode() const
 {
-    return node ? true : false;
+    return (node != NULL);
 }
 
-ISyntaxTree * ParserData::getNode() const
+ISyntaxTree * ParserData::queryNode() const
 {
     return node.get();
 }
@@ -62,50 +62,44 @@ ParserData & ParserData::setNode(const ParserData & token2add)
 {
     clearToken();
 	nodeKind = token2add.nodeKind;
-    return addChild(token2add);
+    bool isNode = token2add.isNode();
+	if(!isNode)
+	    node.set(createSyntaxTree(token2add));
+	else// this propergates possible emptyNode up tree, do we want this? Perhaps.
+	    node.set(token2add.node);
+
+	return *this;
 }
 
 ParserData & ParserData::setNode(const TokenKind & _kind, const ECLlocation & _pos)
 {
     clearToken();
 	nodeKind = parent;
-    return addChild(_kind, _pos);
+    node.set(createSyntaxTree(_kind, _pos));
+    return *this;
 }
 
 ParserData & ParserData::addChild(const TokenKind & _kind, const ECLlocation & _pos)
 {
-    if(!node)
-        node.set(createSyntaxTree(_kind, _pos));
-    else
-        node->addChild(createSyntaxTree(_kind, _pos));
-
+    node->addChild(createSyntaxTree(_kind, _pos));
     return *this;
 }
 
 ParserData & ParserData::addChild(const ParserData & token2add)
 {
     bool isNode = token2add.isNode();
-	bool emptyToken2add  = token2add.nodeKind == emptyParent ? true : false;
+	bool emptyToken2add  = (token2add.nodeKind == emptyParent);
 
-    if(!isNode && !node)
-    {
-        node.set(createSyntaxTree(token2add));
-    }
-    else if(isNode && node)
-    {
-        if(!emptyToken2add)
-            node->addChild(token2add.node);
-        else
-            node->transferChildren(token2add.node);
-    }
-    else if(isNode && !node)// this propergates possible emptyNode up tree, do we want this? Perhaps.
-    {
-        node.set(token2add.node);
-    }
-    else if(!isNode && node)
-    {
+	if(isNode)
+	{
+	    if(!emptyToken2add)
+	        node->addChild(token2add.node);
+	    else
+	        node->transferChildren(token2add.node);
+	}
+	else
         node->addChild(createSyntaxTree(token2add));
-    }
+
     return *this;
 }
 
@@ -113,11 +107,11 @@ ISyntaxTree * ParserData::createSyntaxTree(const ParserData & token2add)
 {
     switch(token2add.kind)
     {
-    case BOOLEAN :
-    case CHARACTER :
-    case DECIMAL :
-    case FLOAT:
-    case INTEGER  : return createConstSyntaxTree(token2add.pos, value); break;
+    case BOOLEAN_CONST :
+    case STRING_CONST :
+    case DECIMAL_CONST :
+    case FLOAT_CONST:
+    case INTEGER_CONST  : return createConstSyntaxTree(token2add.pos, value); break;
     case ID : return createIdSyntaxTree(token2add.pos, token2add.id); break;
     default : return createPuncSyntaxTree(token2add.pos, token2add.kind);
     }

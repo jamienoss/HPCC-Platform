@@ -76,7 +76,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, AnalyserParser * 
 //================================== beginning of syntax section ==========================
 
 bison_file
-    : grammar_item                  { parser->setRoot($1.getNode()); }
+    : grammar_item                  { parser->setRoot($1.queryNode()); }
     ;
 
 grammar_item
@@ -130,9 +130,9 @@ void analyserAppendParserTokenText(StringBuffer & target, unsigned tok)
         tokenName.replaceString("\"", "");
         target.append(tokenName.str());
     }
-    else if (tok > 0 && tok < 256)
+    else if (tok > 0 && tok < 258)
         target.append((char)tok);
-    else if (tok > 258)
+    else if (tok > 257)
     {
         StringBuffer tokenName = yytname[tok-258+3];
         tokenName.replaceString("\"", "");

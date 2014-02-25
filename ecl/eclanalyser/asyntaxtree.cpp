@@ -225,7 +225,7 @@ void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind & _kind)
     if(kind == _kind)
     {
        String * idName = new String(id->str());
-       IdTableItem * idItem = new IdTableItem(*id);
+       IdTableItem * idItem = new IdTableItem(*id,  static_cast<SyntaxTree *>(this));
        switch(kind)
        {
        case TERMINAL :

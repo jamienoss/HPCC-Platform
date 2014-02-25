@@ -4,7 +4,7 @@
 #include <iostream>
 
 
-ParserData & AnalyserPD::addChild(const TokenKind & _kind, const ECLlocation & _pos)
+ParserData & AnalyserPD::addChild(TokenKind _kind, const ECLlocation & _pos)
 {
     if(!node)
         node.set(createSyntaxTree(_kind, _pos));
@@ -17,7 +17,7 @@ ParserData & AnalyserPD::addChild(const TokenKind & _kind, const ECLlocation & _
 ParserData & AnalyserPD::addChild(const ParserData & token2add)
 {
     bool isNode = token2add.isNode();
-    bool emptyToken2add  = token2add.nodeKind == emptyParent ? true : false;
+    bool emptyToken2add  = (token2add.nodeKind == emptyParent);
 
     if(!isNode && !node)
     {
@@ -26,13 +26,13 @@ ParserData & AnalyserPD::addChild(const ParserData & token2add)
     else if(isNode && node)
     {
         if(!emptyToken2add)
-            node->addChild(token2add.getNode());
+            node->addChild(token2add.queryNode());
         else
-            node->transferChildren(token2add.getNode());
+            node->transferChildren(token2add.queryNode());
     }
     else if(isNode && !node)
     {
-        node.set(token2add.getNode());
+        node.set(token2add.queryNode());
     }
     else if(!isNode && node)
     {
@@ -50,7 +50,7 @@ ParserData & AnalyserPD::setEmptyNode()
     return *this;
 }
 
-ISyntaxTree * AnalyserPD::createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos)
+ISyntaxTree * AnalyserPD::createSyntaxTree(TokenKind _kind, const ECLlocation & _pos)
 {
     return createAnalyserPuncST(_pos, _kind);
 }

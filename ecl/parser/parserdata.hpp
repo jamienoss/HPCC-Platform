@@ -45,8 +45,8 @@ public:
 
     ParserData & clearToken();
 	virtual ParserData & setEmptyNode();
-    ParserData & setNode(const ParserData & token2add);
-    ParserData & setNode(const TokenKind & _kind, const ECLlocation & _pos);
+    virtual ParserData & setNode(const ParserData & token2add);
+    virtual ParserData & setNode(const TokenKind & _kind, const ECLlocation & _pos);
     virtual ParserData & addChild(const ParserData & token2add);
     virtual ParserData & addChild(const TokenKind & _kind, const ECLlocation & _pos);
 
@@ -58,7 +58,7 @@ public:
 	*/
 
     const ECLlocation & queryNodePosition() const;
-    ISyntaxTree * getNode() const;
+    ISyntaxTree * queryNode() const;
     virtual ISyntaxTree * createSyntaxTree(const ParserData & token2add);
     virtual ISyntaxTree * createSyntaxTree(const TokenKind & _kind, const ECLlocation & _pos);
     void setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath);

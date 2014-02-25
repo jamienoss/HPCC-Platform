@@ -62,13 +62,13 @@ void SyntaxTree::printTree()
 
     if(XML)
     {
-        Printer * print = new Printer(0, &str);
-        print->str->append("<graph>").newline();
+        Printer * print = new Printer(0, str);
+        print->queryStr().append("<graph>").newline();
         printXml(print);
         //printGEXF(printer);
-        print->str->append("</graph>");
+        print->queryStr().append("</graph>");
 
-        out->write(print->str->length(), print->str->str());
+        out->write(print->queryStr().length(), print->queryStr().str());
         io->close();
         delete print;
         return;
@@ -93,15 +93,15 @@ void SyntaxTree::printTree()
 void SyntaxTree::printXml(Printer * print)
 {
 
-    print->indent().append("<node id=\"").append(print->id).append("\" label=\"");
-    appendSTvalue(*print->str);
+    print->indent().append("<node id=\"").append(print->queryId()).append("\" label=\"");
+    appendSTvalue(print->queryStr());
 
     //appendParserTokenText(*print->str, token);
-    print->str->append("\" "); // add extra details here
+    print->queryStr().append("\" "); // add extra details here
 
     if (children.ordinality())
     {
-        print->str->append(">").newline();
+        print->queryStr().append(">").newline();
         ForEachItemIn(i, children)
         {
             print->tabIncrease();
@@ -112,7 +112,7 @@ void SyntaxTree::printXml(Printer * print)
     }
     else
     {
-        print->str->append("/>").newline();
+        print->queryStr().append("/>").newline();
     }
 }
 
@@ -160,19 +160,18 @@ void SyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
 
 void SyntaxTree::addChild(ISyntaxTree * addition)
 {
-    children.append(*addition);
-    addition = NULL;
+    children.append(*LINK(addition));
 }
 
 void SyntaxTree::transferChildren(ISyntaxTree * addition)
 {
-    ForEachItemIn(i,addition->getChildren())
+    ForEachItemIn(i,addition->queryChildren())
 	{
         children.append(*addition->queryChild(i));
 	}
 }
 
-SyntaxTreeArray & SyntaxTree::getChildren()
+SyntaxTreeArray & SyntaxTree::queryChildren()
 {
 	return children;
 }
@@ -189,7 +188,7 @@ void SyntaxTree::appendSTvalue(StringBuffer & str)
     str.append("Empty tree node!!!");
 }
 
-void SyntaxTree::createIdNameList(IdTable & symbolList, TokenKind & _kind)
+void SyntaxTree::createIdNameList(IdTable & symbolList, TokenKind _kind)
 {
     if(children.ordinality())
     {
@@ -206,7 +205,7 @@ ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IVa
 
 ConstantSyntaxTree::ConstantSyntaxTree(ECLlocation _pos, IValue * constant) : SyntaxTree(_pos)
 {
-    value.set(LINK(constant));
+    value.set(constant);
 }
 
 void ConstantSyntaxTree::printNode(unsigned * nodeNum, IIOStream * out)
@@ -221,16 +220,17 @@ void ConstantSyntaxTree::appendSTvalue(StringBuffer & str)
 
     //return;
 
-    switch(value.get()->getTypeCode())
+    switch(value->getTypeCode())
     {
-    case type_int : str.append(value.get()->getIntValue());break;
-    case type_real : str.append(value.get()->getRealValue());break;
-    case type_boolean : str.append(value.get()->getBoolValue());break;
+    case type_int : str.append(value->getIntValue());break;
+    case type_decimal :
+    case type_real : str.append(value->getRealValue());break;
+    case type_boolean : str.append(value->getBoolValue());break;
     //default : str.append(value);
     }
 }
 //----------------------------------PunctuationSyntaxTree--------------------------------------------------------------------
-ISyntaxTree * PuncSyntaxTree::createSyntaxTree(const ECLlocation & _pos, const TokenKind & constant)
+ISyntaxTree * PuncSyntaxTree::createSyntaxTree(const ECLlocation & _pos, TokenKind constant)
 {
     return new PuncSyntaxTree(_pos, constant);
 }
@@ -282,7 +282,7 @@ void IdSyntaxTree::appendSTvalue(StringBuffer & str)
 }
 //------------------------------------------------------------------------------------------------------
 
-ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, const TokenKind & _token)
+ISyntaxTree * createPuncSyntaxTree(const ECLlocation & _pos, TokenKind _token)
 {
     return PuncSyntaxTree::createSyntaxTree(_pos, _token);
 }
@@ -297,6 +297,11 @@ ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, IValue * constant)
     return ConstantSyntaxTree::createSyntaxTree(_pos, constant);
 }
 //------------------------------------------------------------------------------------------------------
+IdTableItem::IdTableItem() { symbol = NULL; }
+IdTableItem::IdTableItem(const IIdAtom & id) { symbol = createIdAtom(id); }
+IdTableItem::IdTableItem(ISyntaxTree * _node) { symbol = NULL; node.set(_node); }
+IdTableItem::IdTableItem(const IIdAtom & id, ISyntaxTree * _node) { symbol = createIdAtom(id); node.set(_node); }
+
 IdTableItem::~IdTableItem()
 {
     symbol->Release();

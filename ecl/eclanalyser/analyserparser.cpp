@@ -47,6 +47,7 @@ void AnalyserParser::analyseGrammar()
     ast->setIdNameList(&idList);
     ast->printIdNameList();
 
+    mirrorGrammarStruct(ast);
 
     ast->printTree();
 }
@@ -66,6 +67,12 @@ void AnalyserParser::printIdNameList(const IdTable & symbolList)
         }
     }
 }
+
+void AnalyserParser::mirrorGrammarStruct(ISyntaxTree * tree)
+{
+
+}
+
 
 AnalyserLexer & AnalyserParser::getLexer()
 {

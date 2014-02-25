@@ -46,6 +46,7 @@ public:
     virtual void analyseGrammar();
     void createIdNameList(ISyntaxTree * tree, IdTable & symbolList, TokenKind kind);
     void printIdNameList(const IdTable & list);
+    void mirrorGrammarStruct(ISyntaxTree * tree);
     AnalyserLexer & getLexer();
 
 private:

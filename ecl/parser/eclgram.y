@@ -52,26 +52,26 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 %token
     AS
     ASSIGN ":="
-    BOOLEAN
-    CHARACTER
-    DECIMAL
+    BOOLEAN_CONST
+    DECIMAL_CONST
     DIR
     DOTDOT ".."
     END
     EQ "=="
-    FLOAT
+    FLOAT_CONST
     FROM
     GE ">="
     GT ">"
     ID
     IFBLOCK
     IMPORT
-    INTEGER
+    INTEGER_CONST
     LE "<="
     LT "<"
     NE "!="
     REAL
     RECORD
+    STRING_CONST
     TYPE
     UPDIR ".^"
 
@@ -90,7 +90,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 //================================== begin of syntax section ==========================
 
 code
-    : eclQuery                      { parser->setRoot($1.getNode()); }
+    : eclQuery                      { parser->setRoot($1.queryNode()); }
     ;
 
 eclQuery
@@ -102,7 +102,7 @@ eclQuery
 
 line_of_code
     : expr                          { $$.setNode($1); }
-    | IMPORT imports                { $$.setNode($1).addChild($2); }
+    | IMPORT import                { $$.setNode($1).addChild($2); }
     | assignment                    { $$.setNode($1); }
     ;
 
@@ -118,11 +118,11 @@ assignment
     ;
 
 constant
-    : BOOLEAN                       { $$.setNode($1); }
-    | CHARACTER                     { $$.setNode($1); }
-    | DECIMAL                       { $$.setNode($1); }
-    | FLOAT                         { $$.setNode($1); }
-    | INTEGER                       { $$.setNode($1); }
+    : BOOLEAN_CONST                 { $$.setNode($1); }
+    | STRING_CONST                  { $$.setNode($1); }
+    | DECIMAL_CONST                 { $$.setNode($1); }
+    | FLOAT_CONST                   { $$.setNode($1); }
+    | INTEGER_CONST                 { $$.setNode($1); }
     ;
 
 expr
@@ -162,16 +162,21 @@ fields
     | field ';'                     { $$.setNode(',', $1.queryNodePosition()).addChild($1); }
     ;
 
-functions
+function
     : ID '(' parameters ')'         { $$.setNode($1).addChild($2).addChild($3).addChild($4); }
     | ID '(' ')'                    { $$.setNode($1).addChild($2).addChild($3); }
     | ID '{' parameters '}'         { $$.setNode($1).addChild($2).addChild($3).addChild($4); }
     | ID '[' index_range ']'        { $$.setNode($1).addChild($2).addChild($3).addChild($4); }
     ;
 
+id_list
+    : id_list identifier            { $$.setNode($1).addChild($2); }  /*This needs further thought inc. whether to swap order of $1 & $2*/
+    | identifier                    { $$.setNode($1); }
+    ;
+
 identifier
     : identifier '.' identifier     { $$.setNode($2).addChild($1).addChild($3); } //Might want to make '.' abstract
-    | functions                     { $$.setNode($1); }
+    | function                     { $$.setNode($1); }
     | ID                            { $$.setNode($1); }
     ;
 
@@ -180,20 +185,16 @@ ifblock
                                     { $$.setNode($1).addChild($2).addChild($3).addChild($4).addChild($5); }
     ;
 
-imports
+import
     : module_list                   { $$.setNode($1); }
     | module_symbols AS ID          { $$.setNode($2).addChild($1).addChild($3); }
     | module_list FROM  module_from { $$.setNode($2).addChild($1).addChild($3); }
     ;
 
-id_list
-    : id_list identifier            { $$.setNode($1).addChild($2); }  /*This needs further thought inc. whether to swap order of $1 & $2*/
-    | identifier                    { $$.setNode($1); }
-    ;
-
 index
-    : INTEGER                       { $$.setNode($1); }
-    | identifier                    { $$.setNode($1); }//maybe reduce to just ID
+    : expr                          { $$.setNode($1); }
+    //: INTEGER_CONST                 { $$.setNode($1); }
+    //| identifier                    { $$.setNode($1); }//maybe reduce to just ID
     ;
 
 index_range
@@ -293,9 +294,9 @@ void appendParserTokenText(StringBuffer & target, unsigned tok)
         tokenName.replaceString("\"", "");
         target.append(tokenName.str());
     }
-    else if (tok > 0 && tok < 256)
+    else if (tok > 0 && tok < 258)
         target.append((char)tok);
-    else if (tok > 258)
+    else if (tok > 257)
     {
         StringBuffer tokenName = yytname[tok-258+3];
         tokenName.replaceString("\"", "");
