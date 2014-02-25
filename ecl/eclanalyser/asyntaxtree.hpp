@@ -32,6 +32,8 @@ class AnalyserSymbols
 public :
     virtual void setIdNameList(IdTable * list);
     virtual void printIdNameList();
+    virtual IdTable * queryIdTable();
+    virtual IIdTableItem * queryIdTable(aindex_t pos);
 
 protected:
     AnalyserSymbols();
@@ -44,34 +46,39 @@ protected:
 class AnalyserPuncST : public AnalyserSymbols, PuncSyntaxTree
 {
 public:
-    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const TokenKind & _kind);
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, TokenKind _kind);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual void appendSTvalue(StringBuffer & str);
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
     virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
+    virtual IdTable * queryIdTable() { return AnalyserSymbols::queryIdTable(); }
+    virtual IIdTableItem * queryIdTable(aindex_t pos) { return AnalyserSymbols::queryIdTable(pos); }
+
 private:
-    AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
+    AnalyserPuncST(const ECLlocation & _pos, TokenKind _kind);
 };
 //-----------------------------------------------------------------------------------------------------------------------
 class AnalyserIdST : public AnalyserSymbols, IdSyntaxTree
 {
 public:
-    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind);
     //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
     virtual TokenKind getKind() { return kind; }
-    virtual void createIdNameList(IdTable & symbolList, TokenKind & _kind);
+    virtual void createIdNameList(IdTable & symbolList, TokenKind _kind);
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
     virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
+    virtual IdTable * queryIdTable() { return AnalyserSymbols::queryIdTable(); }
+    virtual IIdTableItem * queryIdTable(aindex_t pos) { return AnalyserSymbols::queryIdTable(pos); }
 
 private:
-    AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
+    AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind);
     TokenKind kind;
 };
 //-----------------------------------------------------------------------------------------------------------------------
 class AnalyserStringST : public AnalyserSymbols, SyntaxTree
 {
 public:
-    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);
+    static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind);
     //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
     virtual TokenKind getKind() { return kind; }
@@ -79,7 +86,7 @@ public:
     virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 
 private:
-    AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);
+    AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind);
     TokenKind kind;
     StringBuffer text;
 };
@@ -87,9 +94,9 @@ private:
 
 //inline ISyntaxTree * createAnalyserSymbols(){ return AnalyserSymbols::createSyntaxTree(); }
 //inline ISyntaxTree * createAnalyserSymbols(const ECLlocation & _pos){ return AnalyserSymbols::createSyntaxTree(_pos); }
-ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind);
-ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind);
-ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind);
+ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, TokenKind _kind);
+ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind);
+ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind);
 
 
 

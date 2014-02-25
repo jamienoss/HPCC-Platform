@@ -32,6 +32,7 @@ interface IIdTableItem : public IInterface
 {
 public :
     virtual const char * getIdName() = 0;
+    virtual ISyntaxTree * getNode() = 0;
 };
 
 class IdTableItem : public CInterfaceOf<IIdTableItem>
@@ -45,6 +46,7 @@ public :
     ~IdTableItem();
 
     virtual const char * getIdName();
+    virtual ISyntaxTree * getNode() { return LINK(node); }
 
 protected :
     IIdAtom * symbol;
@@ -77,6 +79,23 @@ protected :
     StringBuffer str;
 };
 
+//----------------------------------ITreeWalker--------------------------------------------------------------------
+interface ITreeWalker : public IInterface
+{
+    virtual bool test(ISyntaxTree * node) = 0;
+};
+//-----------------------------------------------------------------------------------------------------------------
+class NodeFinder : public CInterfaceOf<ITreeWalker>
+{
+public :
+    NodeFinder(ISyntaxTree * _node2find) { node2find = _node2find; }
+    virtual bool test(ISyntaxTree * node) { return (node == node2find); }
+
+protected :
+    ISyntaxTree * node2find;
+};
+//-----------------------------------------------------------------------------------------------------------------
+
 typedef IArrayOf<ISyntaxTree> SyntaxTreeArray;
 //----------------------------------SyntaxTree--------------------------------------------------------------------
 interface ISyntaxTree : public IInterface
@@ -88,7 +107,8 @@ interface ISyntaxTree : public IInterface
     virtual void appendSTvalue(StringBuffer & str) = 0;
 
     virtual ISyntaxTree * queryChild(unsigned i) = 0;
-    virtual SyntaxTreeArray & queryChildren() = 0;
+    virtual ISyntaxTree * getChild(unsigned i) = 0;
+    virtual const SyntaxTreeArray & queryChildren() const = 0;
 
     virtual void addChild(ISyntaxTree * addition) = 0;
     virtual void transferChildren(ISyntaxTree * addition) = 0;
@@ -97,6 +117,10 @@ interface ISyntaxTree : public IInterface
     virtual void createIdNameList(IdTable & symbolList, TokenKind _kind) = 0;
     virtual void setIdNameList(IdTable * symbolList) = 0;
     virtual void printIdNameList() = 0;
+    virtual IdTable * queryIdTable() = 0;
+    virtual IIdTableItem * queryIdTable(aindex_t pos) = 0;
+
+    virtual ISyntaxTree * walkTree(ITreeWalker & walk) = 0;
 
 };
 
@@ -113,14 +137,18 @@ public:
     void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
 
     virtual ISyntaxTree * queryChild(unsigned i);
-    virtual SyntaxTreeArray & queryChildren();
+    virtual const SyntaxTreeArray & queryChildren() const;
 
     virtual void addChild(ISyntaxTree * addition);
+    virtual ISyntaxTree * getChild(unsigned i);
     virtual void transferChildren(ISyntaxTree * addition);
 
     virtual TokenKind queryKind() { return 0; }
     virtual const ECLlocation & queryPosition() const { return pos; }
     virtual void appendSTvalue(StringBuffer & str);
+
+    virtual ISyntaxTree * walkTree(ITreeWalker & walk);
+
 
 protected:
     virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
@@ -130,6 +158,8 @@ protected:
     virtual void createIdNameList(IdTable & symbolList, TokenKind _kind);
     virtual void setIdNameList(IdTable * symbolList) {};
     virtual void printIdNameList() {};
+    virtual IdTable * queryIdTable() { return NULL; }
+    virtual IIdTableItem * queryIdTable(aindex_t pos) { return NULL; }
 
     SyntaxTree * queryPrivateChild(unsigned i);
 

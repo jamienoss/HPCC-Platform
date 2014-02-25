@@ -71,7 +71,7 @@ static void hex2str(char * target, const char * digits, unsigned len)
   }
 }
   //--------------------------------------------------------------------------------
-static inline void setInteger(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, __int64 _value, unsigned short size, bool isSigned)
+static inline void setInteger(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, __int64 _value, unsigned size, bool isSigned)
 {
     //std::cout << tokenText << "\n";
 

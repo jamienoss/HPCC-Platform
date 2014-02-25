@@ -21,17 +21,17 @@
 #include <iostream>
 #include "bisongram.h"
 
-ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind)
+ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, TokenKind _kind)
 {
     return AnalyserPuncST::createSyntaxTree(_pos, _kind);
 }
 
-ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind)
+ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind)
 {
     return AnalyserIdST::createSyntaxTree(_pos, _id, _kind);
 }
 
-ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind)
+ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind)
 {
     return AnalyserStringST::createSyntaxTree(_pos, _text, _kind);
 }
@@ -176,16 +176,30 @@ void AnalyserSymbols::printIdNameList()
     io->close();
 }
 
+IdTable * AnalyserSymbols::queryIdTable()
+{
+    return idNameList;
+}
+
+
+IIdTableItem * AnalyserSymbols::queryIdTable(aindex_t pos)
+{
+    if(idNameList->isItem(pos))
+        return &idNameList->item(pos);
+    return NULL;
+}
+
+
 extern void analyserAppendParserTokenText(StringBuffer & target, unsigned tok);
 
 //-----------------------------------------------------------------------------------------------------------------------
 
-ISyntaxTree * AnalyserPuncST::createSyntaxTree(const ECLlocation & _pos, const TokenKind & _kind)
+ISyntaxTree * AnalyserPuncST::createSyntaxTree(const ECLlocation & _pos, TokenKind _kind)
 {
     return new AnalyserPuncST(_pos, _kind);
 }
 
-AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, const TokenKind & _kind) : AnalyserSymbols(), PuncSyntaxTree(_pos, _kind) {}
+AnalyserPuncST::AnalyserPuncST(const ECLlocation & _pos, TokenKind _kind) : AnalyserSymbols(), PuncSyntaxTree(_pos, _kind) {}
 
 void AnalyserPuncST::printNode(unsigned * nodeNum, IIOStream * out)
 {
@@ -203,17 +217,17 @@ void AnalyserPuncST::appendSTvalue(StringBuffer & str)
     analyserAppendParserTokenText(str, value);
 }
 //-----------------------------------------------------------------------------------------------------------------------
-ISyntaxTree * AnalyserIdST::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind)
+ISyntaxTree * AnalyserIdST::createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind)
 {
     return new AnalyserIdST(_pos, _id, _kind);
 }
 
-AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, const TokenKind & _kind) : AnalyserSymbols(), IdSyntaxTree(_pos, _id)
+AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind) : AnalyserSymbols(), IdSyntaxTree(_pos, _id)
 {
     kind = _kind;
 }
 
-void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind & _kind)
+void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind _kind)
 {
     if(children.ordinality())
     {
@@ -225,7 +239,7 @@ void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind & _kind)
     if(kind == _kind)
     {
        String * idName = new String(id->str());
-       IdTableItem * idItem = new IdTableItem(*id,  static_cast<SyntaxTree *>(this));
+       IdTableItem * idItem = new IdTableItem(*id, this);// static_cast<SyntaxTree *>(this));
        switch(kind)
        {
        case TERMINAL :
@@ -245,12 +259,12 @@ void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind & _kind)
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
-ISyntaxTree * AnalyserStringST::createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind)
+ISyntaxTree * AnalyserStringST::createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind)
 {
     return new AnalyserStringST(_pos, _text, _kind);
 }
 
-AnalyserStringST::AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, const TokenKind & _kind) : AnalyserSymbols(), SyntaxTree(_pos)
+AnalyserStringST::AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind) : AnalyserSymbols(), SyntaxTree(_pos)
 {
     kind = _kind;
     text = _text.str();

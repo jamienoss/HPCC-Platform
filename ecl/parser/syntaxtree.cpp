@@ -167,11 +167,11 @@ void SyntaxTree::transferChildren(ISyntaxTree * addition)
 {
     ForEachItemIn(i,addition->queryChildren())
 	{
-        children.append(*addition->queryChild(i));
+        children.append(*addition->getChild(i));
 	}
 }
 
-SyntaxTreeArray & SyntaxTree::queryChildren()
+const SyntaxTreeArray & SyntaxTree::queryChildren() const
 {
 	return children;
 }
@@ -180,6 +180,13 @@ ISyntaxTree * SyntaxTree::queryChild(unsigned i)
 {
     if (children.isItem(i))
         return & children.item(i);
+    return NULL;
+}
+
+ISyntaxTree * SyntaxTree::getChild(unsigned i)
+{
+    if (children.isItem(i))
+        return  LINK(&children.item(i));
     return NULL;
 }
 
@@ -197,6 +204,23 @@ void SyntaxTree::createIdNameList(IdTable & symbolList, TokenKind _kind)
     }
 }
 
+ISyntaxTree * SyntaxTree::walkTree(ITreeWalker & walker)
+{
+    if(walker.test(this))
+        return LINK(this);
+
+    ISyntaxTree * found = NULL;
+    if(children.ordinality())
+    {
+        ForEachItemIn(i, children)
+        {
+            found = children.item(i).walkTree(walker);
+            if(found)
+                return found;
+        }
+    }
+    return found;
+}
 //----------------------------------ConstantSyntaxTree--------------------------------------------------------------------
 ISyntaxTree * ConstantSyntaxTree::createSyntaxTree(const ECLlocation & _pos, IValue * constant)
 {
@@ -311,3 +335,4 @@ const char * IdTableItem::getIdName()
 {
     return symbol->str();
 }
+//------------------------------------------------------------------------------------------------------
