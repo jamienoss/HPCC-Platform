@@ -260,7 +260,7 @@ IMPORT                   { setLex(IMPORT); return IMPORT; }
 RECORD                   { setLex(RECORD); return RECORD; }
 TRUE                     { setBool; return BOOLEAN_CONST; }
 TYPE                     { setLex; return TYPE; }
-".^"                     { setLex('^'); return UPDIR; }
+".^"                     { setLex(UPDIR); return UPDIR; }
 ".."                     { setLex; return DOTDOT; }
 
 
@@ -284,7 +284,9 @@ TYPE                     { setLex; return TYPE; }
 
 \'[^\n]*\'               { setString; return STRING_CONST; }
 
-(\$|{letter}){alphanum}* { setId; return ID; }
+{letter}{alphanum}*      { setId; return ID; }
+${digit}+                { setId; return PARSE_ID; }
+
 ":="                     { setLex(ASSIGN); return ASSIGN; }
 ";"+[; \t\r]*            { setLex(';'); return ';'; }
 "!="                     { setLex(NE); return NE; }

@@ -69,6 +69,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     LE "<="
     LT "<"
     NE "!="
+    PARSE_ID
     REAL
     RECORD
     STRING_CONST
@@ -102,7 +103,7 @@ eclQuery
 
 line_of_code
     : expr                          { $$.setNode($1); }
-    | IMPORT import                { $$.setNode($1).addChild($2); }
+    | IMPORT import                 { $$.setNode($1).addChild($2); }
     | assignment                    { $$.setNode($1); }
     ;
 
@@ -176,7 +177,7 @@ id_list
 
 identifier
     : identifier '.' identifier     { $$.setNode($2).addChild($1).addChild($3); } //Might want to make '.' abstract
-    | function                     { $$.setNode($1); }
+    | function                      { $$.setNode($1); }
     | ID                            { $$.setNode($1); }
     ;
 
@@ -214,19 +215,22 @@ module_from
     ;
 
 module_list
-    : module_list ',' module_symbols
-                                    { $$.setNode($1).addChild($3); }
-    | module_symbols                { $$.setNode(',', $1.queryNodePosition()).addChild($1); }
+    : module_list ','  module_path  { $$.setNode($1).addChild($3); }
+    | module_path                   { $$.setNode(',', $1.queryNodePosition()).addChild($1); }
+    ;
+
+module_path
+    : '$' module_symbols            { $$.setNode($1).addChild($2); }
+    | '$' '.' module_symbols        { $$.setNode($2).addChild($1).addChild($3); }
+    | '$' UPDIR module_symbols      { $$.setNode($2).addChild($1).addChild($3); }
+    | module_symbols                { $$.setNode($1); }
     ;
 
 module_symbols
-//    : module_symbols '.' identifier  { $$.setNode($1).addChild($2).addChild($3); }
     : module_symbols UPDIR module_symbols
                                     { $$.setNode($2).addChild($1).addChild($3); }
     | module_symbols UPDIR          { $$.setNode($2).addChild($1); } //MORE might need to consider strings and not just char tokens
     | identifier                    { $$.setNode($1); }
-    | '$'                           { $$.setNode($1); }
-//    | ID                            { $$.setNode($1); }
     ;
 
 parameter
