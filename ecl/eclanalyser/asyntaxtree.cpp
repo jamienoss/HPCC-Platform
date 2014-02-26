@@ -235,7 +235,7 @@ void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind _kind)
            children.item(i).createIdNameList(symbolList, _kind);
     }
     // add only new symbols
-    TokenKind kind = getKind();
+    TokenKind kind = queryKind();
     if(kind == _kind)
     {
        String * idName = new String(id->str());
@@ -274,5 +274,30 @@ void AnalyserStringST::printNode(unsigned * nodeNum, IIOStream * out)
 {
     SyntaxTree::printNode(nodeNum, out, text.str(), "\"1.0,0.5,1\"");
 }
-
 //-----------------------------------------------------------------------------------------------------------------------
+bool PatchGrammar::action(ISyntaxTree * node)
+{
+    ForEachItemIn(i, node->queryChildren())
+    {
+        ISyntaxTree * child = node->queryChild(i);
+        if(child->queryKind() == NONTERMINAL)
+        {
+            if(child->numberOfChildren())
+            {
+                std::cout << "woops this shouldn't have any children\n";
+                return false;
+            }
+            String thisIdName(child->queryIdName());
+            ForEachItemIn(j, *idTable)
+            {
+                if(!thisIdName.compareTo(idTable->item(j).getIdName()))
+                {
+                    std::cout << "here\n";
+                    node->getChildren()->replace(*idTable->item(i).getNode(), i);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}

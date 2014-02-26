@@ -206,7 +206,8 @@ void SyntaxTree::createIdNameList(IdTable & symbolList, TokenKind _kind)
 
 ISyntaxTree * SyntaxTree::walkTree(ITreeWalker & walker)
 {
-    if(walker.test(this))
+    bool keepWalking = walker.keepWalking();
+    if(walker.action(this) && !keepWalking)
         return LINK(this);
 
     ISyntaxTree * found = NULL;
@@ -215,7 +216,7 @@ ISyntaxTree * SyntaxTree::walkTree(ITreeWalker & walker)
         ForEachItemIn(i, children)
         {
             found = children.item(i).walkTree(walker);
-            if(found)
+            if(found && !keepWalking)
                 return found;
         }
     }

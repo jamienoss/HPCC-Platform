@@ -63,7 +63,7 @@ class AnalyserIdST : public AnalyserSymbols, IdSyntaxTree
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind);
     //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
-    virtual TokenKind getKind() { return kind; }
+    virtual TokenKind queryKind() { return kind; }
     virtual void createIdNameList(IdTable & symbolList, TokenKind _kind);
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
     virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
@@ -81,7 +81,7 @@ public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind);
     //virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
-    virtual TokenKind getKind() { return kind; }
+    virtual TokenKind queryKind() { return kind; }
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
     virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
 
@@ -98,7 +98,17 @@ ISyntaxTree * createAnalyserPuncST(const ECLlocation & _pos, TokenKind _kind);
 ISyntaxTree * createAnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, TokenKind _kind);
 ISyntaxTree * createAnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind);
 
+//-----------------------------------------------------------------------------------------------------------------------
 
+class PatchGrammar : public TreeWalker
+{
+public :
+    PatchGrammar(IdTable * _idTable) : TreeWalker(true) { idTable = _idTable; }
+    virtual bool action(ISyntaxTree * node);
+
+protected :
+    IdTable * idTable;
+};
 
 
 

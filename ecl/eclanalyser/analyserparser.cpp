@@ -21,7 +21,7 @@
 #include <iostream>
 #include "bisongram.h"
 #include "bisonlex.hpp"
-//#include "ASyntaxTree.hpp"
+//#include "asyntaxtree.hpp"
 
 #include "eclparser.hpp"
 
@@ -72,13 +72,17 @@ bool boolTest() { std::cout << "this works\n"; return true; }
 
 void AnalyserParser::mirrorGrammarStruct(ISyntaxTree * tree)
 {
-    ISyntaxTree * node2find, * node = NULL;
+    /*ISyntaxTree * node2find, * node = NULL;
     node2find = tree->queryIdTable(3)->getNode();
     std::cout << "node2find = " << node2find << "\n";
-
-    ITreeWalker * walker = new NodeFinder(node2find);
+    ITreeWalker * walker = new NodeFinder(node2find, false);
     node = tree->walkTree(*walker);
-    std::cout << "node = " << node << "\n";
+    std::cout << "node = " << node << "\n";*/
+
+    ITreeWalker * walker = new PatchGrammar(tree->queryIdTable());
+    tree->walkTree(*walker);
+
+
 }
 
 AnalyserLexer & AnalyserParser::getLexer()

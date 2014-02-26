@@ -215,7 +215,7 @@ module_from
     ;
 
 module_list
-    : module_list ','  module_path  { $$.setNode($1).addChild($3); }
+    : module_list ',' module_path   { $$.setNode($1).addChild($3); }
     | module_path                   { $$.setNode(',', $1.queryNodePosition()).addChild($1); }
     ;
 
