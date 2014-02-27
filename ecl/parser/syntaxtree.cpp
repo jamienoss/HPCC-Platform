@@ -30,10 +30,11 @@
 ISyntaxTree * SyntaxTree::createSyntaxTree() { return new SyntaxTree(); }
 ISyntaxTree * SyntaxTree::createSyntaxTree(const ECLlocation & _pos) { return new SyntaxTree(_pos); }
 
-SyntaxTree::SyntaxTree() { pos.clear(); }
-SyntaxTree::SyntaxTree(const ECLlocation & _pos) { pos.set(_pos); }
+SyntaxTree::SyntaxTree() { pos.clear(); revisit = true; }
+SyntaxTree::SyntaxTree(const ECLlocation & _pos) { pos.set(_pos); revisit = true; }
 SyntaxTree::~SyntaxTree() {}
 //-------------------------------------------------------------------------------------------------------------------
+void SyntaxTree::setRevisit(bool _revisit) { revisit = _revisit; }
 
 SyntaxTree * SyntaxTree::queryPrivateChild(unsigned i)
 {
@@ -118,6 +119,7 @@ void SyntaxTree::printXml(Printer * print)
 
 void  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out)
 {
+    setRevisit(false);
     unsigned parentNodeNumm = *nodeNum;
 
     printNode(nodeNum, out);
@@ -125,7 +127,8 @@ void  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOS
     ForEachItemIn(i,children)
     {
        printEdge(parentNodeNumm, *nodeNum, out, i);
-       queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
+       if(queryPrivateChild(i)->revisit)
+           queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
     }
 }
 
@@ -207,8 +210,6 @@ void SyntaxTree::createIdNameList(IdTable & symbolList, TokenKind _kind)
 ISyntaxTree * SyntaxTree::walkTree(ITreeWalker & walker)
 {
     bool keepWalking = walker.keepWalking();
-    if(walker.action(this) && !keepWalking)
-        return LINK(this);
 
     ISyntaxTree * found = NULL;
     if(children.ordinality())
@@ -220,6 +221,10 @@ ISyntaxTree * SyntaxTree::walkTree(ITreeWalker & walker)
                 return found;
         }
     }
+
+    if(walker.action(this) && !keepWalking)
+        return this;//did link here but should probably be done inside action
+
     return found;
 }
 //----------------------------------ConstantSyntaxTree--------------------------------------------------------------------

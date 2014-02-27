@@ -227,6 +227,7 @@ AnalyserIdST::AnalyserIdST(const ECLlocation & _pos, IIdAtom * _id, TokenKind _k
     kind = _kind;
 }
 
+
 void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind _kind)
 {
     if(children.ordinality())
@@ -257,7 +258,6 @@ void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind _kind)
        }
    }
 }
-
 //-----------------------------------------------------------------------------------------------------------------------
 ISyntaxTree * AnalyserStringST::createSyntaxTree(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind)
 {
@@ -292,8 +292,9 @@ bool PatchGrammar::action(ISyntaxTree * node)
             {
                 if(!thisIdName.compareTo(idTable->item(j).getIdName()))
                 {
-                    std::cout << "here\n";
-                    node->getChildren()->replace(*idTable->item(i).getNode(), i);
+                    //std::cout << thisIdName.toCharArray()<< " and " << idTable->item(j).getIdName() << "\n";
+                    node->getChildren()->item(i).Release();
+                    node->getChildren()->replace(*idTable->item(j).getNode(), i);//link???
                     return true;
                 }
             }

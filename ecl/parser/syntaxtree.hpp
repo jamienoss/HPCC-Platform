@@ -118,7 +118,7 @@ interface ISyntaxTree : public IInterface
     virtual TokenKind queryKind() = 0;
     virtual const ECLlocation & queryPosition() const = 0;
     virtual const char * queryIdName() = 0;
-
+    virtual bool alreadyVisited() = 0;
     virtual void printTree() = 0;
     virtual void printXml(Printer * print) = 0;
     virtual void appendSTvalue(StringBuffer & str) = 0;
@@ -138,6 +138,7 @@ interface ISyntaxTree : public IInterface
     virtual IdTable * queryIdTable() = 0;
     virtual IIdTableItem * queryIdTable(aindex_t pos) = 0;
 
+    virtual void setRevisit(bool _revisit) = 0;
     virtual ISyntaxTree * walkTree(ITreeWalker & walker) = 0;
 };
 
@@ -152,6 +153,7 @@ public:
     virtual void printTree();
     virtual void printXml(Printer * print);
     void printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOStream * out);
+    virtual bool alreadyVisited() { return false; }
 
     virtual ISyntaxTree * queryChild(unsigned i);
     virtual ISyntaxTree * getChild(unsigned i);
@@ -166,6 +168,7 @@ public:
     virtual const char * queryIdName() { return NULL; }
     virtual void appendSTvalue(StringBuffer & str);
 
+    virtual void setRevisit(bool _revisit);
     virtual ISyntaxTree * walkTree(ITreeWalker & walker);
 
 
@@ -185,6 +188,7 @@ protected:
 protected:
     ECLlocation pos;
     SyntaxTreeArray children;
+    bool revisit;
 
 protected:
     SyntaxTree();
@@ -198,6 +202,7 @@ class PuncSyntaxTree : public SyntaxTree
 {
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, TokenKind _token);
+    virtual TokenKind queryKind() { return value; };
 
 protected:
     virtual void printNode(unsigned * nodeNum, IIOStream * out);

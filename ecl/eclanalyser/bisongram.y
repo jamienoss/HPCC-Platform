@@ -54,6 +54,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, AnalyserParser * 
     CODE
     NONTERMINAL
     NONTERMINALDEF
+    NONTERMINALDEF_COPY
     PREC
     TERMINAL
 

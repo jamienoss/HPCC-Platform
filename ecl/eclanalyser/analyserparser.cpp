@@ -72,17 +72,13 @@ bool boolTest() { std::cout << "this works\n"; return true; }
 
 void AnalyserParser::mirrorGrammarStruct(ISyntaxTree * tree)
 {
-    /*ISyntaxTree * node2find, * node = NULL;
-    node2find = tree->queryIdTable(3)->getNode();
-    std::cout << "node2find = " << node2find << "\n";
-    ITreeWalker * walker = new NodeFinder(node2find, false);
-    node = tree->walkTree(*walker);
-    std::cout << "node = " << node << "\n";*/
-
     ITreeWalker * walker = new PatchGrammar(tree->queryIdTable());
     tree->walkTree(*walker);
 
-
+    while(tree->queryChildren().tos().queryKind() == NONTERMINALDEF)
+    {
+        tree->getChildren()->pop();
+    }
 }
 
 AnalyserLexer & AnalyserParser::getLexer()

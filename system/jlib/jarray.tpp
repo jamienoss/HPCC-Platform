@@ -245,7 +245,7 @@ template <class MEMBER, class PARAM>
 void OwningArrayOf<MEMBER, PARAM>::remove(aindex_t pos, bool nodestruct)
 {
    MEMBER * head= (MEMBER *)SELF::_head;
-   assertex(pos < SELF::used);  
+   assertex(pos < SELF::used);
    SELF::used --;
    if (!nodestruct) Array__Destroy(head[pos]);
    SELF::_move( pos, pos + 1, ( SELF::used - pos ) );
