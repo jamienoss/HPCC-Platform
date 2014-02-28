@@ -118,6 +118,7 @@ interface ISyntaxTree : public IInterface
     virtual TokenKind queryKind() = 0;
     virtual const ECLlocation & queryPosition() const = 0;
     virtual const char * queryIdName() = 0;
+
     virtual bool alreadyVisited() = 0;
     virtual void printTree() = 0;
     virtual void printXml(Printer * print) = 0;
@@ -233,6 +234,7 @@ public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IIdAtom * _id);
     ~IdSyntaxTree();
     virtual const char * queryIdName() { return id->str(); }
+    virtual const char * value2str() { return queryIdName(); }
 
 protected:
     IdSyntaxTree(ECLlocation _pos, IIdAtom * _id);

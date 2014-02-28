@@ -77,7 +77,7 @@ void SyntaxTree::printTree()
 
     //printing dot
     //str = "graph \"Abstract Syntax Tree\"\n{\n";
-    str = ("graph \"Abstract Syntax Tree\"\n{\nordering=out\n");
+    str = ("digraph \"Abstract Syntax Tree\"\n{\nordering=out\n");
     out->write(str.length(), str.str());
 
     printBranch(& parentNodeNum, & nodeNum, out);
@@ -127,6 +127,15 @@ void  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOS
     ForEachItemIn(i,children)
     {
        printEdge(parentNodeNumm, *nodeNum, out, i);
+        /*{
+            StringBuffer str;
+            appendSTvalue(str);
+            str.append(" -> ");
+            queryChild(i)->appendSTvalue(str);
+            str.append(" [style = solid]\n");
+            out->write(str.length(), str.str());
+        }*/
+
        if(queryPrivateChild(i)->revisit)
            queryPrivateChild(i)->printBranch(parentNodeNum, nodeNum, out);
     }
@@ -135,7 +144,7 @@ void  SyntaxTree::printBranch(unsigned * parentNodeNum, unsigned * nodeNum, IIOS
 void SyntaxTree::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx)
 {
     StringBuffer str;
-    str.append(parentNodeNum).append(" -- ").append(nodeNum).append(" [style = solid]\n");
+    str.append(parentNodeNum).append(" -> ").append(nodeNum).append(" [style = solid]\n");
     out->write(str.length(), str.str());
 }
 
@@ -179,7 +188,7 @@ const SyntaxTreeArray & SyntaxTree::queryChildren() const
 	return children;
 }
 
-ISyntaxTree * SyntaxTree::queryChild(unsigned i)
+ISyntaxTree * SyntaxTree::queryChild(unsigned i) //This should be const but this conflicts with queryPrivateChild()
 {
     if (children.isItem(i))
         return & children.item(i);

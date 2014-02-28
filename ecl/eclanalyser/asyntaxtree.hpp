@@ -84,6 +84,7 @@ public:
     virtual TokenKind queryKind() { return kind; }
     virtual void printIdNameList() { AnalyserSymbols::printIdNameList(); }
     virtual void setIdNameList(IdTable * symbolList) { AnalyserSymbols::setIdNameList(symbolList); }
+    virtual void printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx);
 
 private:
     AnalyserStringST(const ECLlocation & _pos, const StringBuffer & _text, TokenKind _kind);

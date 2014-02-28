@@ -270,9 +270,22 @@ AnalyserStringST::AnalyserStringST(const ECLlocation & _pos, const StringBuffer 
     text = _text.str();
 }
 
+#define SKIP_PRODUCTION 0
+
 void AnalyserStringST::printNode(unsigned * nodeNum, IIOStream * out)
 {
+#if !SKIP_PRODUCTION
     SyntaxTree::printNode(nodeNum, out, text.str(), "\"1.0,0.5,1\"");
+#endif
+}
+
+void AnalyserStringST::printEdge(unsigned parentNodeNum, unsigned nodeNum, IIOStream * out, unsigned childIndx)
+{
+#if !SKIP_PRODUCTION
+    StringBuffer str;
+    str.append(parentNodeNum).append(" -> ").append(nodeNum).append(" [style = solid]\n");
+    out->write(str.length(), str.str());
+#endif
 }
 //-----------------------------------------------------------------------------------------------------------------------
 bool PatchGrammar::action(ISyntaxTree * node)
@@ -291,12 +304,7 @@ bool PatchGrammar::action(ISyntaxTree * node)
             ForEachItemIn(j, *idTable)
             {
                 if(!thisIdName.compareTo(idTable->item(j).getIdName()))
-                {
-                    //std::cout << thisIdName.toCharArray()<< " and " << idTable->item(j).getIdName() << "\n";
-                    node->getChildren()->item(i).Release();
                     node->getChildren()->replace(*idTable->item(j).getNode(), i);//link???
-                    return true;
-                }
             }
         }
     }
