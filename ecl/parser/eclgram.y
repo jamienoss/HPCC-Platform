@@ -286,7 +286,8 @@ records
 recordset
     : RECORD all_record_options fields END
                                     { $$.setNode($1).addChild($2).addChild($3); } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
-    | '{' fields '}'                { $$.setNode($1).addChild($2).addChild($3); }
+    | '{' all_record_options fields '}'
+                                    { $$.setNode($1).addChild($2).addChild($3); }
 //   'records' used to be, still could/should be, fields
     ;
 
