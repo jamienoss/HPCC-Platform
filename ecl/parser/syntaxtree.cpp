@@ -86,7 +86,8 @@ void SyntaxTree::printTree()
     out->write(str.length(), str.str());
     io->close();
 
-    StringBuffer runDot = "dot -Tpdf -O ";
+    //StringBuffer runDot = "dot -Tpdf -O ";
+    StringBuffer runDot = "dot -Tjpg -O ";//If this stays, doubt it will, could make format a passed option
     runDot.append(fileName);
     system(runDot.str());
 }
@@ -337,9 +338,9 @@ ISyntaxTree * createConstSyntaxTree(const ECLlocation & _pos, IValue * constant)
 }
 //------------------------------------------------------------------------------------------------------
 IdTableItem::IdTableItem() { symbol = NULL; }
-IdTableItem::IdTableItem(const IIdAtom & id) { symbol = createIdAtom(id); }
+IdTableItem::IdTableItem(IIdAtom * id) { symbol = LINK(id); }
 IdTableItem::IdTableItem(ISyntaxTree * _node) { symbol = NULL; node.set(_node); }
-IdTableItem::IdTableItem(const IIdAtom & id, ISyntaxTree * _node) { symbol = createIdAtom(id); node.set(_node); }
+IdTableItem::IdTableItem(IIdAtom * id, ISyntaxTree * _node) { symbol = LINK(id); node.set(_node); }
 
 IdTableItem::~IdTableItem()
 {

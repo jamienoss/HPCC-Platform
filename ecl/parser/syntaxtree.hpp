@@ -39,9 +39,9 @@ class IdTableItem : public CInterfaceOf<IIdTableItem>
 {
 public :
     IdTableItem();
-    IdTableItem(const IIdAtom & id);
+    IdTableItem(IIdAtom * id);
     IdTableItem(ISyntaxTree * _node);
-    IdTableItem(const IIdAtom & id, ISyntaxTree * _node);
+    IdTableItem(IIdAtom * id, ISyntaxTree * _node);
 
     ~IdTableItem();
 

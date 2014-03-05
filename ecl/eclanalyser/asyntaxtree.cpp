@@ -240,7 +240,7 @@ void AnalyserIdST::createIdNameList(IdTable & symbolList, TokenKind _kind)
     if(kind == _kind)
     {
        String * idName = new String(id->str());
-       IdTableItem * idItem = new IdTableItem(*id, this);// static_cast<SyntaxTree *>(this));
+       IdTableItem * idItem = new IdTableItem(id, this);// static_cast<SyntaxTree *>(this));
        switch(kind)
        {
        case TERMINAL :

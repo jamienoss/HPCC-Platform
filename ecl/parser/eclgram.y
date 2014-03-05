@@ -79,8 +79,10 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
+
 %left ';' ',' '.'
-%left '+' '*' '/'
+%left '*' '/'
+%left '+'
 %left UPDIR
 %left NE EQ LE GE LT GT
 
@@ -127,8 +129,8 @@ constant
     ;
 
 expr
-    : '+' expr                      { $$.setNode($1).addChild($2); }
-    | '-' expr                      { $$.setNode($1).addChild($2); }
+    : '+' expr                      { $$.setNode($1).addChild($2); }//not left rec, hmmmm?!? MORE: could make '+' abstract here!!!
+    | '-' expr                      { $$.setNode($1).addChild($2); }//not left rec, hmmmm?!?
     | expr_op_expr                  { $$.setNode($1); }
     | constant                      { $$.setNode($1); }
     | set                           { $$.setNode($1); }
@@ -136,6 +138,26 @@ expr
     | '(' expr ')'                  { $$.setNode($2); } /*might want to re-think discarding parens - I don't think so!*/
     | '(' ')'                       { $$.setNode($1).addChild($2); }
     ;
+
+//expr
+//    : expr '+' term                 { $$.setNode($2).addChild($1).addChild($3); }
+//    | expr '-' term                 { $$.setNode($2).addChild($1).addChild($3); }
+//    | term                          { $$.setNode($1); }
+//    ;
+
+//term
+//    : term '*' factor               { $$.setNode($2).addChild($1).addChild($3); }
+//    | term '/' factor               { $$.setNode($2).addChild($1).addChild($3); }
+//    | factor                        { $$.setNode($1); }
+//    ;
+
+//factor
+//    : '(' expr ')'                  { $$.setNode($2); }
+//    | constant                      { $$.setNode($1); }
+//    | set                           { $$.setNode($1); }
+//    | id_list                       { $$.setNode($1); }
+//    | '(' ')'                       { $$.setNode($1).addChild($2); }
+//    ;
 
 expr_op_expr
     : expr '+' expr                 { $$.setNode($2).addChild($1).addChild($3); }

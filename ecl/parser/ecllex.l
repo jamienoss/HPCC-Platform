@@ -215,12 +215,12 @@ static char foldMinus(char * & tokenText, unsigned txtLen)
 
 %}
 
-letter        [a-z_A-Z]
+letter        [_a-zA-Z]
 digit         [0-9]
 bindigit      [0-1]
 hexdigit      [a-fA-F0-9]
-alphanum      [a-z_A-Z$_0-9]
-alphanumcolon [a-z_A-Z$_0-9:@]
+alphanum      [_$a-zA-Z0-9]
+alphanumcolon [a-z_A-Z$_0-9:@] //extra underscore not needed
 blank         [ \t\r]
 slash         [/]
 star          [*]
