@@ -85,10 +85,10 @@ class HQL_API UniqueSequenceCounter
 public:
     inline UniqueSequenceCounter() { value = 0; }
 
-    inline unique_id_t next() 
-    { 
+    inline unique_id_t next()
+    {
         SpinBlock block(lock);
-        return ++value; 
+        return ++value;
     }
 
 protected:
@@ -132,7 +132,7 @@ enum
     HEFoldthrows                = 0x00008000,           // old throws flag, which I should remove asap
 
 // code generator specific start from the bottom up.
-//NB: update the select 
+//NB: update the select
     HEFcontainsThisNode         = 0x00010000,
     HEFonFailDependent          = 0x00020000,
     HEFcontainsActiveDataset    = 0x00040000,
@@ -155,7 +155,7 @@ enum
 //Combinations used for processing elsewhere:
 //Don't ever inherit the following...
     HEFalwaysInherit            = HEFunbound|HEFinternalSelect,
-    HEFassigninheritFlags       = ~(HEFhousekeeping|HEFalwaysInherit),          // An assign inherits all but this list from the rhs value 
+    HEFassigninheritFlags       = ~(HEFhousekeeping|HEFalwaysInherit),          // An assign inherits all but this list from the rhs value
 
 //  HEFcontextDependent         = (HEFgraphDependent|HEFcontainsNlpText|HEFcontainsXmlText|HEFcontainsSkip|HEFcontainsCounter|HEFtransformDependent|HEFtranslated|HEFonFailDependent|HEFcontextDependentException|HEFthrowscalar|HEFthrowds),
     HEFcontextDependent         = (HEFgraphDependent|HEFcontainsNlpText|HEFcontainsXmlText|HEFcontainsSkip|HEFcontainsCounter|HEFtransformDependent|HEFtranslated|HEFonFailDependent|HEFcontextDependentException|HEFoldthrows),
@@ -173,7 +173,7 @@ enum
     HEFimpure                   = (HEFvolatile|HEFaction|HEFthrowds|HEFthrowscalar|HEFcontainsSkip),
 };
 
-//NB: increase the member variable if it grows 
+//NB: increase the member variable if it grows
 enum
 {
     HEF2workflow                = 0x00000001,
@@ -192,7 +192,7 @@ enum
     HEF2alwaysInherit           = (HEF2workflow|HEF2containsCall|HEF2containsDelayedCall),
     HEF2intersectionFlags       = (HEF2constant),
     HEF2unionFlags              = (HEF2alwaysInherit)|(HEF2mustHoist|HEF2assertstepped|HEF2containsNonGlobalAlias|HEF2containsNewDataset|HEF2globalAction|HEF2containsSelf),
-    HEF2assigninheritFlags      = ~(HEF2alwaysInherit),         // An assign inherits all but this list from the rhs value 
+    HEF2assigninheritFlags      = ~(HEF2alwaysInherit),         // An assign inherits all but this list from the rhs value
 };
 
 //Removed spaces so it is easier to translate from a number to a node when debugging.
@@ -202,21 +202,21 @@ enum _node_operator {
         no_list,
         no_mul,
         no_div,
-        no_modulus,  
-        no_negate,   
-        no_add,      
-        no_sub,      
-        no_eq,       
-        no_ne,       
-        no_lt,       
-        no_le,       
-        no_gt,       
-        no_ge,       
-        no_not, 
+        no_modulus,
+        no_negate,
+        no_add,
+        no_sub,
+        no_eq,
+        no_ne,
+        no_lt,
+        no_le,
+        no_gt,
+        no_ge,
+        no_not,
         no_notnot,
-        no_and, 
-        no_or, 
-        no_xor,     
+        no_and,
+        no_or,
+        no_xor,
         no_concat,
         no_notin,
         no_in,
@@ -257,7 +257,7 @@ enum _node_operator {
         no_assign,
         no_assignall,
         no_asstring,
-        no_group,  
+        no_group,
         no_cogroup,
         no_cosort,
         no_truncate,
@@ -287,7 +287,7 @@ enum _node_operator {
         no_right,
         no_outofline,
         no_cast,
-        no_implicitcast, 
+        no_implicitcast,
         no_once,
         no_csv,
         no_sql,
@@ -297,7 +297,7 @@ enum _node_operator {
         no_mix,
         no_selectnth,
         no_stored,
-        no_failure,   
+        no_failure,
         no_success,
         no_recovery,
         no_external,
@@ -308,7 +308,7 @@ enum _node_operator {
         no_persist,
         no_buildindex,
         no_output,
-        no_omitted,   
+        no_omitted,
         no_when,
         no_setconditioncode,
         no_priority,
@@ -321,7 +321,7 @@ enum _node_operator {
         no_temptable,
         no_usertable,
         no_choosen,
-        no_filter, 
+        no_filter,
         no_fetch,
         no_join,
         no_joined,
@@ -343,7 +343,7 @@ enum _node_operator {
         no_hash64,
         no_crc,
         no_return_stmt,
-        no_update,    
+        no_update,
         no_subsort,
         no_chooseds,
         no_alias,
@@ -363,7 +363,7 @@ enum _node_operator {
         no_existsdict,
     no_unused101,
     no_unused25,
-    no_unused28,  
+    no_unused28,
     no_unused29,
     no_unused30,
     no_unused31,
@@ -393,7 +393,7 @@ enum _node_operator {
     no_unused50,
         no_nullptr,
         no_sizeof,
-        no_offsetof, 
+        no_offsetof,
         no_current_date,
         no_current_time,
         no_current_timestamp,
@@ -403,7 +403,7 @@ enum _node_operator {
         no_band,
         no_bor,
         no_bxor,
-        no_bnot, 
+        no_bnot,
         no_postinc,
         no_postdec,
         no_preinc,
@@ -413,7 +413,7 @@ enum _node_operator {
         no_deref,
         no_order,
         no_hint,
-        no_attr, 
+        no_attr,
         no_self,
         no_rank,
         no_ranked,
@@ -430,7 +430,7 @@ enum _node_operator {
         no_macro,
         no_cloned,
         no_cachealias,
-        no_lshift, 
+        no_lshift,
         no_rshift,
         no_colon,
         no_setworkflow_cond,
@@ -441,7 +441,7 @@ enum _node_operator {
         no_normalize,
         no_counter,
         no_distributed,
-        no_grouped, 
+        no_grouped,
         no_denormalize,
         no_transformebcdic,
         no_transformascii,
@@ -465,7 +465,7 @@ enum _node_operator {
         no_loadxml,                     // used for error report
         no_isomitted,
         no_fieldmap,                    // dataset with a map
-        no_template_context,            // dataset func 
+        no_template_context,            // dataset func
         no_ensureresult,                // (value, seq, [name])
         no_getresult,                   // (seq, [name])
         no_setresult,                   // (value, seq, [name])
@@ -955,9 +955,9 @@ class HqlLookupContext
 public:
     explicit HqlLookupContext(const HqlLookupContext & other) : parseCtx(other.parseCtx)
     {
-        errs.set(other.errs); 
-        functionCache = other.functionCache; 
-        curAttrTree.set(other.curAttrTree); 
+        errs.set(other.errs);
+        functionCache = other.functionCache;
+        curAttrTree.set(other.curAttrTree);
     }
     HqlLookupContext(HqlParseContext & _parseCtx, IErrorReceiver * _errs)
     : parseCtx(_parseCtx), errs(_errs)
@@ -1151,7 +1151,7 @@ interface IHqlExpression : public IInterface
 
     virtual bool isFullyBound() const = 0;
     virtual IHqlExpression *closeExpr() = 0;                    // MORE - should be in expressionBuilder interface!
-    virtual bool isExprClosed() const = 0;                            // aid to error recovery                 
+    virtual bool isExprClosed() const = 0;                            // aid to error recovery
     virtual IHqlExpression *addOperand(IHqlExpression *) = 0;   // MORE - should be in expressionBuilder interface!
 
     virtual StringBuffer& getTextBuf(StringBuffer& buf) = 0;
@@ -1178,8 +1178,8 @@ interface IHqlExpression : public IInterface
     inline bool isNamedSymbol() const { return getAnnotationKind() == annotate_symbol; }
     inline bool isFunctionDefinition() const { return getOperator() == no_funcdef; }
     inline bool hasAttribute(IAtom * propName) const { return queryAttribute(propName) != NULL; }
-    inline bool hasText() const 
-    { 
+    inline bool hasText() const
+    {
         IFileContents * contents = queryDefinitionText();
         return contents && contents->length() != 0;
     }
@@ -1409,7 +1409,7 @@ extern HQL_API IHqlExpression * simplifyFixedLengthList(IHqlExpression * expr);
 extern HQL_API IHqlExpression * getCastExpr(IHqlExpression * expr, ITypeInfo * type);
 
 extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlLookupContext & ctx, IXmlScope *xmlScope, bool loadImplicit);
-extern HQL_API IHqlExpression *parseQuery(IHqlScope *scope, IFileContents * contents, 
+extern HQL_API IHqlExpression *parseQuery(IHqlScope *scope, IFileContents * contents,
                                           HqlLookupContext & ctx, IXmlScope *xmlScope, IProperties * macroParams, bool loadImplicit);
 extern HQL_API IHqlExpression *parseQuery(const char *in, IErrorReceiver * errs);
 
@@ -1684,7 +1684,7 @@ inline bool containsAnyDataset(IHqlExpression * expr)   { return (expr->getInfoF
 inline bool containsAlias(IHqlExpression * expr)        { return (expr->getInfoFlags() & HEFcontainsAlias) != 0; }
 inline bool containsAliasLocally(IHqlExpression * expr) { return (expr->getInfoFlags() & HEFcontainsAliasLocally) != 0; }
 inline bool containsDatasetAliasLocally(IHqlExpression * expr) { return (expr->getInfoFlags() & HEFcontainsDatasetAliasLocally) != 0; }
-inline bool containsNonGlobalAlias(IHqlExpression * expr)   
+inline bool containsNonGlobalAlias(IHqlExpression * expr)
                                                         { return (expr->getInfoFlags2() & HEF2containsNonGlobalAlias) != 0; }
 inline bool containsAssertKeyed(IHqlExpression * expr)  { return (expr->getInfoFlags() & HEFassertkeyed) != 0; }
 inline bool containsAssertStepped(IHqlExpression * expr){ return (expr->getInfoFlags2() & HEF2assertstepped) != 0; }
@@ -1692,7 +1692,7 @@ inline bool containsCounter(IHqlExpression * expr)      { return (expr->getInfoF
 inline bool isCountProject(IHqlExpression * expr)       { return expr->hasAttribute(_countProject_Atom); }
 inline bool containsSkip(IHqlExpression * expr)         { return (expr->getInfoFlags() & (HEFcontainsSkip)) != 0; }
 inline bool containsSelf(IHqlExpression * expr)         { return (expr->getInfoFlags2() & (HEF2containsSelf)) != 0; }
-inline bool isContextDependentExceptGraph(IHqlExpression * expr)    
+inline bool isContextDependentExceptGraph(IHqlExpression * expr)
                                                         { return (expr->getInfoFlags() & (HEFcontextDependent & ~HEFgraphDependent)) != 0; }
 inline bool isGraphDependent(IHqlExpression * expr)     { return (expr->getInfoFlags() & HEFgraphDependent) != 0; }
 inline bool containsTranslated(IHqlExpression * expr)   { return (expr->getInfoFlags() & (HEFtranslated)) != 0; }
@@ -1704,15 +1704,15 @@ inline bool usesRuntimeContext(IHqlExpression * expr)   { return (expr->getInfoF
 inline bool containsWorkflow(IHqlExpression * expr)     { return (expr->getInfoFlags2() & (HEF2workflow)) != 0; }
 inline bool containsMustHoist(IHqlExpression * expr)    { return (expr->getInfoFlags2() & (HEF2mustHoist)) != 0; }
 inline bool containsNewDataset(IHqlExpression * expr)   { return (expr->getInfoFlags2() & HEF2containsNewDataset) != 0; }
-inline bool containsCall(IHqlExpression * expr, bool includeOutOfLine)  
-{ 
+inline bool containsCall(IHqlExpression * expr, bool includeOutOfLine)
+{
     unsigned mask = includeOutOfLine ? HEF2containsCall : HEF2containsDelayedCall;
     return (expr->getInfoFlags2() & mask) != 0;
 }
 
 inline bool hasDynamic(IHqlExpression * expr)           { return expr->hasAttribute(dynamicAtom); }
-inline bool isAbstractDataset(IHqlExpression * expr)    
-{ 
+inline bool isAbstractDataset(IHqlExpression * expr)
+{
     IHqlExpression * record = expr->queryRecord();
     return record && record->hasAttribute(abstractAtom);
 }
@@ -1741,7 +1741,7 @@ extern HQL_API bool isExternalFunction(IHqlExpression * funcdef);
 extern HQL_API bool isEmbedFunction(IHqlExpression * expr);
 extern HQL_API bool isEmbedCall(IHqlExpression * expr);
 
-typedef enum { 
+typedef enum {
     //Flags to indicate which datasets are available in scope
     childdataset_hasnone    = 0x0000,   // dataset->queryNormalizedSelector()
     childdataset_hasdataset = 0x0001,   // dataset->queryNormalizedSelector()
@@ -1798,10 +1798,10 @@ extern HQL_API StringBuffer& getFriendlyTypeStr(IHqlExpression* e, StringBuffer&
 extern HQL_API StringBuffer& getFriendlyTypeStr(ITypeInfo* type, StringBuffer& s);
 
 #define ForEachChild(idx, expr)  unsigned numOfChildren##idx = (expr)->numChildren(); \
-        for (unsigned idx = 0; idx < numOfChildren##idx; idx++) 
+        for (unsigned idx = 0; idx < numOfChildren##idx; idx++)
 
 #define ForEachChildFrom(idx, expr, first)  unsigned numOfChildren##idx = (expr)->numChildren(); \
-        for (unsigned idx = first; idx < numOfChildren##idx; idx++) 
+        for (unsigned idx = first; idx < numOfChildren##idx; idx++)
 
 extern HQL_API void exportData(IPropertyTree *data, IHqlExpression *table, bool flatten=false);
 

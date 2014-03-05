@@ -200,16 +200,16 @@ static char foldMinus(char * & tokenText, unsigned txtLen)
     return '-';
 }
 
-#define manSetInt(value, size, isSigned) setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), value, size, isSigned)
-#define setInt setInteger(yylval, yytext, yyleng, yylineno, parser->getLexer(), str2int64(yyleng, yytext, 10), 8, false)
-#define setReal setReal(yylval, yytext, yyleng, yylineno, parser->getLexer())
-#define setDecimal setDecimal(yylval, yytext, yyleng, yylineno, parser->getLexer(), parser)
-#define setString setString(yylval, yytext, yyleng, yylineno, parser->getLexer())
-#define setBool setBool(yylval, yytext, yyleng, yylineno, parser->getLexer())
-#define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->getLexer())
-#define setId setId(yylval, yytext, yyleng, yylineno, parser->getLexer())
-#define updatepos parser->getLexer().updatePos(yyleng)
-#define resetpos parser->getLexer().resetPos()
+#define manSetInt(value, size, isSigned) setInteger(yylval, yytext, yyleng, yylineno, parser->queryLexer(), value, size, isSigned)
+#define setInt setInteger(yylval, yytext, yyleng, yylineno, parser->queryLexer(), str2int64(yyleng, yytext, 10), 8, false)
+#define setReal setReal(yylval, yytext, yyleng, yylineno, parser->queryLexer())
+#define setDecimal setDecimal(yylval, yytext, yyleng, yylineno, parser->queryLexer(), parser)
+#define setString setString(yylval, yytext, yyleng, yylineno, parser->queryLexer())
+#define setBool setBool(yylval, yytext, yyleng, yylineno, parser->queryLexer())
+#define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->queryLexer())
+#define setId setId(yylval, yytext, yyleng, yylineno, parser->queryLexer())
+#define updatepos parser->queryLexer().updatePos(yyleng)
+#define resetpos parser->queryLexer().resetPos()
 
 #define yyterminate() setLex(_EOF_);return _EOF_
 

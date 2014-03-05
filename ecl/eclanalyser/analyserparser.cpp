@@ -36,7 +36,7 @@ AnalyserParser::AnalyserParser(IFileContents * queryContents, IErrorReceiver * e
 
 int AnalyserParser::parse()
 {
-    return ecl3yyparse(this, lexer->getScanner());
+    return ecl3yyparse(this, lexer->queryScanner());
 }
 
 void AnalyserParser::analyseGrammar()

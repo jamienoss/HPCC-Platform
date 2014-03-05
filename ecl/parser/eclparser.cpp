@@ -40,13 +40,15 @@ EclParser::~EclParser()
 {
     if (lexer)
         delete lexer;
-    ast.clear();
-    errorHandler->Release();
+    //if(ast)
+        //ast->Release();
+    //if(errorHandler)
+      //  errorHandler->Release();
 }
 
 int EclParser::parse()
 {
-    return ecl2yyparse(this, lexer->getScanner());
+    return ecl2yyparse(this, lexer->queryScanner());
 }
 
 void EclParser::setRoot(ISyntaxTree * node)
@@ -59,13 +61,12 @@ void EclParser::printAST()
     ast->printTree();
 }
 
-ISyntaxTree * EclParser::releaseAST()
+ISyntaxTree * EclParser::queryAST()
 {
-    ISyntaxTree * temp = ast;
-    return temp;
+    return ast;
 }
 
-EclLexer & EclParser::getLexer()
+EclLexer & EclParser::queryLexer()
 {
     return *lexer;
 }
@@ -109,7 +110,7 @@ void EclLexer::init(IFileContents * queryContents)
     ecl2yyset_lineno(1, scanner);
 }
 
-yyscan_t & EclLexer::getScanner()
+yyscan_t & EclLexer::queryScanner()
 {
     return scanner;
 }

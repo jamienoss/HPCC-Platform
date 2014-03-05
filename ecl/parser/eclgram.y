@@ -41,7 +41,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token);
 
 int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parser)
 {
-    parser->reportError(ERR_EXPECTED, msg, parser->getLexer().sourcePath->str(), token.pos.lineno, token.pos.column, token.pos.position);
+    parser->reportError(ERR_EXPECTED, msg, parser->queryLexer().sourcePath->str(), token.pos.lineno, token.pos.column, token.pos.position);
     return 0;
 }
 

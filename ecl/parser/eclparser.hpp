@@ -42,13 +42,13 @@ public:
     ~EclParser();
     IMPLEMENT_IINTERFACE
 
-    ISyntaxTree * releaseAST();
+    ISyntaxTree * queryAST();
 
     virtual void analyseGrammar() { };
     void setRoot(ISyntaxTree * node);
     void printAST();
     virtual int parse();
-    EclLexer & getLexer();
+    EclLexer & queryLexer();
     void reportError(int errNo, const char *msg, const char * _sourcePath, int _lineno, int _column, int _position);
 
 protected:
@@ -68,7 +68,7 @@ public:
 
     void updatePos(unsigned delta);
     void resetPos();
-    yyscan_t & getScanner();
+    yyscan_t & queryScanner();
 
     int yyColumn;
     int yyPosition;

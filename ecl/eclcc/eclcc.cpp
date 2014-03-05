@@ -45,6 +45,7 @@
 #include "hqlcerrors.hpp"
 
 #include "eclparser.hpp"
+#include "semantics.hpp"
 #include "analyserparser.hpp"
 
 #include "hqlgram.hpp"
@@ -1033,21 +1034,24 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     }
 #endif
 
+    Owned<ISyntaxTree> AST;
+    //OwnedHqlExpr myQuery;
     bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
-    if (printSyntaxTree) {
+    if (printSyntaxTree)
+    {
         Owned<EclParser> parser;
         parser.setown(new EclParser(queryContents, errs));
 
-
-        if (!(parser->parse())) { // Check persistence of AST
-            //ISyntaxTree * AST = parser->releaseAST();
-            //delete parser;
-            //AST->printTree();
-            std::cout << "Printing syntax tree\n";
-            parser->printAST();
-        }
-        throwUnexpected();
+        if (!(parser->parse()))
+            AST.set(parser->queryAST());
     }
+    if(AST)
+    {
+        std::cout << "Printing syntax tree\n";
+        AST->printTree();
+        //myQuery.setown(semantics(AST));//or AST->semantics()???
+    }
+    throwUnexpected();
 
     if (optTargetCompiler != DEFAULT_COMPILER)
         instance.wu->setDebugValue("targetCompiler", compilerTypeText[optTargetCompiler], true);
@@ -1111,7 +1115,17 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                 if (instance.legacyImport)
                     importRootModulesToScope(scope, ctx);
 
-                instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
+                //***************************************************************************
+                if(printSyntaxTree && AST)
+                    instance.query.setown(semantics(AST));
+                else
+                    instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
+                //***************************************************************************
+
+
+
+
+
 
                 if (instance.archive)
                 {

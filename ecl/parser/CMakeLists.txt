@@ -34,6 +34,8 @@ set (   SRCS
         parserdata.cpp
         syntaxtree.hpp
         syntaxtree.cpp
+        semantics.hpp
+        semantics.cpp
         eclparser.hpp
         eclparser.cpp
     )
