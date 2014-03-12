@@ -97,7 +97,7 @@ code
     ;
 
 eclQuery
-    : eclQuery ';' eclQuery _EOF_   { $$.setNode($2).addChild($1).addChild($3); }
+    : eclQuery ';' eclQuery    { $$.setNode($2).addChild($1).addChild($3); }
     | eclQuery ';'                  { $$.setNode($2).addChild($1); }
     | line_of_code                  { $$.setNode($1); }
     | ';' line_of_code              { $$.setNode($2); }
