@@ -1107,7 +1107,7 @@ interface IHqlExpression : public IInterface
     virtual unsigned getInfoFlags2() const = 0;
 
     virtual ISourcePath * querySourcePath() const = 0;
-    virtual IIdAtom * queryFullModuleId() const = 0;              // only defined for a named symbol
+    virtual IIdAtom * queryFullContainerId() const = 0;              // only defined for a named symbol and global module.
     virtual int  getStartLine() const = 0;
     virtual int  getStartColumn() const = 0;
     virtual IPropertyTree * getDocumentation() const = 0;
@@ -1860,10 +1860,14 @@ extern HQL_API IPropertyTree * createAttributeArchive();
 extern HQL_API void ensureSymbolsDefined(IHqlExpression * scope, HqlLookupContext & ctx);
 extern HQL_API void ensureSymbolsDefined(IHqlScope * scope, HqlLookupContext & ctx);
 extern HQL_API bool getBoolAttribute(IHqlExpression * expr, IAtom * name, bool dft=false);
+extern HQL_API bool getBoolAttributeInList(IHqlExpression * expr, IAtom * name, bool dft);
 
 extern HQL_API void setLegacyEclSemantics(bool _legacyImport, bool _legacyWhen);
 extern HQL_API bool queryLegacyImportSemantics();
 extern HQL_API bool queryLegacyWhenSemantics();
 void exportSymbols(IPropertyTree* data, IHqlScope * scope, HqlLookupContext & ctx);
+
+//The following is only here to provide information about the source file being compiled when reporting leaks
+extern HQL_API void setActiveSource(const char * filename);
 
 #endif

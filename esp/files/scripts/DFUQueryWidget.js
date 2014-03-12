@@ -17,8 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/DFUQueryWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/dom-attr",
@@ -75,7 +74,7 @@ define([
 
     "hpcc/TableContainer"
 
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, dom, domAttr, domConstruct, domClass, domForm, date, on,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domAttr, domConstruct, domClass, domForm, date, on,
                 registry, Dialog, Menu, MenuItem, MenuSeparator, PopupMenuItem, Textarea, ValidationTextBox,
                 Grid, Keyboard, Selection, editor, selector, ColumnResizer, DijitRegistry, Pagination,
                 _TabContainerWidget, WsDfu, FileSpray, ESPUtil, ESPLogicalFile, ESPDFUWorkunit, LFDetailsWidget, SFDetailsWidget, DFUWUDetailsWidget, TargetSelectWidget, FilterDropDownWidget, SelectionGridWidget,
@@ -83,7 +82,7 @@ define([
     return declare("DFUQueryWidget", [_TabContainerWidget, ESPUtil.FormHelper], {
         templateString: template,
         baseClass: "DFUQueryWidget",
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
+        i18n: nlsHPCC,
 
         postCreate: function (args) {
             this.inherited(arguments);
@@ -111,7 +110,7 @@ define([
         },
 
         getTitle: function () {
-            return this.i18n.title;
+            return this.i18n.title_DFUQuery;
         },
 
         //  Hitched actions  ---
@@ -138,7 +137,7 @@ define([
                 var context = this;
                 WsDfu.DFUArrayAction(this.workunitsGrid.getSelected(), this.i18n.Delete, {
                     load: function (response) {
-                        context.refreshGrid(response);
+                        context.refreshGrid(true);
                     }
                 });
             }
@@ -212,7 +211,7 @@ define([
                 var formData = domForm.toObject(this.id + "AddToSuperfileForm");
                 WsDfu.AddtoSuperfile(this.workunitsGrid.getSelected(), formData.Superfile, formData.ExistingFile, {
                     load: function (response) {
-                        context.refreshGrid(response);
+                        context.refreshGrid();
                     }
                 });
                 registry.byId(this.id + "AddtoDropDown").closeDropDown();
@@ -270,12 +269,6 @@ define([
                 StartDate: this.getISOString("FromDate", "FromTime"),
                 EndDate: this.getISOString("ToDate", "ToTime")
             });
-            if (retVal.StartDate != "" && retVal.EndDate != "") {
-            } else if (retVal.FirstN) {
-                var now = new Date();
-                retVal.StartDate = date.add(now, "day", retVal.LastNDays * -1).toISOString();
-                retVal.EndDate = now.toISOString();
-            }
             return retVal;
         },
 
@@ -414,8 +407,8 @@ define([
                     },
                     IsKeyFile: {
                         label: "K", width: 16, sortable: false,
-                        formatter: function (keyfile) {
-                            if (keyfile == true) {
+                        formatter: function (keyfile, row) {
+                            if (row.ContentType === "key") {
                                 return "K";
                             }
                             return "";
@@ -439,10 +432,10 @@ define([
                     Owner: { label: this.i18n.Owner, width: 72 },
                     Description: { label: this.i18n.Description, width: 153 },
                     ClusterName: { label: this.i18n.Cluster, width: 108 },
-                    RecordCount: { label: this.i18n.Records, width: 72, sortable: false },
-                    Totalsize: { label: this.i18n.Size, width: 72, sortable: false },
-                    Parts: { label: this.i18n.Parts, width: 45, sortable: false },
-                    Modified: { label: this.i18n.ModifiedUTCGMT, width: 155, sortable: false }
+                    RecordCount: { label: this.i18n.Records, width: 72},
+                    Totalsize: { label: this.i18n.Size, width: 72},
+                    Parts: { label: this.i18n.Parts, width: 45},
+                    Modified: { label: this.i18n.ModifiedUTCGMT, width: 155}
                 }
             }, this.id + "WorkunitsGrid");
             this.workunitsGrid.noDataMessage = "<span class='dojoxGridNoData'>" + this.i18n.noDataMessage + "</span>";
@@ -533,8 +526,11 @@ define([
             });
         },
 
-        refreshGrid: function (args) {
+        refreshGrid: function (clearSelection) {
             this.workunitsGrid.set("query", this.getFilter());
+            if (clearSelection) {
+                this.workunitsGrid.clearSelection();
+            }
         },
 
         refreshActionState: function () {

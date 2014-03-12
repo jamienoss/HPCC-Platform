@@ -17,8 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/WUQueryWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/dom-class",
@@ -62,7 +61,7 @@ define([
     "dijit/Toolbar",
     "dijit/TooltipDialog"
 
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, dom, domClass, domForm, date, on,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domClass, domForm, date, on,
                 registry, Menu, MenuItem, MenuSeparator, PopupMenuItem,
                 Grid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry, Pagination,
                 _TabContainerWidget, WsWorkunits, ESPUtil, ESPWorkunit, WUDetailsWidget, TargetSelectWidget, FilterDropDownWidget,
@@ -70,7 +69,7 @@ define([
     return declare("WUQueryWidget", [_TabContainerWidget, ESPUtil.FormHelper], {
         templateString: template,
         baseClass: "WUQueryWidget",
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
+        i18n: nlsHPCC,
 
         workunitsTab: null,
         workunitsGrid: null,
@@ -93,7 +92,7 @@ define([
         },
 
         getTitle: function () {
-            return this.i18n.title;
+            return this.i18n.title_WUQuery;
         },
 
         //  Hitched actions  ---
@@ -123,7 +122,7 @@ define([
                 var selection = this.workunitsGrid.getSelected();
                 WsWorkunits.WUAction(selection, "Delete", {
                     load: function (response) {
-                        context.refreshGrid(response);
+                        context.refreshGrid(true);
                     }
                 });
             }
@@ -422,8 +421,11 @@ define([
             this.workunitsGrid.startup();
         },
 
-        refreshGrid: function (args) {
+        refreshGrid: function (clearSelection) {
             this.workunitsGrid.set("query", this.getFilter());
+            if (clearSelection) {
+                this.workunitsGrid.clearSelection();
+            }
         },
 
         refreshActionState: function () {

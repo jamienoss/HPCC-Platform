@@ -17,14 +17,14 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/FilterDropDownWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/dom-form",
     "dojo/on",
 
     "dijit/registry",
+    "dijit/form/Select",
 
     "hpcc/_Widget",
 
@@ -37,15 +37,16 @@ define([
 
     "hpcc/TableContainer"
 
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, dom, domForm, on,
-                registry,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domForm, on,
+                registry, Select,
                 _Widget,
                 template) {
     return declare("FilterDropDownWidget", [_Widget], {
         templateString: template,
         baseClass: "FilterDropDownWidget",
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
+        i18n: nlsHPCC,
 
+        _width:"460px",
         iconFilter: null,
         filterDropDown: null,
         filterForm: null,
@@ -78,7 +79,11 @@ define([
         //  Implementation  ---
         clear: function () {
             arrayUtil.forEach(this.filterForm.getDescendants(), function (item, idx) {
-                item.set("value", null);
+                if (item instanceof Select) {
+                    item.set("value", "");
+                } else {
+                    item.set("value", null);
+                }
             });
         },
 

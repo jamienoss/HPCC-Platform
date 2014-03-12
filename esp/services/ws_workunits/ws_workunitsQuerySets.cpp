@@ -228,7 +228,7 @@ void copyWULogicalFilesToTarget(IEspContext &context, IConstWUClusterInfo &clust
 bool CWsWorkunitsEx::onWUCopyLogicalFiles(IEspContext &context, IEspWUCopyLogicalFilesRequest &req, IEspWUCopyLogicalFilesResponse &resp)
 {
     StringBuffer wuid = req.getWuid();
-    checkAndTrimWorkunit("WUCopyLogicalFiles", wuid);
+    WsWuHelpers::checkAndTrimWorkunit("WUCopyLogicalFiles", wuid);
 
     Owned<IWorkUnitFactory> factory = getWorkUnitFactory(context.querySecManager(), context.queryUser());
     Owned<IConstWorkUnit> cw = factory->openWorkUnit(wuid.str(), false);
@@ -434,7 +434,7 @@ static inline void updateQueryPriority(IPropertyTree *queryTree, const char *val
     }
 }
 
-void copyQueryFilesToCluster(IEspContext &context, IConstWorkUnit *cw, const char *remoteIP, const char *remotePrefix, const char *target, const char *srcCluster, const char *queryname, bool overwrite)
+void copyQueryFilesToCluster(IEspContext &context, IConstWorkUnit *cw, const char *remoteIP, const char *remotePrefix, const char *target, const char *srcCluster, const char *queryname, bool overwrite, bool allowForeignFiles)
 {
     if (!target || !*target)
         return;
@@ -446,7 +446,7 @@ void copyQueryFilesToCluster(IEspContext &context, IConstWorkUnit *cw, const cha
         clusterInfo->getRoxieProcess(process);
         if (!process.length())
             return;
-        Owned<IReferencedFileList> wufiles = createReferencedFileList(context.queryUserId(), context.queryPassword());
+        Owned<IReferencedFileList> wufiles = createReferencedFileList(context.queryUserId(), context.queryPassword(), allowForeignFiles);
         Owned<IHpccPackageSet> ps = createPackageSet(process.str());
         StringBuffer queryid;
         if (queryname && *queryname)
@@ -502,7 +502,7 @@ bool CWsWorkunitsEx::isQuerySuspended(const char* query, IConstWUClusterInfo *cl
 bool CWsWorkunitsEx::onWUPublishWorkunit(IEspContext &context, IEspWUPublishWorkunitRequest & req, IEspWUPublishWorkunitResponse & resp)
 {
     StringBuffer wuid = req.getWuid();
-    checkAndTrimWorkunit("WUPublishWorkunit", wuid);
+    WsWuHelpers::checkAndTrimWorkunit("WUPublishWorkunit", wuid);
 
     Owned<IWorkUnitFactory> factory = getWorkUnitFactory(context.querySecManager(), context.queryUser());
     Owned<IConstWorkUnit> cw = factory->openWorkUnit(wuid.str(), false);
@@ -540,7 +540,7 @@ bool CWsWorkunitsEx::onWUPublishWorkunit(IEspContext &context, IEspWUPublishWork
     }
 
     if (!req.getDontCopyFiles())
-        copyQueryFilesToCluster(context, cw, daliIP, srcPrefix, target.str(), srcCluster, queryName.str(), false);
+        copyQueryFilesToCluster(context, cw, daliIP, srcPrefix, target.str(), srcCluster, queryName.str(), false, req.getAllowForeignFiles());
 
     WorkunitUpdate wu(&cw->lock());
     if (req.getUpdateWorkUnitName() && notEmpty(req.getJobName()))
@@ -613,12 +613,15 @@ void addClusterQueryStates(IPropertyTree* queriesOnCluster, const char *target, 
     Owned<IPropertyTreeIterator> iter = queriesOnCluster->getElements(xpath.str());
     bool found = false;
     bool suspended = false;
+    bool available = false;
     StringBuffer errors;
     ForEach (*iter)
     {
         found = true;
         if (iter->query().getPropBool("@suspended", false))
             suspended = true;
+        else
+            available = true;
         const char* error = iter->query().queryProp("@error");
         if (error && *error && (version >=1.46))
         {
@@ -630,7 +633,11 @@ void addClusterQueryStates(IPropertyTree* queriesOnCluster, const char *target, 
     if (!found)
         clusterState->setState("Not Found");
     else if (suspended)
+    {
         clusterState->setState("Suspended");
+        if (available)
+            clusterState->setMixedNodeStates(true);
+    }
     else
         clusterState->setState("Available");
     if ((version >=1.46) && errors.length())
@@ -831,7 +838,7 @@ IPropertyTree* getQueriesOnCluster(const char *target, const char *queryset)
     try
     {
         Owned<ISocket> sock = ISocket::connect_timeout(eps.item(0), ROXIECONNECTIONTIMEOUT);
-        return sendRoxieControlQuery(sock, "<control:queries/>", ROXIECONTROLQUERYTIMEOUT);
+        return sendRoxieControlAllNodes(sock, "<control:queries/>", true, ROXIECONTROLQUERYTIMEOUT);
     }
     catch(IException* e)
     {
@@ -1027,6 +1034,10 @@ bool CWsWorkunitsEx::onWUListQueries(IEspContext &context, IEspWUListQueriesRequ
         addWUQSQueryFilterInt(filters, filterCount, filterBuf, req.getPriorityLow(), (WUQuerySortField) (WUQSFpriority | WUQSFnumeric));
     if (!req.getPriorityHigh_isNull())
         addWUQSQueryFilterInt(filters, filterCount, filterBuf, req.getPriorityHigh(), (WUQuerySortField) (WUQSFpriorityHi | WUQSFnumeric));
+    if (!req.getActivated_isNull())
+        addWUQSQueryFilterInt(filters, filterCount, filterBuf, req.getActivated(), (WUQuerySortField) (WUQSFActivited | WUQSFnumeric));
+    if (!req.getSuspendedByUser_isNull())
+        addWUQSQueryFilterInt(filters, filterCount, filterBuf, req.getSuspendedByUser(), (WUQuerySortField) (WUQSFSuspendedByUser | WUQSFnumeric));
     filters[filterCount] = WUQSFterm;
 
     unsigned numberOfQueries = 0;
@@ -1585,7 +1596,7 @@ bool CWsWorkunitsEx::onWUQuerysetCopyQuery(IEspContext &context, IEspWUQuerySetC
         StringBuffer srcCluster;
         StringBuffer srcPrefix;
         splitDerivedDfsLocation(req.getDaliServer(), srcCluster, daliIP, srcPrefix, req.getSourceProcess(), req.getSourceProcess(), remoteIP.str(), NULL);
-        copyQueryFilesToCluster(context, cw, daliIP.str(), srcPrefix, target, srcCluster, targetQueryName.get(), req.getOverwrite());
+        copyQueryFilesToCluster(context, cw, daliIP.str(), srcPrefix, target, srcCluster, targetQueryName.get(), req.getOverwrite(), req.getAllowForeignFiles());
     }
 
     WorkunitUpdate wu(&cw->lock());

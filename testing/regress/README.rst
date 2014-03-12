@@ -9,14 +9,15 @@ Parameters of Regression Suite:
 
 Command:
  
-    ./regress <-h|--help>
+    ./ecl-test <-h|--help>
 
 Result:
 
 |
-|       usage: regress [-h] [--version] [--config [CONFIG]]
+|       usage: ecl-test [-h] [--version] [--config [CONFIG]]
 |                       [--loglevel [{info,debug}]] [--suiteDir [SUITEDIR]]
-|                       [--timeout [TIMEOUT]]
+|                       [--timeout [TIMEOUT]] [--keyDir [KEYDIR]]
+|                       [--ignoreResult]
 |                       {list,run,query} ...
 | 
 |       HPCC Platform Regression suite
@@ -30,29 +31,31 @@ Result:
 |       optional arguments:
 |            -h, --help            show this help message and exit
 |            --version, -v         show program's version number and exit
-|            --config [CONFIG]     config file to use. Default: regress.json.
+|            --config [CONFIG]     config file to use. Default: ecl-test.json.
 |            --loglevel [{info,debug}]
 |                                  set the log level. Use debug for more detailed logfile.
 |            --suiteDir [SUITEDIR], -s [SUITEDIR]
 |                                  suiteDir to use. Default value is the current directory and it can handle relative path.
 |            --timeout [TIMEOUT], -t [TIMEOUT]
-|                                  timeout for query execution in sec. Use -1 to disable timeout. Default value defined in regress.json config file (see: 7.)
-
+|                                  timeout for query execution in sec. Use -1 to disable timeout. Default value defined in ecl-test.json config file (see: 9.)
+|            --keyDir [KEYDIR], -k [KEYDIR]
+|                                  key file directory to compare test output. Default value defined in regress.json config file.
+|            --ignoreResult, -i    completely ignore the result.
 
 Parameters of Regression Suite list sub-command:
 ------------------------------------------------
 
 Command:
 
-    ./regress list <-h|--help>
+    ./ecl-test list <-h|--help>
 
 Result:
 
 |
-|       usage: regress list [-h]
+|       usage: ecl-test list [-h]
 |
 |       positional arguments:
-|         clusters    Print clusters from config (regress.json by default).
+|         clusters    Print clusters from config (ecl-test.json by default).
 |
 |       optional arguments:
 |         -h, --help  show this help message and exit
@@ -63,12 +66,12 @@ Parameters of Regression Suite run sub-command:
 
 Command:
 
-    ./regress run <-h|--help>
+    ./ecl-test run <-h|--help>
 
 Result:
 
 |
-|       usage: regress run [-h] [--pq threadNumber] [cluster]
+|       usage: ecl-test run [-h] [--pq threadNumber] [cluster]
 |
 |       positional arguments:
 |         cluster            Run the cluster suite. Default value is setup.
@@ -84,12 +87,12 @@ Parameters of Regression Suite query sub-command:
 
 Command:
 
-    ./regress query <-h|--help>
+    ./ecl-test query <-h|--help>
 
 Result:
 
 |
-|       usage: regress query [-h] [--publish] [ECL query] [target cluster | all]
+|       usage: ecl-test query [-h] [--publish] [ECL query] [target cluster | all]
 |
 |       positional arguments:
 |         ECL query             Name of a single ECL query. It can contain wildcards. (mandatory).
@@ -111,7 +114,7 @@ Steps to run Regression Suite
 ----------------------------------
 Command:
 
-    ./regress list
+    ./ecl-test list
 
 The result looks like this:
 
@@ -128,11 +131,11 @@ The result looks like this:
 
 Command:
 
-        ./regress run
+        ./ecl-test run
 
 or
 
-        ./regress run setup
+        ./ecl-test run setup
 
 The result:
 
@@ -165,7 +168,7 @@ The result:
 -------------------------------------------------------------
 Command:
 
-        ./regress run cluster [-h] [--pq threadNumber]
+        ./ecl-test run cluster [-h] [--pq threadNumber]
 
 Positional arguments:
   cluster            Run the cluster suite (default: setup).
@@ -308,7 +311,7 @@ The logfile generated into the HPCCSystems-regression/log subfolder of the user 
 
 Command:
 
-        ./regress query [-h] [--publish] test_name [target cluster | all]
+        ./ecl-test query [-h] [--publish] test_name [target cluster | all]
 
 Positional arguments:
         test_name               Name of a single ECL query. It can contain wildcards. (mandatory).
@@ -340,21 +343,56 @@ The format of result is same as above:
     (If this tag exists in the test case source then its output stored into the result log file.)
 //nokey
 
+    If //nokey is present then the following tag prevents the output being stored in the result log file.
+//nooutput
 
-7. Key file generation:
-------------------------------
+7. Key file handling:
+---------------------
+
+After an ECL test case execution finished and all output collected the result checking follows these steps:
+
+If the ECL source contains //nokey tag
+    then the key file and output comparison skipped and the output can control by //nooutput tag
+    else RS checks cluster specific key directory and key file existence
+        If both exist
+            then output compared with cluster specific keyfile
+            else output compared with the keyfile located KEY directory
+
+Examples:
+
+We have a simple structure only one ECL file and two related keyfile. One in hthor and one in key directory.
+
+ ecl
+   |---hthor
+   |     alljoin.xml
+   |---key
+   |     alljoin.xml
+   |---setup
+   alljoin.ecl
+
+If we execute this query:
+
+     ./regress query alljoin.ecl all
+
+Then the RS executes alljoin.ecl on all target clusters and
+    on hthor the output compared with hthor/alljoin.xml
+    on thor and roxie the output compared with key/alljoin.xml
+
+
+8. Key file generation:
+-----------------------
 
 The regression suite stores every test case output into ~/HPCCSystems-regression/result directory. This is the latest version of result. (The previous version can be found in ~/HPCCSystems-regression/archives directory.) When a test case execution finished Regression Suite compares this output file with the relevant key file to verify the result.
 
 So if you have a new test case and it works well on all clusters (or some of them and excluded from all others by //no<cluster> tag inside it See: 6. ) then you can get key file in 2 steps:
 
-1. Run test case with ./regress [suitedir] query <testcase.ecl> <cluster> .
+1. Run test case with ./ecl-test [suitedir] query <testcase.ecl> <cluster> .
 
 2. Copy the output (testcase.xml) file from ~/HPCCSystems-regression/result to the relevant key file directory.
 
 (To check everything is fine, repeat the step 1 and the query should now pass. )
 
-8. Configuration setting in regress.json file:
+9. Configuration setting in ecl-test.json file:
 -------------------------------------------------------------
 
         "ip": "127.0.0.1",                              - ECl server address
@@ -379,10 +417,10 @@ So if you have a new test case and it works well on all clusters (or some of the
         "maxAttemptCount":"3"                           - Max retry count to reset timeout if a testcase in any early stage (compiled, blocked) of execution pipeline.
 
 
-8. Authentication:
-------------------
+10. Authentication:
+-------------------
 
-If your HPCC System is configured to use LDAP authentication you should change value of "username" and "password" fields in regress.json file to yours.
+If your HPCC System is configured to use LDAP authentication you should change value of "username" and "password" fields in ecl-test.json file to yours.
 
 Alternatively, ensure that your test system has a user "regress" with password "regress" and appropriate rights to be able to run the suite.
 

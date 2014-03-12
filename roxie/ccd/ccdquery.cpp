@@ -1194,7 +1194,7 @@ public:
     {
         return package;
     }
-    virtual WorkflowMachine *createWorkflowMachine(bool isOnce, const ContextLogger &logctx) const
+    virtual CRoxieWorkflowMachine *createWorkflowMachine(IConstWorkUnit *wu, bool isOnce, const ContextLogger &logctx) const
     {
         throwUnexpected();  // only on server...
     }
@@ -1244,7 +1244,7 @@ public:
         throwUnexpected();   // only implemented in derived slave class
     }
 
-    virtual IRoxieServerContext *createContext(IPropertyTree *xml, SafeSocket &client, TextMarkupFormat mlFmt, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const ContextLogger &_logctx, PTreeReaderOptions xmlReadFlags) const
+    virtual IRoxieServerContext *createContext(IPropertyTree *xml, SafeSocket &client, TextMarkupFormat mlFmt, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const ContextLogger &_logctx, PTreeReaderOptions xmlReadFlags, const char *querySetName) const
     {
         throwUnexpected();   // only implemented in derived server class
     }
@@ -1368,10 +1368,10 @@ public:
         return activities;
     }
 
-    virtual IRoxieServerContext *createContext(IPropertyTree *context, SafeSocket &client, TextMarkupFormat mlFmt, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const ContextLogger &_logctx, PTreeReaderOptions _xmlReadFlags) const
+    virtual IRoxieServerContext *createContext(IPropertyTree *context, SafeSocket &client, TextMarkupFormat mlFmt, bool isRaw, bool isBlocked, HttpHelper &httpHelper, bool trim, const ContextLogger &_logctx, PTreeReaderOptions _xmlReadFlags, const char *_querySetName) const
     {
         checkSuspended();
-        return createRoxieServerContext(context, this, client, mlFmt==MarkupFmt_XML, isRaw, isBlocked, httpHelper, trim, priority, _logctx, _xmlReadFlags);
+        return createRoxieServerContext(context, this, client, mlFmt==MarkupFmt_XML, isRaw, isBlocked, httpHelper, trim, priority, _logctx, _xmlReadFlags, _querySetName);
     }
 
     virtual IRoxieServerContext *createContext(IConstWorkUnit *wu, const ContextLogger &_logctx) const
@@ -1380,12 +1380,12 @@ public:
         return createWorkUnitServerContext(wu, this, _logctx);
     }
 
-    virtual WorkflowMachine *createWorkflowMachine(bool isOnce, const ContextLogger &logctx) const
+    virtual CRoxieWorkflowMachine *createWorkflowMachine(IConstWorkUnit *wu, bool isOnce, const ContextLogger &logctx) const
     {
         IPropertyTree *workflow = queryWorkflowTree();
         if (workflow)
         {
-            return ::createRoxieWorkflowMachine(workflow, isOnce, logctx);
+            return ::createRoxieWorkflowMachine(workflow, wu, isOnce, logctx);
         }
         else
             return NULL;

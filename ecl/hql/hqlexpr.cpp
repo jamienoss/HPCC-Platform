@@ -58,6 +58,7 @@
 //#define NEW_VIRTUAL_DATASETS
 #define HQL_VERSION_NUMBER 30
 //#define ALL_MODULE_ATTRS_VIRTUAL
+//#define _REPORT_EXPRESSION_LEAKS
 
 //#define TRACE_THIS
 //#define CONSISTENCY_CHECK
@@ -194,6 +195,25 @@ static unsigned numNestedExtra;
 static unsigned insideCreate;
 #endif
 
+#ifdef _REPORT_EXPRESSION_LEAKS
+static char activeSource[256];
+void setActiveSource(const char * filename)
+{
+    if (filename)
+    {
+        strncpy(activeSource, filename, sizeof(activeSource));
+        activeSource[sizeof(activeSource)-1]= 0;
+    }
+    else
+        activeSource[0] = 0;
+}
+#else
+void setActiveSource(const char * filename)
+{
+}
+#endif
+
+
 MODULE_INIT(INIT_PRIORITY_HQLINTERNAL)
 {
     transformMutex = new Mutex;
@@ -255,6 +275,20 @@ MODULE_EXIT()
     nullType->Release();
 
     ClearTypeCache();
+
+#ifdef _REPORT_EXPRESSION_LEAKS
+    if (exprCache->count())
+    {
+#if 0 // Place debugging code inside here
+        JavaHashIteratorOf<IHqlExpression> iter(*exprCache, false);
+        ForEach(iter)
+        {
+            IHqlExpression & ret = iter.query();
+        }
+#endif
+        fprintf(stderr, "%s Hash table contains %d entries\n", activeSource, exprCache->count());
+    }
+#endif
 
     ::Release(sourcePaths);
     delete sourcePathCS;
@@ -4657,7 +4691,7 @@ bool CHqlNamedExpression::equals(const IHqlExpression & r) const
 void CHqlNamedExpression::sethash()
 {
     CHqlExpression::sethash();
-    hashcode = HASHFIELD(id);
+    HASHFIELD(id);
 }
 
 IHqlExpression *createNamedValue(node_operator op, ITypeInfo *type, IIdAtom * id, HqlExprArray & args)
@@ -6633,9 +6667,9 @@ bool CHqlAnnotation::isFullyBound() const
     return body->isFullyBound();
 }
 
-IIdAtom * CHqlAnnotation::queryFullModuleId() const
+IIdAtom * CHqlAnnotation::queryFullContainerId() const
 {
-    return body->queryFullModuleId();
+    return body->queryFullContainerId();
 }
 
 IHqlExpression * CHqlAnnotation::queryProperty(ExprPropKind kind)
@@ -6907,7 +6941,7 @@ bool CHqlSymbolAnnotation::equals(const IHqlExpression & other) const
     if ((symbolFlags != other.getSymbolFlags()) || (funcdef != other.queryFunctionDefinition()))
         return false;
 
-    if (moduleId != other.queryFullModuleId())
+    if (moduleId != other.queryFullContainerId())
         return false;
 
     if (op == no_nobody)
@@ -7533,24 +7567,29 @@ extern HQL_API IFileContents * createFileContentsSubset(IFileContents * contents
 CHqlScope::CHqlScope(node_operator _op, IIdAtom * _id, const char * _fullName)
 : CHqlExpressionWithType(_op, NULL), id(_id), fullName(_fullName)
 {
+    containerId = NULL;
     type = this;
+    initContainer();
 }
 
 CHqlScope::CHqlScope(IHqlScope* scope)
 : CHqlExpressionWithType(no_scope, NULL)
 {
     id = scope->queryId();
+    containerId = NULL;
     fullName.set(scope->queryFullName());
     CHqlScope* s = QUERYINTERFACE(scope, CHqlScope);
     if (s && s->text)
         text.set(s->text);
     type = this;
+    initContainer();
 }
 
 CHqlScope::CHqlScope(node_operator _op) 
 : CHqlExpressionWithType(_op, NULL)
 {
     id = NULL;
+    containerId = NULL;
     type = this;
 }
 
@@ -7558,6 +7597,16 @@ CHqlScope::~CHqlScope()
 {
     if (type == this)
         type = NULL;
+}
+
+void CHqlScope::initContainer()
+{
+    if (fullName)
+    {
+        const char * dot = strrchr(fullName, '.');
+        if (dot)
+            containerId = createIdAtom(fullName, dot-fullName);
+    }
 }
 
 bool CHqlScope::assignableFrom(ITypeInfo * source)
@@ -9394,6 +9443,7 @@ CHqlScopeParameter::CHqlScopeParameter(IIdAtom * _id, unsigned _idx, ITypeInfo *
     idx = _idx;
     typeScope = ::queryScope(type);
     infoFlags |= HEFunbound;
+    uid = (idx == UnadornedParameterIndex) ? 0 : parameterSequence.next();
     if (!hasAttribute(_virtualSeq_Atom))
         addOperand(createSequence(no_attr, makeNullType(), _virtualSeq_Atom, virtualSequence.next()));
 }
@@ -9987,8 +10037,6 @@ CHqlAlienType::CHqlAlienType(IIdAtom * _id, IHqlScope *_scope, IHqlExpression * 
     scope = _scope;
     funcdef = _funcdef;
 
-    if (!scope)
-        return;
     if (!funcdef)
         funcdef = this;
 
@@ -10139,11 +10187,13 @@ size32_t CHqlAlienType::getSize()
 /* in parm _scope: linked */
 extern IHqlExpression *createAlienType(IIdAtom * _id, IHqlScope *_scope)
 {
+    assertex(_scope);
     return new CHqlAlienType(_id, _scope, NULL);
 }
 
 extern IHqlExpression *createAlienType(IIdAtom * id, IHqlScope * scope, HqlExprArray &newkids, IHqlExpression * funcdef)
 {
+    assertex(scope);
 //  assertex(!funcdef);     // I'm not sure what value this has...
     IHqlExpression * ret = new CHqlAlienType(id, scope, funcdef);
     ForEachItemIn(idx2, newkids)
@@ -12091,7 +12141,6 @@ IHqlExpression * ensureDataset(IHqlExpression * expr)
         return createDatasetFromRow(LINK(expr));
 
     throwUnexpected();
-    return createNullDataset();
 }
 
 
@@ -13700,7 +13749,6 @@ static bool removeVirtualAttributes(HqlExprArray & fields, IHqlExpression * cur,
                             break;
                         case type_record:
                             throwUnexpected();
-                            targetType.set(newRecord->queryType());
                             break;
                         }
                     }
@@ -14848,7 +14896,9 @@ unsigned numPayloadFields(IHqlExpression * index)
     IHqlExpression * payloadAttr = index->queryAttribute(_payload_Atom);
     if (payloadAttr)
         return (unsigned)getIntValue(payloadAttr->queryChild(0));
-    return 1;
+    if (getBoolAttribute(index, filepositionAtom, true))
+        return 1;
+    return 0;
 }
 
 unsigned numKeyedFields(IHqlExpression * index)
@@ -15349,19 +15399,42 @@ bool isKeyedCountAggregate(IHqlExpression * aggregate)
 }
 
 
+static bool getBoolAttributeValue(IHqlExpression * attr)
+{
+    IHqlExpression * value = attr->queryChild(0);
+    //No argument implies true
+    if (!value)
+        return true;
+
+    //If it is a constant return it.
+    if (value->queryValue())
+        return getBoolValue(value, true);
+
+    //Not a constant => fold the expression
+    OwnedHqlExpr folded = foldHqlExpression(value);
+    if (folded->queryValue())
+        return getBoolValue(folded, true);
+
+    throwError1(HQLERR_PropertyArgumentNotConstant, attr->queryName()->str());
+}
+
 bool getBoolAttribute(IHqlExpression * expr, IAtom * name, bool dft)
 {
     if (!expr)
         return dft;
-    IHqlExpression * prop = expr->queryAttribute(name);
-    if (!prop)
+    IHqlExpression * attr = expr->queryAttribute(name);
+    if (!attr)
         return dft;
-    IHqlExpression * value = prop->queryChild(0);
-    if (!value)
-        return true;
-    return getBoolValue(value, true);
+    return getBoolAttributeValue(attr);
 }
 
+bool getBoolAttributeInList(IHqlExpression * expr, IAtom * search, bool dft)
+{
+    IHqlExpression * match = queryAttributeInList(search, expr);
+    if (!match)
+        return dft;
+    return getBoolAttributeValue(match);
+}
 
 IHqlExpression * queryOriginalRecord(IHqlExpression * expr)
 {

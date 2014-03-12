@@ -49,6 +49,7 @@
 #include "hqlrepository.hpp"
 #include "hqlir.hpp"
 
+#define ADD_IMPLICIT_FILEPOS_FIELD_TO_INDEX         TRUE
 #define FAST_FIND_FIELD
 //#define USE_WHEN_FOR_SIDEEFFECTS
 #define MANYFIELDS_THRESHOLD                        2000
@@ -285,6 +286,8 @@ HqlGram::HqlGram(IHqlScope * _globalScope, IHqlScope * _containerScope, IFileCon
     sourcePath.set(_text->querySourcePath());
     moduleName = _containerScope->queryId();
     forceResult = false;
+    parsingTemplateAttribute = false;
+
     lexObject = new HqlLex(this, _text, xmlScope, NULL);
 
     if(lookupCtx.queryRepository() && loadImplicit && legacyImportSemantics)
@@ -318,6 +321,7 @@ HqlGram::HqlGram(HqlGramCtx & parent, IHqlScope * _containerScope, IFileContents
     //Clone parseScope
     lexObject = new HqlLex(this, _text, xmlScope, NULL);
     forceResult = true;
+    parsingTemplateAttribute = false;
     parseConstantText = _parseConstantText;
 }
 
@@ -979,10 +983,16 @@ IHqlExpression * HqlGram::processIndexBuild(attribute & indexAttr, attribute * r
         }
         else
         {
-            checkIndexRecordType(record, 1, false, *recordAttr);
+            bool hasFileposition = getBoolAttributeInList(flags, filepositionAtom, true);
+            unsigned numPayloadFields = hasFileposition ? 1 : 0;
+
+            checkIndexRecordType(record, numPayloadFields, false, *recordAttr);
         }
+
+        //Recalculated because it might be updated in modifyIndexPayloadRecord() above
+        bool hasFileposition = getBoolAttributeInList(flags, filepositionAtom, true);
         record.setown(checkBuildIndexRecord(record.getClear(), *recordAttr));
-        record.setown(checkIndexRecord(record, *recordAttr));
+        record.setown(checkIndexRecord(record, *recordAttr, flags));
         inputDataset.setown(createDatasetF(no_selectfields, LINK(dataset), LINK(record), NULL));
         warnIfRecordPacked(inputDataset, *recordAttr);
     }
@@ -1235,8 +1245,7 @@ IHqlExpression * HqlGram::findAssignment(IHqlExpression *field)
     if (match && !match->isAttribute())
         return match;
     return NULL;
-#endif
-
+#else
     unsigned kids = curTransform->numChildren();
     for (unsigned idx = 0; idx < kids; idx++)
     {
@@ -1247,6 +1256,7 @@ IHqlExpression * HqlGram::findAssignment(IHqlExpression *field)
     }
 
     return NULL;
+#endif
 }
 
 IHqlExpression * HqlGram::doFindAssignment(IHqlExpression* in, IHqlExpression* field)
@@ -1670,8 +1680,9 @@ bool HqlGram::haveAssignedToChildren(IHqlExpression * select)
 {
 #ifdef FAST_FIND_FIELD
     return select->queryTransformExtra() == alreadyAssignedNestedTag;
-#endif
+#else
     return ::haveAssignedToChildren(select, curTransform);
+#endif
 }
 
 void HqlGram::addAssignall(IHqlExpression *tgt, IHqlExpression *src, const attribute& errpos)
@@ -2295,7 +2306,7 @@ void HqlGram::addToActiveRecord(IHqlExpression * newField)
 
     CHqlRecord *currentRecord = QUERYINTERFACE(self->queryRecord(), CHqlRecord);
     //Protect against adding fields to closed records (can only occur after errors).
-    if ((currentRecord != &topRecord) && !currentRecord->isExprClosed())
+    if (currentRecord && (currentRecord != &topRecord) && !currentRecord->isExprClosed())
         currentRecord->insertSymbols(newField);
 }
 
@@ -2314,9 +2325,10 @@ IIdAtom * HqlGram::createUnnamedFieldId()
 
 
 /* In parms: type, value: linked */
-void HqlGram::addField(const attribute &errpos, IIdAtom * name, ITypeInfo *_type, IHqlExpression *value, IHqlExpression *attrs)
+void HqlGram::addField(const attribute &errpos, IIdAtom * name, ITypeInfo *_type, IHqlExpression * _value, IHqlExpression *attrs)
 {
     Owned<ITypeInfo> fieldType = _type;
+    OwnedHqlExpr value = _value;
     Linked<ITypeInfo> expectedType = fieldType;
     if (expectedType->getTypeCode() == type_alien)
     {
@@ -2332,9 +2344,7 @@ void HqlGram::addField(const attribute &errpos, IIdAtom * name, ITypeInfo *_type
             canNotAssignTypeWarn(fieldType,valueType,errpos);
         if (expectedType->getTypeCode() != type_row)
         {
-            IHqlExpression * newValue = ensureExprType(value, expectedType);
-            value->Release();
-            value = newValue;
+            value.setown(ensureExprType(value, expectedType));
         }
     }
 
@@ -2415,7 +2425,7 @@ void HqlGram::addField(const attribute &errpos, IIdAtom * name, ITypeInfo *_type
     if ((fieldType->getSize() != UNKNOWN_LENGTH) && (fieldType->getSize() > MAX_SENSIBLE_FIELD_LENGTH))
         reportError(ERR_BAD_FIELD_SIZE, errpos, "Field %s is too large", name->str());
 
-    OwnedHqlExpr newField = createField(name, fieldType.getClear(), value, attrs);
+    OwnedHqlExpr newField = createField(name, fieldType.getClear(), value.getClear(), attrs);
     OwnedHqlExpr annotated = createLocationAnnotation(LINK(newField), errpos.pos);
     addToActiveRecord(LINK(newField));
 }
@@ -5329,7 +5339,6 @@ IHqlExpression * HqlGram::createDatasetFromList(attribute & listAttr, attribute 
         OwnedHqlExpr list = createValue(no_null);
         OwnedHqlExpr table = createDataset(no_temptable, LINK(list), record.getClear());
         return convertTempTableToInlineTable(*errorHandler, listAttr.pos, table);
-        return createDataset(no_null, LINK(record));
     }
 
     IHqlExpression * listRecord = list->queryRecord();
@@ -6307,7 +6316,11 @@ IHqlExpression * HqlGram::checkParameter(const attribute * errpos, IHqlExpressio
     else
     {
         if (isFieldSelectedFromRecord(ret))
+        {
+            if (errpos)
                 reportError(ERR_EXPECTED, *errpos, "Expression expected for parameter %s.  Fields from records can only be passed to field references", formalName->str());
+            return NULL;
+        }
     }
 
     if (formal->hasAttribute(fieldsAtom))
@@ -6661,6 +6674,9 @@ IHqlExpression * HqlGram::createBuildIndexFromIndex(attribute & indexAttr, attri
     IHqlExpression * payload = index->queryAttribute(_payload_Atom);
     if (payload)
         args.append(*LINK(payload));
+    IHqlExpression * fileposition = index->queryAttribute(filepositionAtom);
+    if (fileposition)
+        args.append(*LINK(fileposition));
     if (distribution)
         args.append(*distribution.getClear());
 
@@ -6820,22 +6836,22 @@ void HqlGram::checkSoapRecord(attribute & errpos)
 }
 
 
-IHqlExpression * HqlGram::checkIndexRecord(IHqlExpression * record, const attribute & errpos)
+IHqlExpression * HqlGram::checkIndexRecord(IHqlExpression * record, const attribute & errpos, OwnedHqlExpr & indexAttrs)
 {
     unsigned numFields = record->numChildren();
-    if (numFields)
+    if (numFields && getBoolAttributeInList(indexAttrs, filepositionAtom, true))
     {
         // if not, implies some error (already reported)
         if (numFields == 1)
-            reportError(ERR_INDEX_COMPONENTS, errpos, "Record for index should have at least one component and a fileposition");
+        {
+            indexAttrs.setown(createComma(indexAttrs.getClear(), createExprAttribute(filepositionAtom, createConstant(false))));
+        }
         else
         {
             IHqlExpression * lastField = record->queryChild(numFields-1);
             ITypeInfo * fileposType = lastField->queryType();
             if (!isIntegralType(fileposType))
-                reportError(ERR_INDEX_FILEPOS_EXPECTED_LAST, errpos, "Expected last field to be an integral fileposition field");
-//          else if (fileposType->getSize() != 8)
-//              reportWarning(ERR_INDEX_FILEPOS_UNEXPECTED_SIZE, errpos.pos, "Expected fileposition field to be 8 bytes");
+                indexAttrs.setown(createComma(indexAttrs.getClear(), createExprAttribute(filepositionAtom, createConstant(false))));
         }
     }
     return LINK(record);
@@ -7224,14 +7240,15 @@ IHqlExpression * HqlGram::createRecordExcept(IHqlExpression * left, IHqlExpressi
 }
 
 
-IHqlExpression * HqlGram::createIndexFromRecord(IHqlExpression * record, IHqlExpression * attr, const attribute & errpos)
+IHqlExpression * HqlGram::createIndexFromRecord(IHqlExpression * record, IHqlExpression * attrs, const attribute & errpos)
 {
     IHqlExpression * ds = createDataset(no_null, LINK(record), NULL);
-    OwnedHqlExpr finalRecord = checkIndexRecord(record, errpos);
+    OwnedHqlExpr newAttrs = LINK(attrs);
+    OwnedHqlExpr finalRecord = checkIndexRecord(record, errpos, newAttrs);
     finalRecord.setown(cleanIndexRecord(finalRecord));
 
     OwnedHqlExpr transform = createClearTransform(finalRecord, errpos);
-    return createDataset(no_newkeyindex, ds, createComma(LINK(finalRecord), transform.getClear(), LINK(attr)));
+    return createDataset(no_newkeyindex, ds, createComma(LINK(finalRecord), transform.getClear(), newAttrs.getClear()));
 }
 
 
@@ -7557,12 +7574,6 @@ bool HqlGram::isExplicitlyDistributed(IHqlExpression *e)
 {
     if (e->getOperator()==no_distribute || e->getOperator()==no_keyeddistribute)
         return true;
-    return false;
-    for (unsigned i = 0; i < getNumChildTables(e); i++)
-    {
-        if (isExplicitlyDistributed(e->queryChild(i)))
-            return true;
-    }
     return false;
 }
 
@@ -7994,28 +8005,33 @@ void HqlGram::modifyIndexPayloadRecord(SharedHqlExpr & record, SharedHqlExpr & p
         payloadCount = fields.ordinality() - oldFields;
     }
     //This needs to be here until filepositions are no longer special cased.
-    if (!lastFieldType || !lastFieldType->isInteger())
+    if (!lastFieldType || !lastFieldType->isInteger() && getBoolAttributeInList(extra, filepositionAtom, true))
     {
-        IHqlSimpleScope * payloadScope = payload ? payload->querySimpleScope() : NULL;
-        IIdAtom * implicitFieldName;
-        for (unsigned suffix =1;;suffix++)
+        if (ADD_IMPLICIT_FILEPOS_FIELD_TO_INDEX)
         {
-            StringBuffer name;
-            name.append("__internal_fpos");
-            if (suffix > 1)
-                name.append(suffix);
-            name.append("__");
-            implicitFieldName = createIdAtom(name);
-            OwnedHqlExpr resolved = scope->lookupSymbol(implicitFieldName);
-            if (!resolved && payloadScope)
-                resolved.setown(payloadScope->lookupSymbol(implicitFieldName));
-            if (!resolved)
-                break;
-        }
+            IHqlSimpleScope * payloadScope = payload ? payload->querySimpleScope() : NULL;
+            IIdAtom * implicitFieldName;
+            for (unsigned suffix =1;;suffix++)
+            {
+                StringBuffer name;
+                name.append("__internal_fpos");
+                if (suffix > 1)
+                    name.append(suffix);
+                name.append("__");
+                implicitFieldName = createIdAtom(name);
+                OwnedHqlExpr resolved = scope->lookupSymbol(implicitFieldName);
+                if (!resolved && payloadScope)
+                    resolved.setown(payloadScope->lookupSymbol(implicitFieldName));
+                if (!resolved)
+                    break;
+            }
 
-        ITypeInfo * fileposType = makeIntType(8, false);
-        fields.append(*createField(implicitFieldName, fileposType, createConstant(I64C(0)), createAttribute(_implicitFpos_Atom)));
-        payloadCount++;
+            ITypeInfo * fileposType = makeIntType(8, false);
+            fields.append(*createField(implicitFieldName, fileposType, createConstant(I64C(0)), createAttribute(_implicitFpos_Atom)));
+            payloadCount++;
+        }
+        else
+            extra.setown(createComma(extra.getClear(), createExprAttribute(filepositionAtom, createConstant(false))));
     }
 
     extra.setown(createComma(extra.getClear(), createAttribute(_payload_Atom, createConstant((__int64) payloadCount))));
@@ -9925,7 +9941,8 @@ IHqlExpression * HqlGram::resolveImportModule(const attribute & errpos, IHqlExpr
 {
     if (isDollarModule(expr))
         return LINK(queryExpression(globalScope));
-    if (expr->queryName() != _dot_Atom)
+    IAtom * name = expr->queryName();
+    if ((name != _dot_Atom) && (name != _container_Atom))
     {
         if (!lookupCtx.queryRepository())
         {
@@ -9965,11 +9982,28 @@ IHqlExpression * HqlGram::resolveImportModule(const attribute & errpos, IHqlExpr
     OwnedHqlExpr parent = resolveImportModule(errpos, expr->queryChild(0));
     if (!parent)
         return NULL;
+
+    const char * parentName = parent->queryId()->str();
+    if (name == _container_Atom)
+    {
+        const char * containerName = parent->queryFullContainerId()->str();
+        //This is a bit ugly - remove the last qualified module, and resolve the name again.  A more "correct" method
+        //saving container pointers hit problems because remote scopes within CHqlMergedScope containers have a remote
+        //scope as the parent, rather than the merged scope...
+        if (containerName)
+        {
+            OwnedHqlExpr matched = getResolveAttributeFullPath(containerName, LSFpublic, lookupCtx);
+            if (matched)
+                return matched.getClear();
+        }
+        reportError(ERR_CANNOT_ACCESS_CONTAINER, errpos, "Cannot access container for Object '%s'", parentName);
+        return NULL;
+    }
+
     IIdAtom * childId = expr->queryChild(1)->queryId();
     OwnedHqlExpr resolved = parent->queryScope()->lookupSymbol(childId, LSFpublic, lookupCtx);
     if (!resolved)
     {
-        const char * parentName = parent->queryName()->str();
         if (!parentName)
             parentName = "$";
         reportError(ERR_OBJ_NOSUCHFIELD, errpos, "Object '%s' does not have a field named '%s'", parentName, childId->str());

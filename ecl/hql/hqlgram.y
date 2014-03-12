@@ -713,6 +713,10 @@ importId
                         {
                             $$.setExpr(createAttribute(_dot_Atom, $1.getExpr(), createId($3.getId())), $1);
                         }
+    | importId '.' '^'
+                        {
+                            $$.setExpr(createAttribute(_container_Atom, $1.getExpr()), $1);
+                        }
     ;
 
 defineType
@@ -806,7 +810,8 @@ explicitRowType
     : explicitRowType1
     | LINKCOUNTED explicitRowType1
                         {
-                            $$.setType(setLinkCountedAttr($2.getType(), true));
+                            Owned<ITypeInfo> rowType = $2.getType();
+                            $$.setType(setLinkCountedAttr(rowType, true));
                             $$.setPosition($1);
                         }
     ;
@@ -2886,6 +2891,10 @@ buildFlag
                         {
                             $$.setExpr(createAttribute(dedupAtom), $1);
                         }
+    | FILEPOSITION optConstBoolArg
+                        {
+                            $$.setExpr(createExprAttribute(filepositionAtom, $2.getExpr()), $1);
+                        }
     ;
 
 localAttribute
@@ -3084,6 +3093,10 @@ indexFlag
                             $$.setPosition($1);
                         }
     | UNORDERED         {   $$.setExpr(createAttribute(unorderedAtom)); $$.setPosition($1); }
+    | FILEPOSITION optConstBoolArg
+                        {
+                            $$.setExpr(createExprAttribute(filepositionAtom, $2.getExpr()), $1);
+                        }
     | commonAttribute
     ;
 
@@ -4968,6 +4981,15 @@ optCommaExpression
 optExpression
     :                   {   $$.setNullExpr(); }
     | expression
+    ;
+
+optConstBoolArg
+    :                   {   $$.setNullExpr(); }
+    | '(' expression ')'
+                        {
+                            parser->normalizeExpression($2, type_boolean, true);
+                            $$.inherit($2);
+                        }
     ;
 
 booleanExpr
@@ -8373,7 +8395,8 @@ simpleDataSet
 
                             parser->inheritRecordMaxLength(dataset, record);
 
-                            record.setown(parser->checkIndexRecord(record, $5));
+                            bool hasFileposition = getBoolAttributeInList(extra, filepositionAtom, true);
+                            record.setown(parser->checkIndexRecord(record, $5, extra));
                             if (transform)
                             {
                                 if (!recordTypesMatch(dataset, transform))

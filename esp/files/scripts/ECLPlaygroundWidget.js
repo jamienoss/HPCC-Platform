@@ -17,8 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/ECLPlaygroundWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/_base/xhr",
     "dojo/dom",
     "dojo/query",
@@ -37,14 +36,14 @@ define([
     "hpcc/ESPQuery",
 
     "dojo/text!../templates/ECLPlaygroundWidget.html"
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, xhr, dom, query,
+], function (declare, lang, i18n, nlsHPCC, xhr, dom, query,
                 BorderContainer, TabContainer, ContentPane, registry,
                 _Widget, EclSourceWidget, TargetSelectWidget, GraphWidget, ResultsWidget, ESPWorkunit, ESPQuery,
                 template) {
     return declare("ECLPlaygroundWidget", [_Widget], {
         templateString: template,
         baseClass: "ECLPlaygroundWidget",
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
+        i18n: nlsHPCC,
 
         wu: null,
         editorControl: null,
@@ -77,7 +76,7 @@ define([
 
         //  Implementation  ---
         getTitle: function () {
-            return this.i18n.title;
+            return this.i18n.title_ECLPlayground;
         },
 
         _initControls: function () {
@@ -153,6 +152,9 @@ define([
         initGraph: function () {
             var context = this;
             this.graphControl = registry.byId(this.id + "GraphControl");
+            this.graphControl.showNextPrevious(false);
+            this.graphControl.showDistance(false);
+            this.graphControl.showSyncSelection(false);
             this.graphControl.onSelectionChanged = function (items) {
                 context.editorControl.clearHighlightLines();
                 for (var i = 0; i < items.length; ++i) {
@@ -266,10 +268,15 @@ define([
         },
 
         displayGraphs: function (graphs) {
+            var fetchedCount = 0;
             for (var i = 0; i < graphs.length; ++i) {
                 var context = this;
                 this.wu.fetchGraphXgmml(i, function (xgmml) {
-                    context.graphControl.loadXGMML(xgmml, i > 0);
+                    ++fetchedCount;
+                    context.graphControl.loadXGMML(xgmml, fetchedCount > 1);
+                    if (fetchedCount === graphs.length) {
+                        context.graphControl.startLayout("dot");
+                    }
                 });
             }
         },

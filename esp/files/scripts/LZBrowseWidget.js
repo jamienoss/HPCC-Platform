@@ -17,8 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/LZBrowseWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/dom-attr",
@@ -77,7 +76,7 @@ define([
     "dojox/form/uploader/FileList",
 
     "hpcc/TableContainer"
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, dom, domAttr, domClass, domForm, iframe, date, on,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domAttr, domClass, domForm, iframe, date, on,
                 registry, Dialog, Menu, MenuItem, MenuSeparator, PopupMenuItem,
                 OnDemandGrid, tree, Keyboard, Selection, editor, selector, ColumnResizer, DijitRegistry, Pagination,
                 _TabContainerWidget, FileSpray, ESPUtil, ESPRequest, ESPDFUWorkunit, HexViewWidget, DFUWUDetailsWidget, TargetSelectWidget, SelectionGridWidget,
@@ -85,7 +84,7 @@ define([
     return declare("LZBrowseWidget", [_TabContainerWidget, ESPUtil.FormHelper], {
         templateString: template,
         baseClass: "LZBrowseWidget",
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
+        i18n: nlsHPCC,
 
         postCreate: function (args) {
             this.inherited(arguments);
@@ -130,7 +129,7 @@ define([
         },
 
         getTitle: function () {
-            return this.i18n.title;
+            return this.i18n.title_LZBrowse;
         },
 
         _handleResponse: function (wuidQualifier, response) {
@@ -178,7 +177,7 @@ define([
                             Names: item.partialPath
                         },
                         load: function (response) {
-                            context.refreshGrid();
+                            context.refreshGrid(true);
                         }
                     });
                 });
@@ -512,10 +511,13 @@ define([
             this.refreshActionState();
         },
 
-        refreshGrid: function (args) {
+        refreshGrid: function (clearSelection) {
             this.landingZonesGrid.set("query", {
                 id: "*"
             });
+            if (clearSelection) {
+                this.landingZonesGrid.clearSelection();
+            }
         },
 
         refreshActionState: function () {

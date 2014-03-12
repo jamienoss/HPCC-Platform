@@ -1974,7 +1974,10 @@ IHqlExpression * ThorHqlTransformer::createTransformed(IHqlExpression * expr)
         if (!normalized)
             normalized = normalizeTableToAggregate(transformed, true);
         if (!normalized || (normalized == transformed))
+        {
+            ::Release(normalized);
             normalized = normalizePrefetchAggregate(transformed);
+        }
         break;
     case no_dedup:
         normalized = normalizeDedup(transformed);
@@ -5421,6 +5424,7 @@ WorkflowTransformer::WorkflowTransformer(IWorkUnit * _wu, HqlCppTranslator & _tr
     workflowOut = NULL;
     isConditional = false;
     insideStored = false;
+    activeWfid = 0;
 }
 
 //-- Helper routines --
@@ -5674,13 +5678,9 @@ IHqlExpression * WorkflowTransformer::extractWorkflow(IHqlExpression * untransfo
         switch (curOp)
         {
         case no_persist:
-            if (isRoxie && translator.getCheckRoxieRestrictions())
+            if (isRoxie)
             {
-                StringBuffer s;
-                IHqlExpression * name = cur.queryChild(0);
-                OwnedHqlExpr seq = getGlobalSequenceNumber();
-                getStoredDescription(s, seq, name, true);
-                throwError1(HQLERR_NotSupportInRoxie, s.str());
+                // MORE - Add dynamic attribute to ensure the file is not pre-resolved
             }
             //fall through
         case no_checkpoint:
@@ -7852,6 +7852,7 @@ AutoScopeMigrateTransformer::AutoScopeMigrateTransformer(IWorkUnit * _wu, HqlCpp
     hasCandidate = false;
     activityDepth = 0;
     curGraph = 1;
+    globalTarget = NULL;
 }
 
 void AutoScopeMigrateTransformer::analyseExpr(IHqlExpression * expr)

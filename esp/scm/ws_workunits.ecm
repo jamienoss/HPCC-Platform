@@ -1109,6 +1109,7 @@ ESPrequest [nil_remove] WUPublishWorkunitRequest
     string Comment;
     bool DontCopyFiles(false);
     string SourceProcess;
+    bool AllowForeignFiles(true);
 };
 
 ESPresponse [exceptions_inline] WUPublishWorkunitResponse
@@ -1169,6 +1170,7 @@ ESPStruct ClusterQueryState
     string Cluster;
     string State;
     [min_ver("1.46")] string Errors;
+    [min_ver("1.47")] bool MixedNodeStates;
 };
 
 ESPStruct [nil_remove] QuerySetQuery
@@ -1236,6 +1238,8 @@ ESPrequest [nil_remove] WUListQueriesRequest
     nonNegativeInteger WarnTimeLimitHigh;
     nonNegativeInteger PriorityLow;
     nonNegativeInteger PriorityHigh;
+    [min_ver("1.48")] bool Activated;
+    [min_ver("1.48")] bool SuspendedByUser;
 
     nonNegativeInteger PageSize(0);
     nonNegativeInteger PageStartFrom(0);
@@ -1407,6 +1411,7 @@ ESPrequest [nil_remove] WUQuerySetCopyQueryRequest
     string Comment;
     string SourceProcess;
     string DestName;
+    bool AllowForeignFiles(true);
 };
 
 ESPresponse [exceptions_inline] WUQuerySetCopyQueryResponse
@@ -1445,7 +1450,7 @@ ESPresponse [exceptions_inline] WUCreateZAPInfoResponse
 };
 
 ESPservice [
-    version("1.47"), default_client_version("1.47"),
+    version("1.48"), default_client_version("1.48"),
     noforms,exceptions_inline("./smc_xslt/exceptions.xslt"),use_method_name] WsWorkunits
 {
     ESPmethod [resp_xsl_default("/esp/xslt/workunits.xslt")]     WUQuery(WUQueryRequest, WUQueryResponse);

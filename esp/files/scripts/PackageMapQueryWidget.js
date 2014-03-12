@@ -17,8 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/PackageMapQueryWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/dom",
     "dojo/dom-construct",
@@ -54,7 +53,7 @@ define([
     "dijit/form/Select",
     "dijit/Toolbar",
     "dijit/TooltipDialog"
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, dom, domConstruct, domForm, ObjectStore, on, topic,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domConstruct, domForm, ObjectStore, on, topic,
     _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry,
     Uploader, FileUploader, EnhancedGrid, Pagination, IndirectSelection, ItemFileWriteStore,
     PackageMapDetailsWidget, PackageMapValidateWidget,
@@ -63,7 +62,7 @@ define([
     return declare("PackageMapQueryWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
         baseClass: "PackageMapQueryWidget",
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
+        i18n: nlsHPCC,
         packagesTab: null,
         packagesGrid: null,
         tabMap: [],
@@ -97,7 +96,7 @@ define([
             var context = this;
             this.tabContainer.watch("selectedChildWidget", function (name, oval, nval) {
                 if ((nval.id != context.id + "Packages") && (!nval.initalized)) {
-                    nval.init(nval.params);
+                    nval.init(nval.params, context.targets);
                 }
                 context.selectedTab = nval;
             });
@@ -106,7 +105,6 @@ define([
         startup: function (args) {
             this.inherited(arguments);
             this.refreshActionState();
-            this.getSelections();
         },
 
         resize: function (args) {
@@ -379,8 +377,6 @@ define([
                 if (target.Processes != undefined)
                     this.addProcessSelections(this.processSelect, this.processesToList, target.Processes.Item);
             }
-            if (this.validateTab != null)
-                this.validateTab.initSelections(this.targets);
         },
 
         init: function (params) {
@@ -398,6 +394,7 @@ define([
             this.tabContainer.addChild(this.validateTab, 1);
 
             this.tabContainer.selectChild(this.packagesTab);
+            this.getSelections();
         },
 
         initPackagesGrid: function() {

@@ -358,7 +358,6 @@ public:
     bool hasAnyActiveParameters();
 public:
     CIArrayOf<ActiveScopeInfo> defineScopes;
-    IEclRepository *dataServer;
     HqlScopeArray defaultScopes;
     Owned<IHqlScope> globalScope;
     Linked<ISourcePath> sourcePath;
@@ -454,7 +453,7 @@ public:
     void checkWorkflowMultiples(IHqlExpression * currentWorkflow, IHqlExpression * newWorkflow, attribute& errpos);
     void checkJoinFlags(const attribute & err, IHqlExpression * joinExpr);
     void checkLoopFlags(const attribute & err, IHqlExpression * loopExpr);
-    IHqlExpression * checkIndexRecord(IHqlExpression * record, const attribute & errpos);
+    IHqlExpression * checkIndexRecord(IHqlExpression * record, const attribute & errpos, OwnedHqlExpr & indexAttrs);
     void checkIndexFieldType(IHqlExpression * cur, bool isPayload, bool insideNestedRecord, const attribute & errpos);
     void checkIndexRecordType(IHqlExpression * record, unsigned numPayloadFields, bool insideNestedRecord, const attribute & errpos);
     void checkIndexRecordTypes(IHqlExpression * index, const attribute & errpos);
@@ -842,7 +841,6 @@ protected:
     IIdAtom * moduleName;
     IIdAtom * current_id;
     IIdAtom * expectedAttribute;
-    int current_flags;
     IHqlScope *transformScope;
     PointerArray savedIds;
     UnsignedArray savedLastpos;
@@ -865,8 +863,6 @@ protected:
     CIArrayOf<ActiveScopeInfo> defineScopes;
     OwnedHqlExpr curList;
     BoolArray wasInEvaluate;
-    HqlExprAttr curDatabase;
-    unsigned curDatabaseCount;
     HqlExprCopyArray activeRecords;
     HqlExprArray activeIfBlocks;
     HqlLex *lexObject;
@@ -877,7 +873,6 @@ protected:
     ITypeInfo * uint4Type;
     ITypeInfo * defaultRealType;
     ITypeInfo * boolType;
-    IEclRepository *dataServer;
     HqlScopeArray defaultScopes;
     PointerArray savedType;
     HqlExprAttr curFeatureParams;

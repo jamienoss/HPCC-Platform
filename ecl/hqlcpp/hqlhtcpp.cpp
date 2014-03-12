@@ -233,16 +233,7 @@ static IHqlExpression * createResultName(IHqlExpression * name)
 {
     if (!name)
         return createQuoted("0", makeReferenceModifier(makeVarStringType(UNKNOWN_LENGTH)));
-    switch (name->getOperator())
-    {
-    case no_constant:
-        return LINK(name);
-    default:
-        return LINK(name);
-        UNIMPLEMENTED;
-        break;
-    }
-    return NULL;
+    return LINK(name);
 }
 
 //---------------------------------------------------------------------------
@@ -814,7 +805,7 @@ public:
     }
 
     TransformBuilder(const TransformBuilder & other, BuildCtx & _ctx) :
-            DelayedStatementExecutor(other.translator, _ctx), mapper(other.mapper), assigns(other.assigns)
+            DelayedStatementExecutor(other.translator, _ctx), mapper(other.mapper), assigns(other.assigns), self(other.self)
     {
         expectedIndex = 0;
     }
@@ -1452,23 +1443,7 @@ BoundRow * HqlCppTranslator::createRowBuilder(BuildCtx & ctx, BoundRow * targetR
 
     if (!targetIsOwnedRow && isFixedWidthDataset(record) && !options.alwaysCreateRowBuilder)
     {
-        LinkedHqlExpr targetArg = boundTarget;
-        if (targetIsOwnedRow)
-        {
-            OwnedHqlExpr allocator = createRowAllocator(ctx, record);
-
-            StringBuffer valueText;
-            valueText.append("(byte *)");
-            generateExprCpp(valueText, allocator).append("->createRow()");
-
-            StringBuffer setText;
-            generateExprCpp(setText, boundTarget);
-            setText.append(".setown(").append(valueText).append(");");
-            ctx.addQuoted(setText);
-            targetArg.setown(getPointer(boundTarget));
-        }
-
-        BoundRow * self = bindSelf(ctx, targetRow->queryDataset(), targetArg, NULL);
+        BoundRow * self = bindSelf(ctx, targetRow->queryDataset(), boundTarget, NULL);
         return LINK(self);
     }
 
@@ -1582,7 +1557,6 @@ BoundRow * HqlCppTranslator::declareTempAnonRow(BuildCtx & ctx, BuildCtx & codec
 void HqlCppTranslator::finalizeTempRow(BuildCtx & ctx, BoundRow * row, BoundRow * builder)
 {
     IHqlExpression * targetRow = row->queryBound();
-    IHqlExpression * rowBuilder = builder->queryBound();
     bool targetIsOwnedRow = hasWrapperModifier(targetRow->queryType());
 
     if (builder->queryBuilder() && targetIsOwnedRow)
@@ -1726,8 +1700,10 @@ ActivityInstance::ActivityInstance(HqlCppTranslator & _translator, BuildCtx & ct
     isMember = false;
     instanceIsLocal = false;
     classStmt = NULL;
+    classGroup = NULL;
     classGroupStmt = NULL;
     hasChildActivity = false;
+    initialGroupMarker = 0;
 
     includedInHeader = false;
     isCoLocal = false;
@@ -1792,7 +1768,6 @@ ActivityInstance::ActivityInstance(HqlCppTranslator & _translator, BuildCtx & ct
 
     if (!parentExtract && (translator.getTargetClusterType() == RoxieCluster))
         executedRemotely = isNonLocal(dataset, false);
-
 
     unsigned containerId = 0;
     if (containerActivity)
@@ -2796,7 +2771,7 @@ GlobalClassBuilder::GlobalClassBuilder(HqlCppTranslator & _translator, BuildCtx 
         accessorName.set(s.clear().append("cr").append(className).str());
     }
     onCreateStmt = NULL;
-
+    classStmt = NULL;
 }
 
 void GlobalClassBuilder::buildClass(unsigned priority)
@@ -3225,22 +3200,22 @@ void HqlCppTranslator::noteFilename(ActivityInstance & instance, const char * na
 void HqlCppTranslator::buildRefFilenameFunction(ActivityInstance & instance, BuildCtx & classctx, const char * name, IHqlExpression * expr)
 {
     IHqlExpression * table = queryPhysicalRootTable(expr);
+    assertex(table);
+
     IHqlExpression * filename = NULL;
-    if (table)
+    switch (table->getOperator())
     {
-        switch (table->getOperator())
-        {
-        case no_keyindex:
-            filename = table->queryChild(2);
-            break;
-        case no_newkeyindex:
-            filename = table->queryChild(3);
-            break;
-        case no_table:
-            filename = table->queryChild(0);
-            break;
-        }
+    case no_keyindex:
+        filename = table->queryChild(2);
+        break;
+    case no_newkeyindex:
+        filename = table->queryChild(3);
+        break;
+    case no_table:
+        filename = table->queryChild(0);
+        break;
     }
+
     buildFilenameFunction(instance, classctx, name, filename, hasDynamicFilename(table));
 }
 
@@ -4158,8 +4133,7 @@ void HqlCppTranslator::buildMetaInfo(MetaInstance & instance)
                 }
             }
 
-            if (record)
-                generateMetaRecordSerialize(metactx, record, serializerName.str(), deserializerName.str(), internalSerializerName.str(), internalDeserializerName.str(), prefetcherName.str());
+            generateMetaRecordSerialize(metactx, record, serializerName.str(), deserializerName.str(), internalSerializerName.str(), internalDeserializerName.str(), prefetcherName.str());
 
             if (flags != (MDFhasserialize|MDFhasxml))
                 doBuildUnsignedFunction(metactx, "getMetaFlags", flags);
@@ -7104,6 +7078,7 @@ void HqlCppTranslator::buildClearRecord(BuildCtx & ctx, IHqlExpression * dataset
 
 IHqlExpression * HqlCppTranslator::getClearRecordFunction(IHqlExpression * record, int direction)
 {
+    assertex(record);
     IHqlExpression * dirExpr = getSizetConstant((size32_t)direction);
     OwnedHqlExpr search = createAttribute(__clearHelperAtom, LINK(record->queryBody()), dirExpr);
 
@@ -7121,7 +7096,6 @@ IHqlExpression * HqlCppTranslator::getClearRecordFunction(IHqlExpression * recor
     s.append("size32_t ").append(functionName).append("(ARowBuilder & crSelf, IResourceContext * ctx)");
 
     clearctx.setNextPriority(RowMetaPrio);
-    if (record)
     {
         IHqlStmt * func = clearctx.addQuotedCompound(s);
         func->setIncomplete(true);
@@ -7133,8 +7107,6 @@ IHqlExpression * HqlCppTranslator::getClearRecordFunction(IHqlExpression * recor
         buildReturnRecordSize(clearctx, cursor);
         func->setIncomplete(false);
     }
-    else
-        clearctx.addQuotedCompound(s.append(" {}"));
 
     if (options.spanMultipleCpp)
     {
@@ -9723,9 +9695,14 @@ void HqlCppTranslator::buildFormatCrcFunction(BuildCtx & ctx, const char * name,
 {
     IHqlExpression * payload = expr ? expr->queryAttribute(_payload_Atom) : NULL;
     OwnedHqlExpr exprToCrc = getSerializedForm(dataset->queryRecord(), diskAtom);
+
     unsigned payloadSize = 1;
     if (payload)
         payloadSize = (unsigned)getIntValue(payload->queryChild(0)) + payloadDelta;
+
+    //FILEPOSITION(FALSE) means we have counted 1 too many in the payload
+    if (!getBoolAttribute(expr, filepositionAtom, true))
+        payloadSize--;
 
     exprToCrc.setown(createComma(exprToCrc.getClear(), getSizetConstant(payloadSize)));
 
@@ -9734,10 +9711,10 @@ void HqlCppTranslator::buildFormatCrcFunction(BuildCtx & ctx, const char * name,
     doBuildUnsignedFunction(ctx, name, crc);
 }
 
-static void createOutputIndexRecord(HqlMapTransformer & mapper, HqlExprArray & fields, IHqlExpression * record, bool isMainRecord, bool allowTranslate)
+static void createOutputIndexRecord(HqlMapTransformer & mapper, HqlExprArray & fields, IHqlExpression * record, bool hasFileposition, bool allowTranslate)
 {
     unsigned numFields = record->numChildren();
-    unsigned max = isMainRecord ? numFields-1 : numFields;
+    unsigned max = hasFileposition ? numFields-1 : numFields;
     for (unsigned idx=0; idx < max; idx++)
     {
         IHqlExpression * cur = record->queryChild(idx);
@@ -9804,10 +9781,10 @@ static void createOutputIndexRecord(HqlMapTransformer & mapper, HqlExprArray & f
 }
 
 
-static void createOutputIndexTransform(HqlExprArray & assigns, IHqlExpression * self, IHqlExpression * tgtRecord, IHqlExpression * srcRecord, IHqlExpression* srcDataset, bool isMainRecord, bool allowTranslate)
+static void createOutputIndexTransform(HqlExprArray & assigns, IHqlExpression * self, IHqlExpression * tgtRecord, IHqlExpression * srcRecord, IHqlExpression* srcDataset, bool hasFileposition, bool allowTranslate)
 {
     unsigned numFields = srcRecord->numChildren();
-    unsigned max = isMainRecord ? numFields-1 : numFields;
+    unsigned max = hasFileposition ? numFields-1 : numFields;
     for (unsigned idx=0; idx < max; idx++)
     {
         IHqlExpression * cur = srcRecord->queryChild(idx);
@@ -9852,19 +9829,19 @@ static void createOutputIndexTransform(HqlExprArray & assigns, IHqlExpression * 
 }
 
 
-void HqlCppTranslator::doBuildIndexOutputTransform(BuildCtx & ctx, IHqlExpression * record, SharedHqlExpr & rawRecord)
+void HqlCppTranslator::doBuildIndexOutputTransform(BuildCtx & ctx, IHqlExpression * record, SharedHqlExpr & rawRecord, bool hasFileposition)
 {
     OwnedHqlExpr srcDataset = createDataset(no_anon, LINK(record));
 
     HqlExprArray fields;
     HqlExprArray assigns;
     HqlMapTransformer mapper;
-    createOutputIndexRecord(mapper, fields, record, true, true);
+    createOutputIndexRecord(mapper, fields, record, hasFileposition, true);
 
     OwnedHqlExpr newRecord = createRecord(fields);
     rawRecord.set(newRecord);
     OwnedHqlExpr self = getSelf(newRecord);
-    createOutputIndexTransform(assigns, self, newRecord, record, srcDataset, true, true);
+    createOutputIndexTransform(assigns, self, newRecord, record, srcDataset, hasFileposition, true);
 
     OwnedHqlExpr tgtDataset = createDataset(no_anon, newRecord.getLink());
     OwnedHqlExpr transform = createValue(no_newtransform, makeTransformType(newRecord->getType()), assigns);
@@ -9881,8 +9858,12 @@ void HqlCppTranslator::doBuildIndexOutputTransform(BuildCtx & ctx, IHqlExpressio
     doTransform(subctx, transform, selfCursor);
 
     OwnedHqlExpr fposVar = createVariable("filepos", makeIntType(8, false));
-    OwnedHqlExpr fposField = createSelectExpr(LINK(srcDataset), LINK(queryLastField(record)));
-    buildAssignToTemp(subctx, fposVar, fposField);
+    OwnedHqlExpr fposValue;
+    if (hasFileposition)
+        fposValue.setown(createSelectExpr(LINK(srcDataset), LINK(queryLastField(record))));
+    else
+        fposValue.setown(getSizetConstant(0));
+    buildAssignToTemp(subctx, fposVar, fposValue);
 
     buildReturnRecordSize(subctx, selfCursor);
 
@@ -10036,6 +10017,7 @@ ABoundActivity * HqlCppTranslator::doBuildActivityOutputIndex(BuildCtx & ctx, IH
     IHqlExpression * compressAttr = expr->queryAttribute(compressedAtom);
     IHqlExpression * widthExpr = queryAttributeChild(expr, widthAtom, 0);
     bool hasTLK = !expr->hasAttribute(noRootAtom);
+    bool hasFileposition = getBoolAttribute(expr, filepositionAtom, true);
     bool singlePart = expr->hasAttribute(fewAtom);
     if (matchesConstantValue(widthExpr, 1))
     {
@@ -10120,7 +10102,7 @@ ABoundActivity * HqlCppTranslator::doBuildActivityOutputIndex(BuildCtx & ctx, IH
     }
 
     OwnedHqlExpr rawRecord;
-    doBuildIndexOutputTransform(instance->startctx, record, rawRecord);
+    doBuildIndexOutputTransform(instance->startctx, record, rawRecord, hasFileposition);
     buildFormatCrcFunction(instance->classctx, "getFormatCrc", rawRecord, expr, 0);
 
     if (compressAttr && compressAttr->hasAttribute(rowAtom))
@@ -13208,7 +13190,6 @@ void HqlCppTranslator::doBuildUserMergeAggregateFunc(BuildCtx & ctx, IHqlExpress
 void HqlCppTranslator::doBuildUserAggregateFuncs(BuildCtx & ctx, IHqlExpression * expr, bool & requiresOrderedMerge)
 {
     IHqlExpression * dataset = expr->queryChild(0);
-    IHqlExpression * tgtRecord = expr->queryChild(1);
     IHqlExpression * transform = expr->queryChild(2);
     IHqlExpression * selSeq = querySelSeq(expr);
     LinkedHqlExpr firstTransform;

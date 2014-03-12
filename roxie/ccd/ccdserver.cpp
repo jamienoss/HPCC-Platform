@@ -3480,6 +3480,7 @@ public:
         processed = 0;
         totalCycles = 0;
         sentSequence = 0;
+        resendSequence = 0;
         serverSideCache = activity.queryServerSideCache();
         bufferStream.setown(createMemoryBufferSerialStream(tempRowBuffer));
         rowSource.setStream(bufferStream);
@@ -5213,6 +5214,8 @@ public:
     CRoxieServerInlineTableActivity(const IRoxieServerActivityFactory *_factory, IProbeManager *_probeManager)
         : CRoxieServerActivity(_factory, _probeManager), helper((IHThorInlineTableArg &) basehelper)
     {
+        curRow = 0;
+        numRows = 0;
     }
 
     virtual void start(unsigned parentExtractSize, const byte *parentExtract, bool paused)
@@ -11264,6 +11267,7 @@ public:
     {
         overwrite = ((helper.getFlags() & TIWoverwrite) != 0);
         reccount = 0;
+        fileCrc = 0;
     }
 
     ~CRoxieServerIndexWriteActivity()
@@ -12377,6 +12381,7 @@ public:
     {
         numInputs = _numInputs;
         eof = (numInputs==0);
+        inGroup = false;
         nextPuller = 0;
         readyPending = 0;
         for (unsigned i = 0; i < numInputs; i++)
@@ -12516,6 +12521,7 @@ public:
         inputArray = new IRoxieInput*[numInputs];
         for (unsigned i = 0; i < numInputs; i++)
             inputArray[i] = NULL;
+        curInput = NULL;
     }
 
     ~CRoxieServerOrderedConcatActivity()
@@ -14283,6 +14289,7 @@ public:
     {
         probeManager = _probeManager;
         defaultNumParallel = 0;
+        sizeNumParallel = 0;
     }
 
     virtual void onCreate(IRoxieSlaveContext *_ctx, IHThorArg *_colocalParent)
@@ -15532,6 +15539,7 @@ public:
         grouped = helper.isGrouped();
         graphId = _graphId;
         selectionIsAll = false;
+        selectionLen = 0;
     }
 
     virtual void start(unsigned parentExtractSize, const byte *parentExtract, bool paused)
@@ -15797,7 +15805,10 @@ protected:
 class CRoxieStreamMerger : public CStreamMerger
 {
 public:
-    CRoxieStreamMerger() : CStreamMerger(true) {}
+    CRoxieStreamMerger() : CStreamMerger(true)
+    {
+        inputArray = NULL;
+    }
 
     void initInputs(unsigned _numInputs, IRoxieInput ** _inputArray)
     {
@@ -16091,6 +16102,7 @@ public:
         : CRoxieServerMultiInputActivity(_factory, _probeManager, _numInputs),
           helper((IHThorNWaySelectArg &)basehelper)
     {
+        selectedInput = NULL;
     }
 
     virtual void start(unsigned parentExtractSize, const byte *parentExtract, bool paused)
@@ -17168,7 +17180,7 @@ private:
                 size <<= 1;
             mask = size - 1;
             table = (const void * *)calloc(size, sizeof(void *));
-            findex = BadIndex;
+            findex = fstart = BadIndex;
         }
 
         ~LookupTable()
@@ -17312,6 +17324,7 @@ public:
         atmostLimit = 0;
         atmostsTriggered = 0;
         limitLimit = 0;
+        rightGroupIndex = 0;
         hasGroupLimit = false;
         isSmartJoin = (joinFlags & JFsmart) != 0;
         getLimitType(joinFlags, limitFail, limitOnFail);
@@ -19512,7 +19525,21 @@ public:
             }
 
         }
-        if (serverContext->outputResultsToWorkUnit()||(response && response->isRaw))
+        size32_t outputLimitBytes = 0;
+        IConstWorkUnit *workunit = serverContext->queryWorkUnit();
+        if (workunit)
+        {
+            size32_t outputLimit;
+            if (helper.getFlags() & POFmaxsize)
+                outputLimit = helper.getMaxSize();
+            else
+                outputLimit = workunit->getDebugValueInt("outputLimit", DALI_RESULT_LIMIT_DEFAULT);
+            if (outputLimit>DALI_RESULT_OUTPUTMAX)
+                throw MakeStringException(0, "Dali result outputs are restricted to a maximum of %d MB, the current limit is %d MB. A huge dali result usually indicates the ECL needs altering.", DALI_RESULT_OUTPUTMAX, DALI_RESULT_LIMIT_DEFAULT);
+            assertex(outputLimit<=0x1000); // 32bit limit because MemoryBuffer/CMessageBuffers involved etc.
+            outputLimitBytes = outputLimit * 0x100000;
+        }
+        if (workunit != NULL || (response && response->isRaw))
         {
             createRowAllocator();
             rowSerializer.setown(rowAllocator->createDiskSerializer(ctx->queryCodeContext()));
@@ -19529,7 +19556,7 @@ public:
             }
             if (grouped && (processed != initialProcessed))
             {
-                if (serverContext->outputResultsToWorkUnit())
+                if (workunit)
                     result.append(row == NULL);
                 if (response)
                 {
@@ -19550,7 +19577,7 @@ public:
                     builder.append(row);
             }
             processed++;
-            if (serverContext->outputResultsToWorkUnit())
+            if (workunit)
             {
                 CThorDemoRowSerializer serializerTarget(result);
                 rowSerializer->serialize(serializerTarget, (const byte *) row);
@@ -19582,12 +19609,24 @@ public:
                 response->flush(false);
             }
             ReleaseRoxieRow(row);
+            if (outputLimitBytes && result.length() > outputLimitBytes)
+            {
+                StringBuffer errMsg("Dataset too large to output to workunit (limit ");
+                errMsg.append(outputLimitBytes/0x100000).append(" megabytes), in result (");
+                const char *name = helper.queryName();
+                if (name)
+                    errMsg.append("name=").append(name);
+                else
+                    errMsg.append("sequence=").append(helper.getSequence());
+                errMsg.append(")");
+                throw MakeStringExceptionDirect(0, errMsg.str());
+            }
         }
         if (writer)
             writer->outputEndArray("Row");
         if (saveInContext)
             serverContext->appendResultDeserialized(storedName, sequence, builder.getcount(), builder.linkrows(), (helper.getFlags() & POFextend) != 0, LINK(meta.queryOriginal()));
-        if (serverContext->outputResultsToWorkUnit())
+        if (workunit)
             serverContext->appendResultRawContext(storedName, sequence, result.length(), result.toByteArray(), processed, (helper.getFlags() & POFextend) != 0, false); // MORE - shame to do extra copy...
     }
 };
@@ -21818,6 +21857,23 @@ public:
         return nextSteppedGE(NULL, 0, matched, dummySmartStepExtra);
     }
 
+    unsigned __int64 checkCount(unsigned __int64 limit)
+    {
+        unsigned numParts = keyIndexSet->numParts();
+        unsigned __int64 result = 0;
+        for (unsigned i = 0; i < numParts; i++)
+        {
+            Owned<IKeyManager> countTlk = createKeyManager(keyIndexSet->queryPart(i), 0, this);
+            countTlk->setLayoutTranslator(translators->item(i));
+            indexHelper.createSegmentMonitors(countTlk);
+            countTlk->finishSegmentMonitors();
+            result += countTlk->checkCount(limit-result);
+            if (result > limit)
+                break;
+        }
+        return result;
+    }
+
     virtual const void *nextSteppedGE(const void * seek, unsigned numFields, bool &wasCompleteMatch, const SmartStepExtra & stepExtra)
     {
         ActivityTimer t(totalCycles, timeActivities, ctx->queryDebugContext());
@@ -21865,7 +21921,7 @@ public:
             {
                 if ((indexHelper.getFlags() & TIRcountkeyedlimit) != 0)
                 {
-                    unsigned __int64 count = tlk->checkCount(keyedLimit);
+                    unsigned __int64 count = checkCount(keyedLimit);
                     if (count > keyedLimit)
                     {
                         if ((indexHelper.getFlags() & (TIRkeyedlimitskips|TIRkeyedlimitcreates)) == 0)
@@ -21877,7 +21933,6 @@ public:
                         onEOF();
                         return ret;
                     }
-                    tlk->reset();
                     keyedLimit = (unsigned __int64) -1;
                 }
             }

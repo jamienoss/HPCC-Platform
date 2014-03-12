@@ -17,8 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/ActivityWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/on",
 
@@ -40,14 +39,14 @@ define([
     "hpcc/DFUWUDetailsWidget",
     "hpcc/ESPUtil"
 
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, arrayUtil, on,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, on,
                 registry, Button, ToolbarSeparator,
                 OnDemandGrid, Keyboard, Selection, selector, tree, ColumnResizer, DijitRegistry,
                 GridDetailsWidget, ESPActivity, WUDetailsWidget, DFUWUDetailsWidget, ESPUtil) {
     return declare("ActivityWidget", [GridDetailsWidget], {
 
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
-        gridTitle: nlsSpecific.title,
+        i18n: nlsHPCC,
+        gridTitle: nlsHPCC.title_Activity,
         idProperty: "Wuid",
 
         _onPause: function (event, params) {
@@ -273,37 +272,37 @@ define([
                     }),
                     Priority: {
                         renderHeaderCell: function (node) {
-                            node.innerHTML = "<img src='../files/img/priority.png'>";
+                            node.innerHTML = "<img src='/esp/files/img/priority.png'>";
                         },
                         width: 25,
                         sortable: false,
                         formatter: function (Priority) {
                             switch (Priority) {
                                 case "high":
-                                    return "<img src='../files/img/priority_high.png'>";
+                                    return "<img src='/esp/files/img/priority_high.png'>";
                                 case "low":
-                                    return "<img src='../files/img/priority_low.png'>";
+                                    return "<img src='/esp/files/img/priority_low.png'>";
                             }
                             return "";
                         }
                     },
                     DisplayName: tree({
-                        label: this.i18n.Target,
+                        label: this.i18n.TargetWuid,
                         width: 270,
                         sortable: true,
                         shouldExpand: function (row, level, previouslyExpanded) {
                             return true;
                         },
                         formatter: function (_name, row) {
-                            var img;
+                            var img = "";
                             var name = "";
                             if (context.activity.isInstanceOfQueue(row)) {
                                 if (row.isPaused()) {
-                                    img += "/esp/files/img/server_paused.png";
+                                    img = "/esp/files/img/server_paused.png";
                                 } else {
-                                    img += "/esp/files/img/server.png";
+                                    img = "/esp/files/img/server.png";
                                 }
-                                name = row.getDisplayName();
+                                name = _name;
                             } else {
                                 img = row.getStateImage();
                                 name = "<a href='#' class='" + context.id + "WuidClick'>" + row.Wuid + "</a>";
@@ -311,9 +310,10 @@ define([
                             return "<img src='" + img + "'/>&nbsp;" + name;
                         }
                     }),
+                    DisplaySize: { label: this.i18n.Size, width: 59, sortable: true },
                     State: {
                         label: this.i18n.State,
-                        sortable: true,
+                        sortable: false,
                         formatter: function (state, row) {
                             if (context.activity.isInstanceOfQueue(row)) {
                                 if (row.isPaused()) {
@@ -323,14 +323,14 @@ define([
                             }
                             if (row.Duration) {
                                 return state + " (" + row.Duration + ")";
-                            } else if (row.Instance && state.indexOf(row.Instance) === -1) {
+                            } else if (row.Instance && !(state.indexOf && state.indexOf(row.Instance) !== -1)) {
                                 return state + " [" + row.Instance + "]";
                             }
                             return state;
                         }
                     },
-                    Owner: { label: this.i18n.Owner, width: 90, sortable: true },
-                    Jobname: { label: this.i18n.JobName, sortable: true }
+                    Owner: { label: this.i18n.Owner, width: 90, sortable: false },
+                    Jobname: { label: this.i18n.JobName, sortable: false }
                 },
                 getSelected: function () {
                     var retVal = [];

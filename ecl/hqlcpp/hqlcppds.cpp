@@ -669,7 +669,7 @@ IReferenceSelector * HqlCppTranslator::ensureLinkCountedRow(BuildCtx & ctx, IRef
 {
     if (!source->isRoot() || !source->queryRootRow()->isLinkCounted())
     {
-        BoundRow * row = source->getRow(ctx);
+        Owned<BoundRow> row = source->getRow(ctx);
         BoundRow * lcrRow = ensureLinkCountedRow(ctx, row);
         assertex(row != lcrRow);
         return createReferenceSelector(lcrRow, source->queryExpr());
@@ -725,7 +725,7 @@ void HqlCppTranslator::doBuildAssignAggregateLoop(BuildCtx & ctx, const CHqlBoun
                 if (multiPath)
                 {
                     BuildCtx condctx(ctx);
-                    buildFilter(condctx, optimized);
+                    condctx.addFilter(optimized);
                     assignBound(condctx, target, queryBoolExpr(true));
                 }
                 else

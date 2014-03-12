@@ -17,8 +17,7 @@ define([
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/i18n",
-    "dojo/i18n!./nls/common",
-    "dojo/i18n!./nls/PackageMapValidateWidget",
+    "dojo/i18n!./nls/hpcc",
     "dojo/dom",
     "dojo/dom-attr",
     "dojo/dom-class",
@@ -38,13 +37,13 @@ define([
     "dijit/form/RadioButton",
     "dijit/form/Select",
     "dijit/form/SimpleTextarea"
-], function (declare, lang, i18n, nlsCommon, nlsSpecific, dom, domAttr, domClass, topic,
+], function (declare, lang, i18n, nlsHPCC, dom, domAttr, domClass, topic,
     _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry,
     WsPackageMaps, template) {
     return declare("PackageMapValidateWidget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
         templateString: template,
         baseClass: "PackageMapValidateWidget",
-        i18n: lang.mixin(nlsCommon, nlsSpecific),
+        i18n: nlsHPCC,
         validateForm: null,
         targetSelect: null,
         packageContent: null,
@@ -80,14 +79,12 @@ define([
             this.inherited(arguments);
         },
 
-        init: function (params) {
+        init: function (params, targets) {
             if (this.initalized)
                 return;
             this.initalized = true;
             this.validateResult.set('style', 'visibility:hidden');
-            if (params.targets == undefined)
-                return;
-            this.initSelection(params.targets);
+            this.initSelections(targets);
         },
 
         initSelections: function (targets) {

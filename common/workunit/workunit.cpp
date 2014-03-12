@@ -1934,6 +1934,8 @@ mapEnums querySortFields[] =
    { WUQSFpriority, "@priority" },
    { WUQSFpriorityHi, "@priority" },
    { WUQSFQuerySet, "../@id" },
+   { WUQSFActivited, "@activated" },
+   { WUQSFSuspendedByUser, "@suspended" },
    { WUQSFterm, NULL }
 };
 
@@ -2311,13 +2313,16 @@ public:
             StringAttr sortOrder;
             StringAttr nameFilterLo;
             StringAttr nameFilterHi;
+            StringArray unknownAttributes;
 
         public:
             IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
-            CWorkUnitsPager(const char* _xPath, const char *_sortOrder, const char* _nameFilterLo, const char* _nameFilterHi)
+            CWorkUnitsPager(const char* _xPath, const char *_sortOrder, const char* _nameFilterLo, const char* _nameFilterHi, StringArray& _unknownAttributes)
                 : xPath(_xPath), sortOrder(_sortOrder), nameFilterLo(_nameFilterLo), nameFilterHi(_nameFilterHi)
             {
+                ForEachItemIn(x, _unknownAttributes)
+                    unknownAttributes.append(_unknownAttributes.item(x));
             }
             virtual IRemoteConnection* getElements(IArrayOf<IPropertyTree> &elements)
             {
@@ -2327,7 +2332,7 @@ public:
                 Owned<IPropertyTreeIterator> iter = conn->getElements(xPath);
                 if (!iter)
                     return NULL;
-                sortElements(iter, sortOrder.get(), nameFilterLo.get(), nameFilterHi.get(), elements);
+                sortElements(iter, sortOrder.get(), nameFilterLo.get(), nameFilterHi.get(), unknownAttributes, elements);
                 return conn.getClear();
             }
         };
@@ -2372,6 +2377,7 @@ public:
         StringAttr namefilter("*");
         StringAttr namefilterlo;
         StringAttr namefilterhi;
+        StringArray unknownAttributes;
         if (filters) {
             const char *fv = (const char *)filterbuf;
             for (unsigned i=0;filters[i]!=WUSFterm;i++) {
@@ -2383,6 +2389,8 @@ public:
                     namefilterhi.set(fv);
                 else if (subfmt==WUSFwildwuid)
                     namefilter.set(fv);
+                else if (!fv || !*fv)
+                    unknownAttributes.append(getEnumText(subfmt,workunitSortFields));
                 else {
                     query.append('[').append(getEnumText(subfmt,workunitSortFields)).append('=');
                     if (fmt&WUSFnocase)
@@ -2410,7 +2418,7 @@ public:
             }
         }
         IArrayOf<IPropertyTree> results;
-        Owned<IElementsPager> elementsPager = new CWorkUnitsPager(query.str(), so.length()?so.str():NULL, namefilterlo.get(), namefilterhi.get());
+        Owned<IElementsPager> elementsPager = new CWorkUnitsPager(query.str(), so.length()?so.str():NULL, namefilterlo.get(), namefilterhi.get(), unknownAttributes);
         Owned<IRemoteConnection> conn=getElementsPaged(elementsPager,startoffset,maxnum,secmgr?sc:NULL,queryowner,cachehint,results,total);
         return new CConstWUArrayIterator(conn, results, secmgr, secuser);
     }
@@ -2436,11 +2444,24 @@ public:
                                                 __int64 *cachehint,
                                                 unsigned *total)
     {
+        struct PostFilters
+        {
+            WUQueryFilterBoolean activatedFilter;
+            WUQueryFilterBoolean suspendedByUserFilter;
+            PostFilters()
+            {
+                activatedFilter = WUQFSAll;
+                suspendedByUserFilter = WUQFSAll;
+            };
+        } postFilters;
+
         class CQuerySetQueriesPager : public CSimpleInterface, implements IElementsPager
         {
             StringAttr querySet;
             StringAttr xPath;
             StringAttr sortOrder;
+            PostFilters postFilters;
+            StringArray unknownAttributes;
 
             void populateQueryTree(IPropertyTree* queryRegistry, const char* querySetId, IPropertyTree* querySetTree, const char *xPath, IPropertyTree* queryTree)
             {
@@ -2448,8 +2469,6 @@ public:
                 ForEach(*iter)
                 {
                     IPropertyTree &query = iter->query();
-                    IPropertyTree *queryWithSetId = queryTree->addPropTree("Query", LINK(&query));
-                    queryWithSetId->addProp("@querySetId", querySetId);
 
                     bool activated = false;
                     const char* queryId = query.queryProp("@id");
@@ -2460,6 +2479,17 @@ public:
                         if (alias)
                             activated = true;
                     }
+                    if (activated && (postFilters.activatedFilter == WUQFSNo))
+                        continue;
+                    if (!activated && (postFilters.activatedFilter == WUQFSYes))
+                        continue;
+                    if ((postFilters.suspendedByUserFilter == WUQFSNo) && query.hasProp(getEnumText(WUQSFSuspendedByUser,querySortFields)))
+                        continue;
+                    if ((postFilters.suspendedByUserFilter == WUQFSYes) && !query.hasProp(getEnumText(WUQSFSuspendedByUser,querySortFields)))
+                        continue;
+
+                    IPropertyTree *queryWithSetId = queryTree->addPropTree("Query", LINK(&query));
+                    queryWithSetId->addProp("@querySetId", querySetId);
                     queryWithSetId->addPropBool("@activated", activated);
                 }
             }
@@ -2495,9 +2525,13 @@ public:
         public:
             IMPLEMENT_IINTERFACE_USING(CSimpleInterface);
 
-            CQuerySetQueriesPager(const char* _querySet, const char* _xPath, const char *_sortOrder)
+            CQuerySetQueriesPager(const char* _querySet, const char* _xPath, const char *_sortOrder, PostFilters& _postFilters, StringArray& _unknownAttributes)
                 : querySet(_querySet), xPath(_xPath), sortOrder(_sortOrder)
             {
+                postFilters.activatedFilter = _postFilters.activatedFilter;
+                postFilters.suspendedByUserFilter = _postFilters.suspendedByUserFilter;
+                ForEachItemIn(x, _unknownAttributes)
+                    unknownAttributes.append(_unknownAttributes.item(x));
             }
             virtual IRemoteConnection* getElements(IArrayOf<IPropertyTree> &elements)
             {
@@ -2510,13 +2544,14 @@ public:
                 Owned<IPropertyTreeIterator> iter = elementTree->getElements("*");
                 if (!iter)
                     return NULL;
-                sortElements(iter, sortOrder.get(), NULL, NULL, elements);
+                sortElements(iter, sortOrder.get(), NULL, NULL, unknownAttributes, elements);
                 return conn.getClear();
             }
         };
         StringAttr querySet;
         StringBuffer xPath;
         StringBuffer so;
+        StringArray unknownAttributes;
         if (filters)
         {
             const char *fv = (const char *)filterbuf;
@@ -2529,6 +2564,12 @@ public:
                     xPath.append('[').append(getEnumText(subfmt,querySortFields)).append(">=").append(fv).append("]");
                 else if ((subfmt==WUQSFmemoryLimitHi) || (subfmt==WUQSFtimeLimitHi) || (subfmt==WUQSFwarnTimeLimitHi) || (subfmt==WUQSFpriorityHi))
                     xPath.append('[').append(getEnumText(subfmt,querySortFields)).append("<=").append(fv).append("]");
+                else if (subfmt==WUQSFActivited)
+                    postFilters.activatedFilter = (WUQueryFilterBoolean) atoi(fv);
+                else if (subfmt==WUQSFSuspendedByUser)
+                    postFilters.suspendedByUserFilter = (WUQueryFilterBoolean) atoi(fv);
+                else if (!fv || !*fv)
+                    unknownAttributes.append(getEnumText(subfmt,querySortFields));
                 else {
                     xPath.append('[').append(getEnumText(subfmt,querySortFields)).append('=');
                     if (fmt&WUQSFnocase)
@@ -2542,8 +2583,6 @@ public:
                 fv = fv + strlen(fv)+1;
             }
         }
-        if (xPath.length() < 1)
-            xPath.set("*");
         if (sortorder) {
             for (unsigned i=0;sortorder[i]!=WUQSFterm;i++) {
                 if (so.length())
@@ -2559,7 +2598,7 @@ public:
             }
         }
         IArrayOf<IPropertyTree> results;
-        Owned<IElementsPager> elementsPager = new CQuerySetQueriesPager(querySet.get(), xPath.str(), so.length()?so.str():NULL);
+        Owned<IElementsPager> elementsPager = new CQuerySetQueriesPager(querySet.get(), xPath.str(), so.length()?so.str():NULL, postFilters, unknownAttributes);
         Owned<IRemoteConnection> conn=getElementsPaged(elementsPager,startoffset,maxnum,NULL,"",cachehint,results,total);
         return new CConstQuerySetQueryIterator(results);
     }
@@ -3522,78 +3561,6 @@ void CLocalWorkUnit::subscribe(WUSubscribeOptions options)
         abortDirty = true;
     }
 }
-
-#if 0 // I don't think this is used (I grepped the source), am leaving here just in case I've missed somewhere (PG)
-WUState CLocalWorkUnit::waitComplete(int timeout, bool returnOnWaitState)
-{
-    class WorkUnitWaiter : public CInterface, implements ISDSSubscription, implements IAbortHandler
-    {
-        Semaphore changed;
-        CLocalWorkUnit *parent;
-    public:
-        IMPLEMENT_IINTERFACE;
-
-        WorkUnitWaiter(CLocalWorkUnit *_parent) : parent(_parent) { aborted = false; };
-
-        void notify(SubscriptionId id, const char *xpath, SDSNotifyFlags flags, unsigned valueLen, const void *valueData)
-        {
-            parent->notify(id, xpath, flags, valueLen, valueData);
-            changed.signal();
-        }
-        bool wait(unsigned timeout)
-        {
-            return changed.wait(timeout) && !aborted;
-        }
-        bool onAbort()
-        {
-            aborted = true;
-            changed.signal();
-            return false;
-        }
-        bool aborted;
-
-    } waiter(this);
-    Owned<CWorkUnitWatcher> w = new CWorkUnitWatcher(&waiter, p->queryName(), false);
-    LocalIAbortHandler abortHandler(waiter);
-    forceReload(); // or may miss changes that already happened, between load of wu and now.
-    unsigned start = msTick();
-    WUState ret;
-    loop
-    {
-        ret = getState();
-        switch (ret)
-        {
-        case WUStateWait:
-            if(!returnOnWaitState)
-                break;
-            //fall thru
-        case WUStateCompleted:
-        case WUStateFailed:
-        case WUStateAborted:
-            w->unsubscribe();
-            return ret;
-        }
-        unsigned waited = msTick() - start;
-        if (timeout==-1)
-        {
-            waiter.wait(20000);
-            if (waiter.aborted)
-            {
-                ret = WUStateUnknown;  // MORE - throw an exception?
-                break;
-            }
-        }
-        else if (waited > timeout || !waiter.wait(timeout-waited))
-        {
-            ret = WUStateUnknown;  // MORE - throw an exception?
-            break;
-        }
-        reload();
-    }
-    w->unsubscribe();
-    return ret;
-}
-#endif
 
 void CLocalWorkUnit::forceReload()
 {

@@ -254,15 +254,12 @@ extern da_decl void expandFileTree(IPropertyTree *file,bool expandnodes,const ch
 extern da_decl bool shrinkFileTree(IPropertyTree *file); // compresses parts into Parts blob
 extern da_decl void filterParts(IPropertyTree *file,UnsignedArray &partslist); // only include parts in list (in expanded tree)
 
-
-
-
-
 IRemoteConnection *getSortedElements( const char *basexpath, 
                                      const char *xpath, 
                                      const char *sortorder, 
                                      const char *namefilterlo, // if non null filter less than this value
                                      const char *namefilterhi, // if non null filter greater than this value
+                                     StringArray& unknownAttributes,
                                      IArrayOf<IPropertyTree> &results);
 interface ISortedElementsTreeFilter : extends IInterface
 {
@@ -276,6 +273,7 @@ extern da_decl void sortElements( IPropertyTreeIterator* elementsIter,
                                      const char *sortorder, 
                                      const char *namefilterlo, // if non null filter less than this value
                                      const char *namefilterhi, // if non null filter greater than this value
+                                     StringArray& unknownAttributes, //the attribute not exist or empty
                                      IArrayOf<IPropertyTree> &sortedElements);
 
 extern da_decl IRemoteConnection *getElementsPaged(IElementsPager *elementsPager,
@@ -285,7 +283,8 @@ extern da_decl IRemoteConnection *getElementsPaged(IElementsPager *elementsPager
                                      const char *owner,
                                      __int64 *hint,                         // if non null points to in/out cache hint
                                      IArrayOf<IPropertyTree> &results,
-                                     unsigned *total); // total possible filtered matches, i.e. irrespective of startoffset and pagesize
+                                     unsigned *total,
+                                     bool checkConn = true); // total possible filtered matches, i.e. irrespective of startoffset and pagesize
 
 extern da_decl void clearPagedElementsCache();
 

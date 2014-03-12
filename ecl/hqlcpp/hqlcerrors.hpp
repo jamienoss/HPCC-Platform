@@ -69,7 +69,7 @@
 #define HQLERR_RowTooLarge                      4043
 #define HQLERR_ShouldHaveBeenHoisted            4044
 #define HQLERR_NoArgumentsInValidator           4045
-#define HQLERR_NotSupportInRoxie                4046
+
 #define HQLERR_InputMergeNotSorted              4047
 #define HQLERR_TooComplicatedToPreload          4048
 #define HQLERR_KeyedNotKeyed                    4049
@@ -306,6 +306,7 @@
 #define HQLERR_ReadSpillBeforeWrite             4835
 #define HQLERR_DependencyWithinGraph            4836
 #define HQLERR_UnknownCompoundAssign            4837
+#define HQLERR_ReadSpillBeforeWriteFix          4838
 //#define HQLERR_Max                            4999
 
 //---- Text for all errors (make it easy to internationalise) ---------------------------
@@ -355,7 +356,6 @@
 #define HQLERR_RowTooLarge_Text                 "Row size %u exceeds the maximum specified (%u)"
 #define HQLERR_ShouldHaveBeenHoisted_Text       "Select expression should have been hoisted"
 #define HQLERR_NoArgumentsInValidator_Text      "%s() cannot have a parameter inside a VALIDATE"
-#define HQLERR_NotSupportInRoxie_Text           "%s is not supported in roxie queries"
 #define HQLERR_InputMergeNotSorted_Text         "Input to MERGE does not appear to be sorted"
 #define HQLERR_TooComplicatedToPreload_Text     "Expression is too complicated to preload"
 #define HQLERR_KeyedNotKeyed_Text               "KEYED(%s) couldn't be looked up in a key."
@@ -577,6 +577,7 @@
 #define HQLERR_ReadSpillBeforeWrite_Text        "INTERNAL: Attempt to read spill file %s before it is written"
 #define HQLERR_DependencyWithinGraph_Text       "INTERNAL: Dependency within a graph incorrectly generated for hThor (%u)"
 #define HQLERR_UnknownCompoundAssign_Text       "INTERNAL: Unrecognised compound assign %s"
+#define HQLERR_ReadSpillBeforeWriteFix_Text     "INTERNAL: Attempt to read spill file %s before it is written.  Try adding #option ('allowThroughSpill', false); to the query."
 
 #define WARNINGAT(e, x)                 reportWarning(e, x, x##_Text)
 #define WARNINGAT1(e, x, a)             reportWarning(e, x, x##_Text, a)
