@@ -20,6 +20,7 @@
 #define PARSERDATA_HPP
 
 #include "hql.hpp" //for ECLlocations
+#include "hqlexpr.hpp"//hqlexpr
 #include "defvalue.hpp" //IValue
 
 class ISyntaxTree;
@@ -68,6 +69,7 @@ public:
 // then add functions, parent(), emptyParent(), addLeft, addRight.
 
 public:
+    static bool isHql;
     ECLlocation pos;
     nodeKinds nodeKind;
     unsigned kind;
@@ -80,6 +82,7 @@ public:
 
 protected:
     Owned<ISyntaxTree> node;
+    OwnedHqlExpr       hqlNode;
 };
 
 class StringBuffer;

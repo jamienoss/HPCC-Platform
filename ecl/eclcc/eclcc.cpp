@@ -1045,13 +1045,13 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         if (!(parser->parse()))
             AST.set(parser->queryAST());
     }
-    if(AST)
+    if(AST && printSyntaxTree)
     {
         std::cout << "Printing syntax tree\n";
         AST->printTree();
-        //myQuery.setown(semantics(AST));//or AST->semantics()???
+        //instance.query.setown(semantics(AST));//or AST->semantics()???
     }
-    throwUnexpected();
+    //throwUnexpected();
 
     if (optTargetCompiler != DEFAULT_COMPILER)
         instance.wu->setDebugValue("targetCompiler", compilerTypeText[optTargetCompiler], true);
@@ -1103,8 +1103,8 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                     instance.archive->setProp("Query", "");
                     instance.archive->setProp("Query/@attributePath", queryAttributePath);
                 }
-
-                instance.query.setown(getResolveAttributeFullPath(queryAttributePath, LSFpublic, ctx));
+                //if (!printSyntaxTree)
+                    instance.query.setown(getResolveAttributeFullPath(queryAttributePath, LSFpublic, ctx));
                 if (!instance.query && !syntaxChecking && (errs->errCount() == prevErrs))
                 {
                     StringBuffer msg;
@@ -1117,19 +1117,8 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                 Owned<IHqlScope> scope = createPrivateScope();
                 if (instance.legacyImport)
                     importRootModulesToScope(scope, ctx);
-
-                //***************************************************************************
-                if(printSyntaxTree && AST)
-                    instance.query.setown(semantics(AST));
-                else
+                //if (!printSyntaxTree)
                     instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
-                //***************************************************************************
-
-
-
-
-
-
                 if (instance.archive)
                 {
                     StringBuffer queryText;

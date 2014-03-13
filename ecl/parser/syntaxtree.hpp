@@ -19,6 +19,7 @@
 #define SYNTAXTREE_HPP
 
 #include "defvalue.hpp"
+#include "hqlexpr.hpp"
 #include "parserdata.hpp"
 #include"jlib.hpp"
 #include <vector>
@@ -90,7 +91,7 @@ class TreeWalker : public CInterfaceOf<ITreeWalker>
 {
 public :
     TreeWalker(bool _continueWalk) { continueWalk = _continueWalk; }
-    TreeWalker() { TreeWalker(false); }
+    TreeWalker() { TreeWalker(false); }//perhaps should be default to true?
     virtual bool action(ISyntaxTree * node) { return false; }
     virtual bool keepWalking() { return continueWalk; }
 
@@ -101,9 +102,8 @@ protected :
 class NodeFinder : public TreeWalker
 {
 public :
-    NodeFinder(ISyntaxTree * _node2find, bool _continueWalk) { node2find = _node2find; continueWalk = _continueWalk; }
+    NodeFinder(ISyntaxTree * _node2find, bool _continueWalk) : TreeWalker(_continueWalk) { node2find = _node2find; }
     virtual bool action(ISyntaxTree * node) { return (node == node2find); }
-    virtual bool keepWalking() { return continueWalk; }
 
 protected :
     ISyntaxTree * node2find;
@@ -141,6 +141,12 @@ interface ISyntaxTree : public IInterface
 
     virtual void setRevisit(bool _revisit) = 0;
     virtual ISyntaxTree * walkTree(ITreeWalker & walker) = 0;
+
+    //for semantics
+    virtual IHqlExpression * translate() = 0;
+    virtual IHqlExpression * translate(IHqlExpression * e1, IHqlExpression * e2) = 0;
+    virtual IHqlExpression * translate(HqlExprArray & hqlChildren) = 0;
+
 };
 
 class SyntaxTree : public CInterfaceOf<ISyntaxTree>
@@ -171,6 +177,10 @@ public:
 
     virtual void setRevisit(bool _revisit);
     virtual ISyntaxTree * walkTree(ITreeWalker & walker);
+
+    virtual IHqlExpression * translate();
+    virtual IHqlExpression * translate(IHqlExpression * e1, IHqlExpression * e2);
+    virtual IHqlExpression * translate(HqlExprArray & hqlChildren);
 
 
 protected:
@@ -204,6 +214,7 @@ class PuncSyntaxTree : public SyntaxTree
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, TokenKind _token);
     virtual TokenKind queryKind() { return value; };
+    virtual IHqlExpression * translate(IHqlExpression * e1, IHqlExpression * e2);
 
 protected:
     virtual void printNode(unsigned * nodeNum, IIOStream * out);
@@ -217,7 +228,7 @@ class ConstantSyntaxTree : public SyntaxTree
 {
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, IValue * constant);
-
+    virtual IHqlExpression * translate();
 
 protected:
     ConstantSyntaxTree(ECLlocation _pos, IValue * constant);

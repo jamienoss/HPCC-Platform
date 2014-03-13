@@ -4,6 +4,8 @@
 #include"syntaxtree.hpp"
 #include "eclgram.h"
 
+bool ParserData::isHql = false;
+
 void ParserData::setEclLocations(int lineNo, int column, int position, ISourcePath * sourcePath)
 {
     pos.set(lineNo, column, position, sourcePath);

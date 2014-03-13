@@ -6,5 +6,4 @@
 IHqlExpression * semantics(ISyntaxTree * tree);
 
 
-
 #endif
