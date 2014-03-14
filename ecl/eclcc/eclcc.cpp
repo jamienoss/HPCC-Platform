@@ -1045,11 +1045,11 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         if (!(parser->parse()))
             AST.set(parser->queryAST());
     }
-    if(AST && printSyntaxTree)
+    if(AST)
     {
         std::cout << "Printing syntax tree\n";
         AST->printTree();
-        //instance.query.setown(semantics(AST));//or AST->semantics()???
+        instance.query.setown(semantics(AST));
     }
     //throwUnexpected();
 
@@ -1104,7 +1104,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                     instance.archive->setProp("Query/@attributePath", queryAttributePath);
                 }
                 //if (!printSyntaxTree)
-                    instance.query.setown(getResolveAttributeFullPath(queryAttributePath, LSFpublic, ctx));
+                instance.query.setown(getResolveAttributeFullPath(queryAttributePath, LSFpublic, ctx));
                 if (!instance.query && !syntaxChecking && (errs->errCount() == prevErrs))
                 {
                     StringBuffer msg;
@@ -1118,7 +1118,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                 if (instance.legacyImport)
                     importRootModulesToScope(scope, ctx);
                 //if (!printSyntaxTree)
-                    instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
+                instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
                 if (instance.archive)
                 {
                     StringBuffer queryText;
