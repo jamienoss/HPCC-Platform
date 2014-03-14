@@ -246,6 +246,7 @@ public:
     ~IdSyntaxTree();
     virtual const char * queryIdName() { return id->str(); }
     virtual const char * value2str() { return queryIdName(); }
+    virtual IHqlExpression * translate();
 
 protected:
     IdSyntaxTree(ECLlocation _pos, IIdAtom * _id);

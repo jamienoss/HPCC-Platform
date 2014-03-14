@@ -62,6 +62,7 @@
 #include "jprop.hpp"
 #include "jptree.hpp"
 #include "defvalue.hpp"
+#include "hqlerror.hpp"
 
 interface IXmlScope;
 interface IHqlScope;
@@ -805,28 +806,6 @@ enum ExprPropKind
     typedef unsigned short node_operator;
 #endif
 
-interface HQL_API IECLError: public IException
-{
-public:
-    virtual const char* getFilename() = 0;
-    virtual int getLine() = 0;
-    virtual int getColumn() = 0;
-    virtual int getPosition() = 0;
-    virtual StringBuffer& toString(StringBuffer&) = 0;
-    virtual bool isError() = 0;
-};
-
-interface HQL_API IErrorReceiver : public IInterface
-{
-    virtual void reportError(int errNo, const char *msg, const char *filename, int lineno, int column, int pos) = 0;
-    virtual void report(IECLError* err) = 0;
-    virtual void reportWarning(int warnNo, const char *msg, const char *filename, int lineno, int column, int pos) = 0;
-    virtual size32_t errCount() = 0;
-    virtual size32_t warnCount() = 0;
-};
-
-typedef IArrayOf<IECLError> IECLErrorArray;
-
 interface IHqlSimpleScope : public IInterface
 {
     virtual IHqlExpression *lookupSymbol(IIdAtom * name) = 0;
@@ -1534,6 +1513,7 @@ extern HQL_API IHqlExpression * expandBetween(IHqlExpression * expr);
 extern HQL_API bool isAlwaysActiveRow(IHqlExpression * expr);
 extern HQL_API bool isAlwaysNewRow(IHqlExpression * expr);
 extern HQL_API IHqlExpression * ensureActiveRow(IHqlExpression * expr);
+extern HQL_API bool isRedundantGlobalScope(IHqlExpression * expr);
 extern HQL_API bool isIndependentOfScope(IHqlExpression * expr);
 extern HQL_API bool isActivityIndependentOfScope(IHqlExpression * expr);
 extern HQL_API bool exprReferencesDataset(IHqlExpression * expr, IHqlExpression * dataset);
@@ -1816,7 +1796,6 @@ inline int boolToInt(bool x)                    { return x ? 1 : 0; }
 extern HQL_API IHqlExpression * createFunctionDefinition(IIdAtom * name, IHqlExpression * value, IHqlExpression * parms, IHqlExpression * defaults, IHqlExpression * attrs);
 extern HQL_API IHqlExpression * createFunctionDefinition(IIdAtom * name, HqlExprArray & args);
 extern HQL_API IHqlExpression * queryNonDelayedBaseAttribute(IHqlExpression * expr);
-extern HQL_API void gatherWarnings(IErrorReceiver * errs, IHqlExpression * expr);
 
 #define NO_AGGREGATE        \
          no_count:          \

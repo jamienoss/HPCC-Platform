@@ -1057,7 +1057,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         instance.wu->setDebugValue("targetCompiler", compilerTypeText[optTargetCompiler], true);
 
     bool withinRepository = (queryAttributePath && *queryAttributePath);
-    bool syntaxChecking = instance.wu->getDebugValueBool("syntaxCheck", true);
+    bool syntaxChecking = instance.wu->getDebugValueBool("syntaxCheck", false);
     size32_t prevErrs = errs->errCount();
     unsigned startTime = msTick();
     const char * sourcePathname = queryContents ? queryContents->querySourcePath()->str() : NULL;
@@ -1103,8 +1103,8 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                     instance.archive->setProp("Query", "");
                     instance.archive->setProp("Query/@attributePath", queryAttributePath);
                 }
-                //if (!printSyntaxTree)
-                instance.query.setown(getResolveAttributeFullPath(queryAttributePath, LSFpublic, ctx));
+                if (!printSyntaxTree)
+                    instance.query.setown(getResolveAttributeFullPath(queryAttributePath, LSFpublic, ctx));
                 if (!instance.query && !syntaxChecking && (errs->errCount() == prevErrs))
                 {
                     StringBuffer msg;
@@ -1117,8 +1117,8 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                 Owned<IHqlScope> scope = createPrivateScope();
                 if (instance.legacyImport)
                     importRootModulesToScope(scope, ctx);
-                //if (!printSyntaxTree)
-                instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
+                if (!printSyntaxTree)
+                    instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
                 if (instance.archive)
                 {
                     StringBuffer queryText;

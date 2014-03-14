@@ -103,7 +103,7 @@ enum cs_access
 interface IHqlScope;
 interface IHqlRemoteScope;
 interface IHqlExpression;
-interface IErrorReceiver;
+//interface IErrorReceiver;
 interface IAtom;
 interface IPropertyTree;
 typedef IArrayOf<IHqlScope> HqlScopeArray;
