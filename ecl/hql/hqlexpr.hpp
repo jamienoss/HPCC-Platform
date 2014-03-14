@@ -62,7 +62,6 @@
 #include "jprop.hpp"
 #include "jptree.hpp"
 #include "defvalue.hpp"
-#include "hqlerror.hpp"
 
 interface IXmlScope;
 interface IHqlScope;
