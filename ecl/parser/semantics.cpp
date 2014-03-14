@@ -28,21 +28,17 @@ IHqlExpression * semantics(ISyntaxTree * node)
         {
             node2add =  node->translate(LINK(&children.item(0)), LINK(&children.item(1)));
             if(node2add)
-            {
                 return node2add;
-            }
+            else
+                return createComma(&children.item(0), &children.item(1));//already linked above
         }
         else if(nNodes2add == 1)
         {
             node2add =  node->translate(LINK(&children.item(0)));
             if(node2add)
-            {
                 return node2add;
-            }
             else
-            {
                 return LINK(&children.item(0));
-            }
         }
         return node->translate(children);
     }

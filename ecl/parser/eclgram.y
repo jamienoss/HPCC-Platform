@@ -98,10 +98,10 @@ code
     ;
 
 eclQuery
-    : eclQuery ';' eclQuery    { $$.setNode($2).addChild($1).addChild($3); }
+    : eclQuery ';' eclQuery  _EOF_  { $$.setNode($2).addChild($1).addChild($3); }//removing _EOF_ destroys tree pattern regarding ';'
     | eclQuery ';'                  { $$.setNode($2).addChild($1); }
     | line_of_code                  { $$.setNode($1); }
-    | ';' line_of_code              { $$.setNode($2); }
+    | ';' line_of_code              { $$.setNode($1).addChild($2); }
     ;
 
 line_of_code
