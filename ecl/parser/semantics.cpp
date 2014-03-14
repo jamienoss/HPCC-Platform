@@ -3,18 +3,13 @@
 
 IHqlExpression * semantics(ISyntaxTree * node)
 {
-    IHqlExpression * returnExpr;
     HqlExprArray children;
 
     unsigned nChildren = node->numberOfChildren();
     if(!nChildren)
     {
-        returnExpr = node->translate();
+        return node->translate();
     }
-    /*else if(nChildren == 2)
-    {
-        returnExpr =  node->translate(semantics(node->getChild(0)), semantics(node->getChild(1)));
-    }*/
     else
     {
         IHqlExpression * node2add = NULL;
@@ -31,22 +26,27 @@ IHqlExpression * semantics(ISyntaxTree * node)
         unsigned nNodes2add = children.ordinality();
         if(nNodes2add == 2)
         {
-            node2add =  node->translate(&children.item(0), &children.item(1));
+            node2add =  node->translate(LINK(&children.item(0)), LINK(&children.item(1)));
             if(node2add)
+            {
                 return node2add;
+            }
         }
         else if(nNodes2add == 1)
         {
-            node2add =  node->translate(&children.item(0));
+            node2add =  node->translate(LINK(&children.item(0)));
             if(node2add)
+            {
                 return node2add;
+            }
             else
-                return &children.item(0);
+            {
+                return LINK(&children.item(0));
+            }
         }
-        returnExpr = node->translate(children);
+        return node->translate(children);
     }
 
-    return NULL;
 }
 //---------------------------------------------------------------------------------------------------------------------
 IHqlExpression * SyntaxTree::translate() { return NULL; }
