@@ -1131,7 +1131,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                 }
             }
 
-            gatherWarnings(ctx.errs, instance.query);
+            //gatherWarnings(ctx.errs, instance.query);
 
             if (instance.query && !syntaxChecking && !optGenerateMeta && !optEvaluateResult)
                 instance.query.setown(convertAttributeToQuery(instance.query, ctx));

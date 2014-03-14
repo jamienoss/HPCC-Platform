@@ -144,6 +144,7 @@ interface ISyntaxTree : public IInterface
 
     //for semantics
     virtual IHqlExpression * translate() = 0;
+    virtual IHqlExpression * translate(IHqlExpression * expr) = 0;
     virtual IHqlExpression * translate(IHqlExpression * e1, IHqlExpression * e2) = 0;
     virtual IHqlExpression * translate(HqlExprArray & hqlChildren) = 0;
 
@@ -179,6 +180,7 @@ public:
     virtual ISyntaxTree * walkTree(ITreeWalker & walker);
 
     virtual IHqlExpression * translate();
+    virtual IHqlExpression * translate(IHqlExpression * expr);
     virtual IHqlExpression * translate(IHqlExpression * e1, IHqlExpression * e2);
     virtual IHqlExpression * translate(HqlExprArray & hqlChildren);
 
@@ -214,6 +216,7 @@ class PuncSyntaxTree : public SyntaxTree
 public:
     static ISyntaxTree * createSyntaxTree(const ECLlocation & _pos, TokenKind _token);
     virtual TokenKind queryKind() { return value; };
+    virtual IHqlExpression * translate(IHqlExpression * expr);
     virtual IHqlExpression * translate(IHqlExpression * e1, IHqlExpression * e2);
 
 protected:

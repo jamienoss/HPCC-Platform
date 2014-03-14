@@ -17,7 +17,7 @@ IHqlExpression * semantics(ISyntaxTree * node)
     }*/
     else
     {
-        IHqlExpression node2add = NULL;
+        IHqlExpression * node2add = NULL;
         ForEachItemIn(i, node->queryChildren())
         {
             node2add = semantics(node->getChild(i));
@@ -31,17 +31,17 @@ IHqlExpression * semantics(ISyntaxTree * node)
         unsigned nNodes2add = children.ordinality();
         if(nNodes2add == 2)
         {
-            node2add =  node->translate(children.ietm(0), children.item(1)));
+            node2add =  node->translate(&children.item(0), &children.item(1));
             if(node2add)
                 return node2add;
         }
         else if(nNodes2add == 1)
         {
-            node2add =  node->translate(children.ietm(0));
+            node2add =  node->translate(&children.item(0));
             if(node2add)
                 return node2add;
             else
-                return children.item(0);
+                return &children.item(0);
         }
         returnExpr = node->translate(children);
     }
@@ -49,23 +49,11 @@ IHqlExpression * semantics(ISyntaxTree * node)
     return NULL;
 }
 //---------------------------------------------------------------------------------------------------------------------
-IHqlExpression * SyntaxTree::translate()
-{
-    return createConstantOne();
-}
-
-IHqlExpression *  SyntaxTree::translate(IHqlExpression * e1, IHqlExpression * e2)
-{
-    return createConstantOne();
-}
-
-IHqlExpression *  SyntaxTree::translate(HqlExprArray & hqlChildren)
-{
-    return createConstantOne();
-}
+IHqlExpression * SyntaxTree::translate() { return NULL; }
+IHqlExpression *  SyntaxTree::translate(IHqlExpression * expr) { return NULL; }
+IHqlExpression *  SyntaxTree::translate(IHqlExpression * e1, IHqlExpression * e2) { return NULL; }
+IHqlExpression *  SyntaxTree::translate(HqlExprArray & hqlChildren) { return NULL; }
 //---------------------------------------------------------------------------------------------------------------------
-
-
 
 
 IHqlExpression * ConstantSyntaxTree::translate()
@@ -86,6 +74,11 @@ IHqlExpression * createValue(node_operator op, IHqlExpression * e1, IHqlExpressi
 IHqlExpression * createAssign(IHqlExpression * e1, IHqlExpression * e2, ECLlocation & pos)
 {
     return createLocationAnnotation(createAssign(e1, e2), pos);
+}
+
+IHqlExpression *  PuncSyntaxTree::translate(IHqlExpression * expr)
+{
+   return NULL;
 }
 
 IHqlExpression *  PuncSyntaxTree::translate(IHqlExpression * e1, IHqlExpression * e2)

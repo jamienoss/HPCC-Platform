@@ -805,6 +805,28 @@ enum ExprPropKind
     typedef unsigned short node_operator;
 #endif
 
+interface HQL_API IECLError: public IException
+{
+public:
+    virtual const char* getFilename() = 0;
+    virtual int getLine() = 0;
+    virtual int getColumn() = 0;
+    virtual int getPosition() = 0;
+    virtual StringBuffer& toString(StringBuffer&) = 0;
+    virtual bool isError() = 0;
+};
+
+interface HQL_API IErrorReceiver : public IInterface
+{
+    virtual void reportError(int errNo, const char *msg, const char *filename, int lineno, int column, int pos) = 0;
+    virtual void report(IECLError* err) = 0;
+    virtual void reportWarning(int warnNo, const char *msg, const char *filename, int lineno, int column, int pos) = 0;
+    virtual size32_t errCount() = 0;
+    virtual size32_t warnCount() = 0;
+};
+
+typedef IArrayOf<IECLError> IECLErrorArray;
+
 interface IHqlSimpleScope : public IInterface
 {
     virtual IHqlExpression *lookupSymbol(IIdAtom * name) = 0;
