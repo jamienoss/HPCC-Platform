@@ -1049,41 +1049,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
 
-#if 0
-    bool analyseGrammar = instance.wu->getDebugValueBool("grammaranalysis", false);
-    if (analyseGrammar)
-    {
-        const char * grammarFileName = optGrammarFilename.get();
-        Owned<ISourcePath> grammarSourcePath = createSourcePath(grammarFileName);
-        Owned<IFileContents> grammarText = createFileContentsFromFile(grammarFileName, grammarSourcePath);
 
-        AnalyserParser * parser = new AnalyserParser(grammarText, errs);
-        if (!(parser->parse()))
-        {
-            parser->analyseGrammar();
-        }
-        throwUnexpected();
-    }
-#endif
-
-    Owned<ISyntaxTree> AST;
-    //OwnedHqlExpr myQuery;
-    bool printSyntaxTree = instance.wu->getDebugValueBool("printsyntaxtree", false);
-    if (printSyntaxTree)
-    {
-        Owned<EclParser> parser;
-        parser.setown(new EclParser(queryContents));//, errs));
-
-        if (!(parser->parse()))
-            AST.set(parser->queryAST());
-    }
-    if(AST)
-    {
-        std::cout << "Printing syntax tree\n";
-        AST->printTree();
-        //myQuery.setown(semantics(AST));//or AST->semantics()???
-    }
-    //throwUnexpected();
 
     if (optTargetCompiler != DEFAULT_COMPILER)
         instance.wu->setDebugValue("targetCompiler", compilerTypeText[optTargetCompiler], true);
