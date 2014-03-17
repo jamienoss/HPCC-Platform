@@ -88,8 +88,6 @@ define([
         graphsWidgetLoaded: false,
         vizWidget: null,
         vizWidgetLoaded: false,
-        sourceWidget: null,
-        sourceWidgetLoaded: false,
         logsWidget: null,
         logsWidgetLoaded: false,
         playgroundWidget: null,
@@ -117,7 +115,6 @@ define([
             this.vizWidget = registry.byId(this.id + "_Visualize");
             this.timersWidget = registry.byId(this.id + "_Timers");
             this.graphsWidget = registry.byId(this.id + "_Graphs");
-            this.sourceWidget = registry.byId(this.id + "_Source");
             this.logsWidget = registry.byId(this.id + "_Logs");
             this.playgroundWidget = registry.byId(this.id + "_Playground");
             this.xmlWidget = registry.byId(this.id + "_XML");
@@ -276,11 +273,6 @@ define([
                 this.vizWidget.init({
                     Wuid: this.wu.Wuid
                 });
-            } else if (currSel.id == this.sourceWidget.id && !this.sourceWidgetLoaded) {
-                this.sourceWidgetLoaded = true;
-                this.sourceWidget.init({
-                    Wuid: this.wu.Wuid
-                });
             } else if (currSel.id == this.logsWidget.id && !this.logsWidgetLoaded) {
                 this.logsWidgetLoaded = true;
                 this.logsWidget.init({
@@ -347,15 +339,15 @@ define([
             } else if (name === "Jobname") {
                 this.updateInput("Jobname2", oldValue, newValue);
             } else if (name === "VariableCount" && newValue) {
-                this.variablesWidget.set("title", "Variables " + "(" + newValue + ")");
+                this.variablesWidget.set("title", this.i18n.Variables + " (" + newValue + ")");
             } else if (name === "variables") {
-                this.variablesWidget.set("title", "Variables " + "(" + newValue.length + ")");
+                this.variablesWidget.set("title", this.i18n.Variables + " (" + newValue.length + ")");
                 this.variablesStore.setData(newValue);
                 this.variablesGrid.refresh();
             } else if (name === "ResultCount" && newValue) {
-                this.resultsWidget.set("title", "Outputs " + "(" + newValue + ")");
+                this.resultsWidget.set("title", this.i18n.Outputs + " (" + newValue + ")");
             } else if (name === "results") {
-                this.resultsWidget.set("title", "Outputs " + "(" + newValue.length + ")");
+                this.resultsWidget.set("title", this.i18n.Outputs + " (" + newValue.length + ")");
                 var tooltip = "";
                 for (var key in newValue) {
                     if (tooltip != "")
@@ -366,9 +358,9 @@ define([
                 }
                 this.resultsWidget.set("tooltip", tooltip);
             } else if (name === "SourceFileCount" && newValue) {
-                this.filesWidget.set("title", "Inputs " + "(" + newValue + ")");
+                this.filesWidget.set("title", this.i18n.Inputs + " (" + newValue + ")");
             } else if (name === "sourceFiles") {
-                this.filesWidget.set("title", "Inputs " + "(" + newValue.length + ")");
+                this.filesWidget.set("title", this.i18n.Inputs + " (" + newValue.length + ")");
                 var tooltip = "";
                 for (var i = 0; i < newValue.length; ++i) {
                     if (tooltip != "")
@@ -377,9 +369,9 @@ define([
                 }
                 this.filesWidget.set("tooltip", tooltip);
             } else if (name === "TimerCount" && newValue) {
-                this.timersWidget.set("title", "Timers " + "(" + newValue + ")");
+                this.timersWidget.set("title", this.i18n.Timers + " (" + newValue + ")");
             } else if (name === "timers") {
-                this.timersWidget.set("title", "Timers " + "(" + newValue.length + ")");
+                this.timersWidget.set("title", this.i18n.Timers + " (" + newValue.length + ")");
                 var tooltip = "";
                 for (var i = 0; i < newValue.length; ++i) {
                     if (newValue[i].GraphName)
@@ -394,9 +386,9 @@ define([
                 }
                 this.timersWidget.set("tooltip", tooltip);
             } else if (name === "GraphCount" && newValue) {
-                this.graphsWidget.set("title", "Graphs " + "(" + newValue + ")");
+                this.graphsWidget.set("title", this.i18n.Graphs + " (" + newValue + ")");
             } else if (name === "graphs") {
-                this.graphsWidget.set("title", "Graphs " + "(" + newValue.length + ")");
+                this.graphsWidget.set("title", this.i18n.Graphs + " (" + newValue.length + ")");
                 var tooltip = "";
                 for (var i = 0; i < newValue.length; ++i) {
                     if (tooltip != "")
@@ -452,7 +444,7 @@ define([
                             helpersCount += 1;
                         }
 
-                        context.logsWidget.set("title", "Helpers " + "(" + helpersCount + ")");
+                        context.logsWidget.set("title", context.i18n.Helpers + " (" + helpersCount + ")");
                     }
                 });
             }
