@@ -1049,7 +1049,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
 
-#if 1
+#if 0
     bool analyseGrammar = instance.wu->getDebugValueBool("grammaranalysis", false);
     if (analyseGrammar)
     {
@@ -1072,7 +1072,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
     if (printSyntaxTree)
     {
         Owned<EclParser> parser;
-        parser.setown(new EclParser(queryContents, errs));
+        parser.setown(new EclParser(queryContents));//, errs));
 
         if (!(parser->parse()))
             AST.set(parser->queryAST());
