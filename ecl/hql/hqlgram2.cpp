@@ -297,6 +297,8 @@ HqlGram::HqlGram(IHqlScope * _globalScope, IHqlScope * _containerScope, IFileCon
         ForEachItemIn(i, scopes)
             defaultScopes.append(OLINK(scopes.item(i)));
     }
+
+    initialErrors = errCount();
 }
 
 HqlGram::HqlGram(HqlGramCtx & parent, IHqlScope * _containerScope, IFileContents * _text, IXmlScope *xmlScope, bool _parseConstantText)
@@ -323,6 +325,7 @@ HqlGram::HqlGram(HqlGramCtx & parent, IHqlScope * _containerScope, IFileContents
     forceResult = true;
     parsingTemplateAttribute = false;
     parseConstantText = _parseConstantText;
+    initialErrors = errCount();
 }
 
 void HqlGram::saveContext(HqlGramCtx & ctx, bool cloneScopes)
@@ -11386,6 +11389,25 @@ IHqlExpression * PseudoPatternScope::lookupSymbol(IIdAtom * name, unsigned looku
     return NULL;
 }
 
+extern bool doNewParseQuery(IFileContents * contents);
+//MORE: Delete this function and implement it in the new parse code
+bool doNewParseQuery(IFileContents * contents) { return true; }
+
+void checkNewParser(bool wasValid, IFileContents * contents)
+{
+    bool isNewValid = doNewParseQuery(contents);
+    if (wasValid != isNewValid)
+    {
+        const char * filename = contents->querySourcePath()->str();
+        if (!filename)
+            filename = "<main-query>";
+        if (wasValid)
+            DBGLOG("Error: New parser failed to parse valid ecl '%s'", filename);
+        else
+            DBGLOG("Warning: New parser accepted invalid ecl '%s'", filename);
+    }
+}
+
 
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -11403,6 +11425,7 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
         parser.getLexer()->setMacroParams(macroParams);
         OwnedHqlExpr ret = parser.yyParse(false, true);
         ctx.noteEndQuery();
+        checkNewParser(ret != NULL, contents);
         return parser.clearFieldMap(ret.getClear());
     }
     catch (IException *E)
@@ -11423,6 +11446,7 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
             }
         }
         E->Release();
+        checkNewParser(false, contents);
     }
     return NULL;
 }
@@ -11440,6 +11464,7 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
         parser.getLexer()->set_yyColumn(1);
         OwnedHqlExpr ret = parser.yyParse(false, true);
         ctx.noteEndModule();
+        checkNewParser(!parser.hadAnyErrors(), contents);
     }
     catch (IException *E)
     {
@@ -11459,6 +11484,7 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
             }
         }
         E->Release();
+        checkNewParser(false, contents);
     }
 }
 
@@ -11483,6 +11509,7 @@ bool parseForwardModuleMember(HqlGramCtx & _parent, IHqlScope *scope, IHqlExpres
     parser.getLexer()->set_yyColumn(forwardSymbol->getStartColumn());
     unsigned prevErrors = ctx.errs->errCount();
     ::Release(parser.yyParse(false, false));
+    checkNewParser(!parser.hadAnyErrors(), contents);
     return (prevErrors == ctx.errs->errCount());
 }
 
@@ -11502,6 +11529,7 @@ void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContex
     parser.getLexer()->set_yyColumn(1);
     ::Release(parser.yyParse(false, false));
     attrCtx.noteEndAttribute();
+    checkNewParser(!parser.hadAnyErrors(), contents);
 }
 
 void testHqlInternals()
