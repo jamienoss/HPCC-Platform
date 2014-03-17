@@ -51,6 +51,7 @@
 #include "ws_dfuService.hpp"
 
 #include "hqlerror.hpp"
+#include "hqlexpr.hpp"
 #include "eclrtl.hpp"
 
 #define     Action_Delete           "Delete"
@@ -2788,7 +2789,10 @@ void CWsDfuEx::getAPageOfSortedLogicalFile(IEspContext &context, IUserDescriptor
                         bKeyFile = true;
                     }
 
-                    File->setIsKeyFile(bKeyFile);
+                    if (version < 1.24)
+                        File->setIsKeyFile(bKeyFile);
+                    else if (kind && *kind)
+                        File->setContentType(kind);
                 }
 
                 StringBuffer buf;

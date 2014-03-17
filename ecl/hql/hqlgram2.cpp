@@ -297,6 +297,8 @@ HqlGram::HqlGram(IHqlScope * _globalScope, IHqlScope * _containerScope, IFileCon
         ForEachItemIn(i, scopes)
             defaultScopes.append(OLINK(scopes.item(i)));
     }
+
+    initialErrors = errCount();
 }
 
 HqlGram::HqlGram(HqlGramCtx & parent, IHqlScope * _containerScope, IFileContents * _text, IXmlScope *xmlScope, bool _parseConstantText)
@@ -323,6 +325,7 @@ HqlGram::HqlGram(HqlGramCtx & parent, IHqlScope * _containerScope, IFileContents
     forceResult = true;
     parsingTemplateAttribute = false;
     parseConstantText = _parseConstantText;
+    initialErrors = errCount();
 }
 
 void HqlGram::saveContext(HqlGramCtx & ctx, bool cloneScopes)
@@ -366,6 +369,7 @@ void HqlGram::init(IHqlScope * _globalScope, IHqlScope * _containerScope)
     lexObject = NULL;
     expectedAttribute = NULL;
     pendingAttributes = NULL;
+    expandingMacroPosition = false;
 
     outerScopeAccessDepth = 0;
     inType = false;
@@ -430,6 +434,7 @@ int HqlGram::yyLex(attribute * yylval, const short * activeState)
 void HqlGram::cleanCurTransform()
 {
     attribute pseudoErrPos;
+    pseudoErrPos.pos.clear();
     loop
     {
         IHqlExpression * ret = endTransform(pseudoErrPos);
@@ -5766,68 +5771,46 @@ void HqlGram::reportErrorUnexpectedX(const attribute& errpos, IAtom * unexpected
     reportError(ERR_UNEXPECTED_ATTRX, errpos, "Unexpected attribute %s", unexpected->str());
 }
 
-bool HqlGram::okToReportError(const ECLlocation & pos)
-{
-    if (errorHandler && !errorDisabled)
-    {
-        if (getMaxErrorsAllowed()>0 && errorHandler->errCount() >= getMaxErrorsAllowed())
-        {
-            errorHandler->reportError(ERR_ERROR_TOOMANY,"Too many errors; parsing aborted",pos.sourcePath->str(),pos.lineno,pos.column,pos.position);
-            abortParsing();
-            return false;
-        }
-        return true;
-    }
-    return false;
-}
-
 void HqlGram::doReportWarning(int warnNo, const char *msg, const char *filename, int lineno, int column, int pos)
 {
-    if (associateWarnings)
-        pendingWarnings.append(*createECLWarning(warnNo, msg, filename, lineno, column, pos));
-    else
-        errorHandler->reportWarning(warnNo, msg, filename, lineno, column, pos);
+    Owned<IECLError> error = createECLError(SeverityWarning, warnNo, msg, filename, lineno, column, pos);
+    report(error);
 }
 
 void HqlGram::reportMacroExpansionPosition(int errNo, HqlLex * lexer, bool isError)
 {
+    if (expandingMacroPosition)
+        return;
     HqlLex * macro = lexer->getMacroLex();
     if (!macro)
-        return; 
+        return;
+
     reportMacroExpansionPosition(errNo, macro, isError);
     StringBuffer s;
     s.appendf("While expanding macro %s", macro->getMacroName());
+
+    expandingMacroPosition = true;
     if (isError)
         errorHandler->reportError(errNo, s.str(), lexer->querySourcePath()->str(), lexer->get_yyLineNo(), lexer->get_yyColumn(), 0);
     else
         doReportWarning(errNo, s.str(), lexer->querySourcePath()->str(), lexer->get_yyLineNo(), lexer->get_yyColumn(), 0);
+    expandingMacroPosition = false;
 }
     
 void HqlGram::reportErrorVa(int errNo, const ECLlocation & pos, const char* format, va_list args)
 {
-    if (okToReportError(pos))
-    {
-        StringBuffer msg;
-        msg.valist_appendf(format, args);
-        errorHandler->reportError(errNo, msg.str(), pos.sourcePath->str(), pos.lineno, pos.column, pos.position);
-        reportMacroExpansionPosition(errNo, lexObject, true);
-    }
+    StringBuffer msg;
+    msg.valist_appendf(format, args);
+    Owned<IECLError> error = createECLError(errNo, msg.str(), pos.sourcePath->str(), pos.lineno, pos.column, pos.position);
+    report(error);
 }
 
 void HqlGram::reportError(int errNo, const char *msg, int lineno, int column, int position)
 {
     if (errorHandler && !errorDisabled)
     {
-        if (getMaxErrorsAllowed()>0 && errorHandler->errCount() >= getMaxErrorsAllowed())
-        {
-            errorHandler->reportError(ERR_ERROR_TOOMANY,"Too many errors; parsing aborted",querySourcePathText(),lineno,column,position);
-            abortParsing();
-        }
-        else
-        {
-            errorHandler->reportError(errNo, msg, lexObject->queryActualSourcePath()->str(), lineno, column, position);
-            reportMacroExpansionPosition(errNo, lexObject, true);
-        }
+        Owned<IECLError> error = createECLError(errNo, msg, lexObject->queryActualSourcePath()->str(), lineno, column, position);
+        report(error);
     }
 }
 
@@ -5841,8 +5824,8 @@ void HqlGram::reportWarning(int warnNo, const ECLlocation & pos, const char* for
         msg.valist_appendf(format, args);
         va_end(args);
 
-        doReportWarning(warnNo, msg.str(), pos.sourcePath->str(), pos.lineno, pos.column, pos.position);
-        reportMacroExpansionPosition(warnNo, lexObject, false);
+        Owned<IECLError> error = createECLError(SeverityWarning, warnNo, msg.str(), pos.sourcePath->str(), pos.lineno, pos.column, pos.position);
+        report(error);
     }
 }
 
@@ -5853,31 +5836,58 @@ void HqlGram::reportWarningVa(int warnNo, const attribute& a, const char* format
     {
         StringBuffer msg;
         msg.valist_appendf(format, args);
-        doReportWarning(warnNo, msg.str(), pos.sourcePath->str(), pos.lineno, pos.column, pos.position);
-        reportMacroExpansionPosition(warnNo, lexObject, false);
+        Owned<IECLError> error = createECLError(SeverityWarning, warnNo, msg.str(), pos.sourcePath->str(), pos.lineno, pos.column, pos.position);
+        report(error);
     }
 }
 
 void HqlGram::reportWarning(int warnNo, const char *msg, int lineno, int column)
 {
     if (errorHandler && !errorDisabled)
-    {
         doReportWarning(warnNo, msg, querySourcePathText(), lineno, column, 0);
-        reportMacroExpansionPosition(warnNo, lexObject, false);
-    }
 }
 
 
 //interface IErrorReceiver
-void HqlGram::reportError(int errNo, const char *msg, const char *filename, int lineno, int column, int pos)
+void HqlGram::reportError(int errNo, const char *msg, const char *filename, int lineno, int column, int position)
 {
-    Owned<ISourcePath> sourcePath = createSourcePath(filename);
-    ECLlocation loc(lineno, column, pos, sourcePath);
-    if (okToReportError(loc))
-        errorHandler->reportError(errNo, msg, filename, lineno, column, pos);
+    Owned<IECLError> err = createECLError(errNo,msg,filename,lineno,column,position);
+    report(err);
 }
 
-void HqlGram::report(IECLError* error) { expandReportError(this, error); }
+IECLError * HqlGram::mapError(IECLError * error)
+{
+    return errorHandler->mapError(error);
+}
+
+void HqlGram::report(IECLError* error)
+{
+    if (errorHandler && !errorDisabled)
+    {
+        //Severity of warnings are not mapped here.  Fatal errors are reported directly.  Others are delayed
+        //(and may possibly be disabled by local onWarnings etc.)
+        bool isFatalError = (error->getSeverity() == SeverityFatal);
+        if (!isFatalError)
+        {
+            if (associateWarnings)
+                pendingWarnings.append(*LINK(error));
+            else
+                errorHandler->report(error);
+        }
+        else
+        {
+            errorHandler->report(error);
+
+            if (getMaxErrorsAllowed()>0 && errorHandler->errCount() >= getMaxErrorsAllowed())
+            {
+                errorHandler->reportError(ERR_ERROR_TOOMANY,"Too many errors; parsing aborted",error->getFilename(),error->getLine(),error->getColumn(),error->getPosition());
+                abortParsing();
+            }
+        }
+
+        reportMacroExpansionPosition(error->errorCode(), lexObject, isFatalError);
+    }
+}
 
 void HqlGram::reportWarning(int warnNo, const char *msg, const char *filename, int lineno, int column, int pos)
 {
@@ -11379,6 +11389,25 @@ IHqlExpression * PseudoPatternScope::lookupSymbol(IIdAtom * name, unsigned looku
     return NULL;
 }
 
+extern bool doNewParseQuery(IFileContents * contents);
+//MORE: Delete this function and implement it in the new parse code
+bool doNewParseQuery(IFileContents * contents) { return true; }
+
+void checkNewParser(bool wasValid, IFileContents * contents)
+{
+    bool isNewValid = doNewParseQuery(contents);
+    if (wasValid != isNewValid)
+    {
+        const char * filename = contents->querySourcePath()->str();
+        if (!filename)
+            filename = "<main-query>";
+        if (wasValid)
+            DBGLOG("Error: New parser failed to parse valid ecl '%s'", filename);
+        else
+            DBGLOG("Warning: New parser accepted invalid ecl '%s'", filename);
+    }
+}
+
 
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -11396,6 +11425,7 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
         parser.getLexer()->setMacroParams(macroParams);
         OwnedHqlExpr ret = parser.yyParse(false, true);
         ctx.noteEndQuery();
+        checkNewParser(ret != NULL, contents);
         return parser.clearFieldMap(ret.getClear());
     }
     catch (IException *E)
@@ -11416,6 +11446,7 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
             }
         }
         E->Release();
+        checkNewParser(false, contents);
     }
     return NULL;
 }
@@ -11433,6 +11464,7 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
         parser.getLexer()->set_yyColumn(1);
         OwnedHqlExpr ret = parser.yyParse(false, true);
         ctx.noteEndModule();
+        checkNewParser(!parser.hadAnyErrors(), contents);
     }
     catch (IException *E)
     {
@@ -11452,6 +11484,7 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
             }
         }
         E->Release();
+        checkNewParser(false, contents);
     }
 }
 
@@ -11476,6 +11509,7 @@ bool parseForwardModuleMember(HqlGramCtx & _parent, IHqlScope *scope, IHqlExpres
     parser.getLexer()->set_yyColumn(forwardSymbol->getStartColumn());
     unsigned prevErrors = ctx.errs->errCount();
     ::Release(parser.yyParse(false, false));
+    checkNewParser(!parser.hadAnyErrors(), contents);
     return (prevErrors == ctx.errs->errCount());
 }
 
@@ -11495,6 +11529,7 @@ void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContex
     parser.getLexer()->set_yyColumn(1);
     ::Release(parser.yyParse(false, false));
     attrCtx.noteEndAttribute();
+    checkNewParser(!parser.hadAnyErrors(), contents);
 }
 
 void testHqlInternals()

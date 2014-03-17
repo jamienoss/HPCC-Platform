@@ -577,13 +577,15 @@ public:
     void reportWarningVa(int errNo, const attribute& a, const char* format, va_list args);
     void reportWarning(int warnNo, const char *msg, int lineno, int column);
     void addResult(IHqlExpression *query, const attribute& errpos);
-    bool okToReportError(const ECLlocation & pos);
-// interface IErrorReceiver
+
+    // interface IErrorReceiver
     virtual void reportError(int errNo, const char *msg, const char *filename=NULL, int lineno=0, int column=0, int pos=0);
-    virtual void report(IECLError*);
+    virtual void report(IECLError * error);
+    virtual IECLError * mapError(IECLError * error);
     virtual void reportWarning(int warnNo, const char *msg, const char *filename=NULL, int lineno=0, int column=0, int pos=0);
     virtual size32_t errCount();
     virtual size32_t warnCount();
+    bool hadAnyErrors() { return errCount() != initialErrors; }
     
     IHqlExpression * findAssignment(IHqlExpression *field);
     void addAssignment(attribute &field, attribute &source);
@@ -834,6 +836,7 @@ protected:
     bool legacyWhenSemantics;
     bool isQuery;
     bool parseConstantText;
+    bool expandingMacroPosition;
     unsigned m_maxErrorsAllowed;
 
     IECLErrorArray pendingWarnings;
@@ -845,6 +848,7 @@ protected:
     PointerArray savedIds;
     UnsignedArray savedLastpos;
     unsigned lastpos;
+    unsigned initialErrors;
     bool inType;
     Owned<IHqlScope> modScope;
     OwnedHqlExpr dotScope;
