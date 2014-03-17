@@ -11395,8 +11395,8 @@ extern bool doNewParseQuery(IFileContents * contents, IErrorReceiver * errs);
 
 void checkNewParser(bool wasValid, IFileContents * contents, IErrorReceiver * errs)
 {
-    bool isNewValid = doNewParseQuery(contents, errs);
-    if (wasValid != isNewValid)
+    //bool isNewValid = doNewParseQuery(contents, errs);
+    if (0)//(wasValid != isNewValid)
     {
         const char * filename = contents->querySourcePath()->str();
         if (!filename)
