@@ -2,7 +2,7 @@
 
 IHqlExpression * semantics(ISyntaxTree * tree)
 {
-    IHqlExpression * translation;
+    IHqlExpression * translation = NULL;
     return translation;
 
 }

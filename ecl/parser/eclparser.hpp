@@ -38,6 +38,7 @@ class EclParser : public CInterface
 
 public:
     EclParser();
+    EclParser(IFileContents * queryContents);
     EclParser(IFileContents * queryContents, IErrorReceiver * errs);
     ~EclParser();
     IMPLEMENT_IINTERFACE

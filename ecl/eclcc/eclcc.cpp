@@ -1051,13 +1051,13 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         AST->printTree();
         //myQuery.setown(semantics(AST));//or AST->semantics()???
     }
-    throwUnexpected();
+    //throwUnexpected();
 
     if (optTargetCompiler != DEFAULT_COMPILER)
         instance.wu->setDebugValue("targetCompiler", compilerTypeText[optTargetCompiler], true);
 
     bool withinRepository = (queryAttributePath && *queryAttributePath);
-    bool syntaxChecking = instance.wu->getDebugValueBool("syntaxCheck", true);
+    bool syntaxChecking = instance.wu->getDebugValueBool("syntaxCheck", false);
     size32_t prevErrs = errs->errCount();
     unsigned startTime = msTick();
     const char * sourcePathname = queryContents ? queryContents->querySourcePath()->str() : NULL;
@@ -1118,17 +1118,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
                 if (instance.legacyImport)
                     importRootModulesToScope(scope, ctx);
 
-                //***************************************************************************
-                if(printSyntaxTree && AST)
-                    instance.query.setown(semantics(AST));
-                else
-                    instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
-                //***************************************************************************
-
-
-
-
-
+                instance.query.setown(parseQuery(scope, queryContents, ctx, NULL, NULL, true));
 
                 if (instance.archive)
                 {

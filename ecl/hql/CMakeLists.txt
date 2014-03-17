@@ -87,6 +87,9 @@ set (   SRCS
         hqlvalid.hpp
         hqlwuerr.hpp
         hqlxmldb.hpp
+
+       newparser.hpp
+       newparser.cpp
     )
 
 include_directories ( 
@@ -101,7 +104,8 @@ include_directories (
          ./../../system/include 
          ./../../common/workunit
          ./../../system/jlib 
-         ./../../ecl/hql 
+         ./../../ecl/hql
+         ./../../ecl/parser
          ./../../testing/unittests
     )
 
@@ -150,11 +154,12 @@ HPCC_ADD_LIBRARY( hql SHARED ${SRCS} ${CMAKE_CURRENT_BINARY_DIR}/hqlgram.cpp ${C
                                      #${CMAKE_CURRENT_BINARY_DIR}/eclgram.cpp ${CMAKE_CURRENT_BINARY_DIR}/ecllex.cpp  )
 
 install ( TARGETS hql RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-target_link_libraries ( hql  
+target_link_libraries ( hql
          jlib
-         nbcd 
-         eclrtl 
-         deftype 
+         nbcd
+         eclrtl
+         deftype
+         parser
          ${CPPUNIT_LIBRARIES}
     )
 

@@ -36,6 +36,12 @@ EclParser::EclParser(IFileContents * queryContents, IErrorReceiver * errs)
     errorHandler = LINK(errs);
 }
 
+EclParser::EclParser(IFileContents * queryContents)
+{
+    lexer = new EclLexer(queryContents);
+    errorHandler = NULL;
+}
+
 EclParser::~EclParser()
 {
     if (lexer)

@@ -238,68 +238,68 @@ xpathseq      ([^}\r\n])+
 
 %%
 
-"/*"                     { updatepos; BEGIN(COMMENT); }
-<COMMENT>"*/"            { updatepos; BEGIN(0); }
-<COMMENT>[^*\n]+         { updatepos; }
-<COMMENT>\n              { resetpos; }
-<COMMENT>"*"             { updatepos; }
+"/*"                     {  BEGIN(COMMENT); }
+<COMMENT>"*/"            {  BEGIN(0); }
+<COMMENT>[^*\n]+         {  }
+<COMMENT>\n              {  }
+<COMMENT>"*"             {  }
 
-\n                       { resetpos; }
-{blank}+                 { updatepos; }
+\n                       {  }
+{blank}+                 {  }
 
-"//"                     { updatepos; BEGIN(SLCOMMENT); }
-<SLCOMMENT>\n            { updatepos; BEGIN(0); }
-<SLCOMMENT>[^\n]+        { updatepos; }
+"//"                     {  BEGIN(SLCOMMENT); }
+<SLCOMMENT>\n            {  BEGIN(0); }
+<SLCOMMENT>[^\n]+        {  }
 
-AS                       { setLex(AS); return AS; }
-END                      { setLex(END); return END; }
-FALSE                    { setBool; return BOOLEAN_CONST; }
-FROM                     { setLex(FROM); return FROM; }
-IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
-IMPORT                   { setLex(IMPORT); return IMPORT; }
-RECORD                   { setLex(RECORD); return RECORD; }
-TRUE                     { setBool; return BOOLEAN_CONST; }
-TYPE                     { setLex; return TYPE; }
-".^"                     { setLex(UPDIR); return UPDIR; }
-".."                     { setLex; return DOTDOT; }
+AS                       {  return AS; }
+END                      {  return END; }
+FALSE                    {  return BOOLEAN_CONST; }
+FROM                     {  return FROM; }
+IFBLOCK                  {  return IFBLOCK; }
+IMPORT                   { return IMPORT; }
+RECORD                   {  return RECORD; }
+TRUE                     {  return BOOLEAN_CONST; }
+TYPE                     {  return TYPE; }
+".^"                     {  return UPDIR; }
+".."                     {  return DOTDOT; }
 
 
 
-{digit}+                 { manSetInt(str2int64(yyleng, yytext, 10), 8, true); return INTEGER_CONST; }
-{digit}+U                { manSetInt(str2int64(yyleng-1, yytext, 10), 8, false); return INTEGER_CONST; }
+{digit}+                 {  return INTEGER_CONST; }
+{digit}+U                { return INTEGER_CONST; }
 
-0x{hexdigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 16), 8, true); return INTEGER_CONST;  }
-0x{hexdigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 16), 8, false); return INTEGER_CONST;  }
-{digit}{hexdigit}+X      { manSetInt(str2int64(yyleng-1, yytext, 16), 8, true); return INTEGER_CONST;  }
-{digit}{hexdigit}+XU     { manSetInt(str2int64(yyleng-2, yytext, 16), 8, false); return INTEGER_CONST;  }
+0x{hexdigit}+            { return INTEGER_CONST;  }
+0x{hexdigit}+U           { return INTEGER_CONST;  }
+{digit}{hexdigit}+X      { return INTEGER_CONST;  }
+{digit}{hexdigit}+XU     {  return INTEGER_CONST;  }
 
-0b{bindigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 2), 8, true); return INTEGER_CONST; }
-0b{bindigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 2), 8, false); return INTEGER_CONST; }
-{bindigit}+B             { manSetInt(str2int64(yyleng-1, yytext, 2), 8, true); return INTEGER_CONST; }
-{bindigit}+BU            { manSetInt(str2int64(yyleng-2, yytext, 2), 8, false); return INTEGER_CONST; }
+0b{bindigit}+            {  return INTEGER_CONST; }
+0b{bindigit}+U           { return INTEGER_CONST; }
+{bindigit}+B             {  return INTEGER_CONST; }
+{bindigit}+BU            {  return INTEGER_CONST; }
 
 {digit}*\.{digit}+((e|E)("+"|"-")?{digit}+)? {
-                          setReal; return FLOAT_CONST; }
-{digit}*\.?{digit}+(d|D) { setDecimal; return DECIMAL_CONST; }
+                           return FLOAT_CONST; }
+{digit}*\.?{digit}+(d|D) {  return DECIMAL_CONST; }
 
-\'[^\n]*\'               { setString; return STRING_CONST; }
+\'[^\n]*\'               {  return STRING_CONST; }
 
-{letter}{alphanum}*      { setId; return ID; }
-${digit}+                { setId; return PARSE_ID; }
+{letter}{alphanum}*      {  return ID; }
+${digit}+                {  return PARSE_ID; }
 
-":="                     { setLex(ASSIGN); return ASSIGN; }
-";"+[; \t\r]*            { setLex(';'); return ';'; }
-"!="                     { setLex(NE); return NE; }
-"="                      { setLex(EQ); return EQ; }
-"<="                     { setLex(LE); return LE; }
-">="                     { setLex(GE); return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
-"<"                      { setLex(LT); return LT; }
-">"                      { setLex(GT); return GT; }
+":="                     {  return ASSIGN; }
+";"+[; \t\r]*            { return ';'; }
+"!="                     {  return NE; }
+"="                      {  return EQ; }
+"<="                     { return LE; }
+">="                     {  return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
+"<"                      { ; return LT; }
+">"                      {  return GT; }
 
-"+"+[+ \t\r]*            { setLex('+'); return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
-"-"+[- \t\r]*            { char op = foldMinus(yytext, yyleng); setLex(op); return op; }
+"+"+[+ \t\r]*            {  return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
 
-.                        { updatepos; setLex(yytext[0]); return (yytext[0]); }
+
+.                        {   return (yytext[0]); }
 
 %%
 
