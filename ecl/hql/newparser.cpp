@@ -2,10 +2,10 @@
 #include "eclparser.hpp"
 
 
-bool doNewParseQuery(IFileContents * contents)
+bool doNewParseQuery(IFileContents * contents, IErrorReceiver * errs)
 {
     Owned<EclParser> parser;
-    parser.setown(new EclParser(contents));
+    parser.setown(new EclParser(contents, errs));
 
     return !(parser->parse());
 }

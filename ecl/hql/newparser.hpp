@@ -3,6 +3,6 @@
 
 #include "hqlexpr.hpp"
 
-bool doNewParseQuery(IFileContents * contents);
+bool doNewParseQuery(IFileContents * contents, IErrorReceiver * errs);
 
 #endif

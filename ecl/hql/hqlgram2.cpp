@@ -11389,13 +11389,13 @@ IHqlExpression * PseudoPatternScope::lookupSymbol(IIdAtom * name, unsigned looku
     return NULL;
 }
 
-extern bool doNewParseQuery(IFileContents * contents);
+extern bool doNewParseQuery(IFileContents * contents, IErrorReceiver * errs);
 //MORE: Delete this function and implement it in the new parse code
 //bool doNewParseQuery(IFileContents * contents) { return true; }
 
-void checkNewParser(bool wasValid, IFileContents * contents)
+void checkNewParser(bool wasValid, IFileContents * contents, IErrorReceiver * errs)
 {
-    bool isNewValid = doNewParseQuery(contents);
+    bool isNewValid = doNewParseQuery(contents, errs);
     if (wasValid != isNewValid)
     {
         const char * filename = contents->querySourcePath()->str();
@@ -11425,7 +11425,7 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
         parser.getLexer()->setMacroParams(macroParams);
         OwnedHqlExpr ret = parser.yyParse(false, true);
         ctx.noteEndQuery();
-        checkNewParser(ret != NULL, contents);
+        checkNewParser(ret != NULL, contents, ctx.errs);
         return parser.clearFieldMap(ret.getClear());
     }
     catch (IException *E)
@@ -11446,7 +11446,7 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
             }
         }
         E->Release();
-        checkNewParser(false, contents);
+        checkNewParser(false, contents, ctx.errs);
     }
     return NULL;
 }
@@ -11464,7 +11464,7 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
         parser.getLexer()->set_yyColumn(1);
         OwnedHqlExpr ret = parser.yyParse(false, true);
         ctx.noteEndModule();
-        checkNewParser(!parser.hadAnyErrors(), contents);
+        checkNewParser(!parser.hadAnyErrors(), contents, ctx.errs);
     }
     catch (IException *E)
     {
@@ -11484,7 +11484,7 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
             }
         }
         E->Release();
-        checkNewParser(false, contents);
+        checkNewParser(false, contents, ctx.errs);
     }
 }
 
@@ -11509,7 +11509,7 @@ bool parseForwardModuleMember(HqlGramCtx & _parent, IHqlScope *scope, IHqlExpres
     parser.getLexer()->set_yyColumn(forwardSymbol->getStartColumn());
     unsigned prevErrors = ctx.errs->errCount();
     ::Release(parser.yyParse(false, false));
-    checkNewParser(!parser.hadAnyErrors(), contents);
+    checkNewParser(!parser.hadAnyErrors(), contents, ctx.errs);
     return (prevErrors == ctx.errs->errCount());
 }
 
@@ -11529,7 +11529,7 @@ void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContex
     parser.getLexer()->set_yyColumn(1);
     ::Release(parser.yyParse(false, false));
     attrCtx.noteEndAttribute();
-    checkNewParser(!parser.hadAnyErrors(), contents);
+    checkNewParser(!parser.hadAnyErrors(), contents, ctx.errs);
 }
 
 void testHqlInternals()

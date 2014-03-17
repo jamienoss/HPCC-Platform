@@ -79,7 +79,7 @@ EclLexer & EclParser::queryLexer()
 
 void EclParser::reportError(int errNo, const char *msg, const char * _sourcePath, int _lineno, int _column, int _position)
 {
-    //errorHandler->reportError(errNo, msg, _sourcePath, _lineno, _column, _position);
+    errorHandler->reportError(errNo, msg, _sourcePath, _lineno, _column, _position);
 }
 
 //----------------------------------EclLexer--------------------------------------------------------------------
