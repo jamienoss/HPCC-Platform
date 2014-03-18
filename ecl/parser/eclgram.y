@@ -81,12 +81,13 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 
 
 %left ';' ',' '.'
+%left '+' '-'
 %left '*' '/'
-%left '+'
+
 %left UPDIR
 %left NE EQ LE GE LT GT
 
-%right '-'
+
 %right '='
 
 %%
@@ -97,7 +98,7 @@ code
     ;
 
 eclQuery
-    : eclQuery ';' eclQuery    { }
+    : eclQuery ';' eclQuery  _EOF_  { }
     | eclQuery ';'                  { }
     | line_of_code                  { }
     | ';' line_of_code              { }
