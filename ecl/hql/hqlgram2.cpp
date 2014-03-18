@@ -11425,7 +11425,8 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
         parser.getLexer()->setMacroParams(macroParams);
         OwnedHqlExpr ret = parser.yyParse(false, true);
         ctx.noteEndQuery();
-        checkNewParser(ret != NULL, contents, ctx.errs);
+        //checkNewParser(ret != NULL, contents, ctx.errs);
+        checkNewParser(!parser.hadAnyErrors(), contents, ctx.errs);
         return parser.clearFieldMap(ret.getClear());
     }
     catch (IException *E)
