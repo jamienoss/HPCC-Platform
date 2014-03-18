@@ -257,10 +257,10 @@ FALSE                    {  return BOOLEAN_CONST; }
 FROM                     {  return FROM; }
 IFBLOCK                  {  return IFBLOCK; }
 IMPORT                   { return IMPORT; }
+MODULE                   { return MODULE; }
 RECORD                   {  return RECORD; }
 TRUE                     {  return BOOLEAN_CONST; }
 TYPE                     {  return TYPE; }
-".^"                     {  return UPDIR; }
 ".."                     {  return DOTDOT; }
 
 

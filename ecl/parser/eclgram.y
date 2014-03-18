@@ -39,6 +39,7 @@ int yyerror(EclParser * parser, yyscan_t scanner, const char *msg);
 int syntaxerror(const char *msg, short yystate, YYSTYPE token);
 #define ecl2yyerror(parser, scanner, msg)   syntaxerror(msg, yystate, yylval, parser)
 
+
 int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parser)
 {
     parser->reportError(ERR_EXPECTED, msg, parser->queryLexer().sourcePath->str(), token.pos.lineno, token.pos.column, token.pos.position);
@@ -46,6 +47,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 }
 
 %}
+
 
 //=========================================== tokens ====================================
 
@@ -68,28 +70,34 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     INTEGER_CONST
     LE "<="
     LT "<"
+    MODULE
     NE "!="
     PARSE_ID
     REAL
     RECORD
     STRING_CONST
     TYPE
-    UPDIR ".^"
 
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
+%left LOWEST_PRECEDENCE
 
 %left ';' ',' '.'
+
+%left '+' '-'
 %left '*' '/'
-%left '+'
-%left UPDIR
 %left NE EQ LE GE LT GT
 
-%right '-'
+%left '('
+%left '['
+
 %right '='
 
+%left HIGHEST_PRECEDENCE
+
 %%
+
 //================================== begin of syntax section ==========================
 
 code
@@ -97,29 +105,43 @@ code
     ;
 
 eclQuery
-    : eclQuery ';' eclQuery    { }
-    | eclQuery ';'                  { }
+    : eclQuery ';' line_of_code     { }
     | line_of_code                  { }
-    | ';' line_of_code              { }
     ;
 
 line_of_code
     : expr                          { }
-    | IMPORT import                 { }
+    | import                        { }
     | assignment                    { }
+    |
     ;
 
 //-----------Listed Alphabetical from here on in------------------------------------------
 
+//We need to add some precedence rules to avoid some shift reduce errors.
+//RECORD(base) matches
+//   '(' expr ')' in all_record_options
+//   expr in field.
+//We want the first to be used, so we ensure the '(' gets shifted instead of reduced
+//
+//  RECORD,ID(3) matches
+//   id in record_options
+//   ID in record options and expr in field.
+// Again we want the first to be used, so shift
+//
+// ID(3), ID[3] - if you are allowed expr expr then it is ambiguous
+
 all_record_options
-    : record_options                { }
-    | '(' expr ')'                  { }//Could add '(' to list and "( )" as the parent node.
+    : record_options                %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+                                    { }
+    | '(' expr ')' record_options   { }//Could add '(' to list and "( )" as the parent node.
     ;
 
 assignment
     : lhs ASSIGN rhs                { } /*should this be an expr???*/
     ;
 
+//GH: No need to distinguish these
 constant
     : BOOLEAN_CONST                 { }
     | STRING_CONST                  { }
@@ -128,15 +150,18 @@ constant
     | INTEGER_CONST                 { }
     ;
 
+//GH: Note this is a general object expression - not just a scalar expression
 expr
     : '+' expr                      { }//not left rec, hmmmm?!? MORE: could make '+' abstract here!!!
-    | '-' expr                      { }//not left rec, hmmmm?!?
+    | '-' expr                      { }//not left rec, hmmmm?!? MORE:this may no longer work since '-' is now left rather than right prec
     | expr_op_expr                  { }
     | constant                      { }
     | set                           { }
     | id_list                       { }
     | '(' expr ')'                  { } /*might want to re-think discarding parens - I don't think so!*/
-    | '(' ')'                       { }
+    | record_definition             { }
+    | module_definition             { }
+//GH deleted    | '(' ')'                       { }
     ;
 
 //expr
@@ -153,11 +178,18 @@ expr
 
 //factor
 //    : '(' expr ')'                  { }
+//    : '+' factor                    { }
+//    | '-' factor                    { }
 //    | constant                      { }
 //    | set                           { }
 //    | id_list                       { }
 //    | '(' ')'                       { }
 //    ;
+
+expr_list
+    : expr_list ',' expr            { }
+    | expr                          { }
+    ;
 
 expr_op_expr
     : expr '+' expr                 { }
@@ -174,21 +206,19 @@ expr_op_expr
     ;
 
 field
-    : id_list                       { }
+    : expr                          { }
+    | expr '{' parameters '}'       { }
     | assignment                    { }
     | ifblock                       { }
- //   | identifier                    { }
     ;
 
 fields
     : fields field ';'              { }
-    | field ';'                     { }
+    |                               { }
     ;
 
 function
     : ID '(' parameters ')'         { }
-    | ID '(' ')'                    { }
-    | ID '{' parameters '}'         { }
     | ID '[' index_range ']'        { }
     ;
 
@@ -200,7 +230,8 @@ id_list
 identifier
     : identifier '.' identifier     { } //Might want to make '.' abstract
     | function                      { }
-    | ID                            { }
+    | ID                            %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+                                    { }
     ;
 
 ifblock
@@ -209,31 +240,29 @@ ifblock
     ;
 
 import
-    : module_list                   { }
-    | module_symbols AS ID          { }
-    | module_list FROM  module_from { }
+    : IMPORT import_reference       { }
     ;
 
-index
-    : expr                          { }
-    //: INTEGER_CONST                 { }
-    //| identifier                    { }//maybe reduce to just ID
+import_reference
+    : module_list                   { }
+    | module_path AS ID             { }
+    | module_list FROM module_path  { }
     ;
 
 index_range
-    : index_range range_op index    { }
-    | index_range range_op          { }
-    | range_op index                { }
-    | index                         { }
+    : expr range_op expr            { }
+    | expr range_op                 { }
+    | range_op expr                 { }
+    | expr                          { }
     ;
 
 lhs
     : id_list                       { }
     ;
 
-module_from
-    : identifier                    { }
-    | DIR                           { }
+module_definition
+    : MODULE all_record_options fields END
+                                    { }
     ;
 
 module_list
@@ -242,48 +271,34 @@ module_list
     ;
 
 module_path
-    : '$' module_symbols            { }
-    | '$' '.' module_symbols        { }
-    | '$' UPDIR module_symbols      { }
-    | module_symbols                { }
+    : '$'                           { }
+    | module_symbol                 { }
+    | module_path '.' module_symbol { }
+    | module_path '.' '^'           { }
     ;
 
-module_symbols
-    : module_symbols UPDIR module_symbols
-                                    { }
-    | module_symbols UPDIR          { } //MORE might need to consider strings and not just char tokens
-    | identifier                    { }
+module_symbol
+    : ID                            { }
     ;
 
 parameter
-    : expr                          { }
-    | ','                           { }
-    | ',' assignment                { } /* not obvious why you'd want to shape the ST like this, i.e. miss out the ','*/
+    :                               { }
+    | expr                          { }
     | assignment                    { }
     ;
 
 parameters
     : parameters ',' parameter      { }
-    | parameters ','                { }
     | parameter                     { } /*perhaps re-think - this creates a comma list even if only one parameter*/
     ;
 
 range_op
     : DOTDOT                        { }
-    | ':'                           { }//If this conflicts with existing ecl then take out
-                                                     //otherwise might help, most math lang uses this.
+//GH delete    | ':'                           { }//If this conflicts with existing ecl then take out
+//                                                     //otherwise might help, most math lang uses this.
     ;
 
-record
-    : expr                          { }
-    ;
-
-records
-    : records ',' record            { }
-    | record                        { }
-    ;
-
-recordset
+record_definition
     : RECORD all_record_options fields END
                                     { } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
     | '{' all_record_options fields '}'
@@ -293,17 +308,17 @@ recordset
 
 record_options
     : record_options ',' identifier { }
-    |                               { }//Need to change first & add to not account for empty
+    |                               %prec LOWEST_PRECEDENCE
+                                    { }//Need to change first & add to not account for empty
     ;
 
 rhs
     : expr                          { }
-    | recordset                     { }
     | type                          { }
     ;
 
 set
-    : '[' records ']'               { }
+    : '[' expr_list ']'               { }
     | '[' ']'                       { }
     ;
 
