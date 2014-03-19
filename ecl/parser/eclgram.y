@@ -75,6 +75,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     PARSE_ID
     REAL
     RECORD
+    SERVICE
     STRING_CONST
     TYPE
 
@@ -161,6 +162,7 @@ expr
     | '(' expr ')'                  { } /*might want to re-think discarding parens - I don't think so!*/
     | record_definition             { }
     | module_definition             { }
+    | service_definition            { }
 //GH deleted    | '(' ')'                       { }
     ;
 
@@ -303,7 +305,6 @@ record_definition
                                     { } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
     | '{' all_record_options fields '}'
                                     { }
-//   'records' used to be, still could/should be, fields
     ;
 
 record_options
@@ -320,6 +321,11 @@ rhs
 set
     : '[' expr_list ']'               { }
     | '[' ']'                       { }
+    ;
+
+service_definition
+    : SERVICE all_record_options fields END
+                                    { }
     ;
 
 type

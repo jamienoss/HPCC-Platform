@@ -238,68 +238,69 @@ xpathseq      ([^}\r\n])+
 
 %%
 
-"/*"                     {  BEGIN(COMMENT); }
-<COMMENT>"*/"            {  BEGIN(0); }
-<COMMENT>[^*\n]+         {  }
-<COMMENT>\n              {  }
-<COMMENT>"*"             {  }
+"/*"                     { updatepos; BEGIN(COMMENT); }
+<COMMENT>"*/"            { updatepos; BEGIN(0); }
+<COMMENT>[^*\n]+         { updatepos; }
+<COMMENT>\n              { resetpos; }
+<COMMENT>"*"             { updatepos; }
 
-\n                       {  }
-{blank}+                 {  }
+\n                       { resetpos; }
+{blank}+                 { updatepos; }
 
-"//"                     {  BEGIN(SLCOMMENT); }
-<SLCOMMENT>\n            {  BEGIN(0); }
-<SLCOMMENT>[^\n]+        {  }
+"//"                     { updatepos; BEGIN(SLCOMMENT); }
+<SLCOMMENT>\n            { updatepos; BEGIN(0); }
+<SLCOMMENT>[^\n]+        { updatepos; }
 
-AS                       {  return AS; }
-END                      {  return END; }
-FALSE                    {  return BOOLEAN_CONST; }
-FROM                     {  return FROM; }
-IFBLOCK                  {  return IFBLOCK; }
-IMPORT                   { return IMPORT; }
-MODULE                   { return MODULE; }
-RECORD                   {  return RECORD; }
-TRUE                     {  return BOOLEAN_CONST; }
-TYPE                     {  return TYPE; }
-".."                     {  return DOTDOT; }
+AS                       { updatepos; return AS; }
+END                      { updatepos; return END; }
+FALSE                    { updatepos; return BOOLEAN_CONST; }
+FROM                     { updatepos; return FROM; }
+IFBLOCK                  { updatepos; return IFBLOCK; }
+IMPORT                   { updatepos;return IMPORT; }
+MODULE                   {updatepos; return MODULE; }
+RECORD                   { updatepos; return RECORD; }
+SERVICE                  {updatepos; return SERVICE; }
+TRUE                     { updatepos; return BOOLEAN_CONST; }
+TYPE                     { updatepos; return TYPE; }
+".."                     { updatepos; return DOTDOT; }
 
 
 
-{digit}+                 {  return INTEGER_CONST; }
-{digit}+U                { return INTEGER_CONST; }
+{digit}+                 { updatepos; return INTEGER_CONST; }
+{digit}+U                {updatepos; return INTEGER_CONST; }
 
-0x{hexdigit}+            { return INTEGER_CONST;  }
-0x{hexdigit}+U           { return INTEGER_CONST;  }
-{digit}{hexdigit}+X      { return INTEGER_CONST;  }
-{digit}{hexdigit}+XU     {  return INTEGER_CONST;  }
+0x{hexdigit}+            { updatepos;return INTEGER_CONST;  }
+0x{hexdigit}+U           { updatepos;return INTEGER_CONST;  }
+{digit}{hexdigit}+X      {updatepos; return INTEGER_CONST;  }
+{digit}{hexdigit}+XU     { updatepos; return INTEGER_CONST;  }
 
-0b{bindigit}+            {  return INTEGER_CONST; }
-0b{bindigit}+U           { return INTEGER_CONST; }
-{bindigit}+B             {  return INTEGER_CONST; }
-{bindigit}+BU            {  return INTEGER_CONST; }
+0b{bindigit}+            {updatepos;  return INTEGER_CONST; }
+0b{bindigit}+U           {updatepos; return INTEGER_CONST; }
+{bindigit}+B             { updatepos; return INTEGER_CONST; }
+{bindigit}+BU            { updatepos; return INTEGER_CONST; }
 
 {digit}*\.{digit}+((e|E)("+"|"-")?{digit}+)? {
-                           return FLOAT_CONST; }
-{digit}*\.?{digit}+(d|D) {  return DECIMAL_CONST; }
+                           updatepos;return FLOAT_CONST; }
+{digit}*\.?{digit}+(d|D) { updatepos; return DECIMAL_CONST; }
 
-\'[^\n]*\'               {  return STRING_CONST; }
+\'[^\n]*\'               { updatepos; return STRING_CONST; }
 
-{letter}{alphanum}*      {  return ID; }
-${digit}+                {  return PARSE_ID; }
+{letter}{alphanum}*      { updatepos; return ID; }
+${digit}+                { updatepos; return PARSE_ID; }
 
-":="                     {  return ASSIGN; }
-";"+[; \t\r]*            { return ';'; }
-"!="                     {  return NE; }
-"="                      {  return EQ; }
-"<="                     { return LE; }
-">="                     {  return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
-"<"                      { ; return LT; }
-">"                      {  return GT; }
+":="                     { updatepos; return ASSIGN; }
+";"+[; \t\r]*            {updatepos; return ';'; }
+"!="                     {updatepos;  return NE; }
+"="                      {updatepos;  return EQ; }
+"<="                     {updatepos; return LE; }
+">="                     { updatepos; return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
+"<"                      {updatepos; ; return LT; }
+">"                      {updatepos;  return GT; }
 
 "+"+[+ \t\r]*            {  return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
 
 
-.                        {   return (yytext[0]); }
+.                        {  updatepos; return (yytext[0]); }
 
 %%
 
