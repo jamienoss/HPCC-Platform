@@ -82,7 +82,21 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
+//The grammar contains some shift reduce conflicts because expressions can be followed by other expressions.
+//The examples are:
+//   abc(123)      vs     abc     (123)   // id then brackets
+//   abc[1]        vs     abc     [3]     // id then set
+//   abc + def     vs     abc     +def    // id then unary plus
+//
+// All these want to choose the first form (shift) rather than reduce.
+//
+//However there is also the following
+//  ,abc def       vs    ,abc      def    // a multi-word attribute on a record vs a single word attribute followed by the start of a definition.
+//Here we want to choose the second form (reduce)
+//The NEXT_EXPR_PRECEDENCE is before after the tokens (lower priority) that should be shifted, but before those that should be reduced.
+
 %left LOWEST_PRECEDENCE
+%left NEXT_EXPR_PRECEDENCE
 
 %left ':' ';' ',' '.'
 
@@ -97,7 +111,11 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 
 %left HIGHEST_PRECEDENCE
 
+
 %%
+
+
+
 
 //================================== begin of syntax section ==========================
 
@@ -133,9 +151,9 @@ line_of_code
 // ID(3), ID[3] - if you are allowed expr expr then it is ambiguous
 
 all_record_options
-    : record_options                %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+    : record_options                %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
-    | '(' expr ')' record_options  %prec LOWEST_PRECEDENCE { }//Could add '(' to list and "( )" as the parent node.
+    | '(' expr ')' record_options  %prec NEXT_EXPR_PRECEDENCE { }//Could add '(' to list and "( )" as the parent node.
     ;
 
 assignment
@@ -158,7 +176,7 @@ expr
     | expr_op_expr                  { }
     | constant                      { }
     | set                           { }
-    | id_list                       { }
+    | identifier                    { }
     | '(' expr ')'                  { } /*might want to re-think discarding parens - I don't think so!*/
     | record_definition             { }
     | module_definition             { }
@@ -234,7 +252,7 @@ id_list
 identifier
     : identifier '.' identifier     { } //Might want to make '.' abstract
     | function                      { }
-    | ID                            %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+    | ID                            %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
     ;
 
@@ -289,6 +307,7 @@ parameter
     :                               { }
     | expr                          { }
     | assignment                    { }
+    //MORE: Needs to support multiword attributes - e.g, LEFT OUTER
     ;
 
 parameters
@@ -311,7 +330,7 @@ record_definition
 
 record_options
     : record_options ',' identifier { }
-    |                               %prec LOWEST_PRECEDENCE
+    |                               %prec NEXT_EXPR_PRECEDENCE
                                     { }//Need to change first & add to not account for empty
     ;
 
@@ -326,16 +345,20 @@ set
     ;
 //---------------------------------------------
 keyword
-    : ID EQ STRING_CONST   { }
+    : ID EQ expr                    { }
+    | ID '(' parameters ')'         { }
+    | ID                            { }
     ;
 
+
 keywords
-    : keywords ',' keyword     { }
-    | keyword                  { }
+    : keywords ',' keyword          { }
+    | keyword                       { }
     ;
 
 service_attribute
-    : function ':' keywords        { }
+    : function ':' keywords         { }
+    |                               { }
     ;
 
 service_attributes
