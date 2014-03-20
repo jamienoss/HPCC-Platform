@@ -324,9 +324,9 @@ set
     : '[' expr_list ']'             { }
     | '[' ']'                       { }
     ;
-
+//---------------------------------------------
 keyword
-    : identifier '=' STRING_CONST   { }
+    : ID EQ STRING_CONST   { }
     ;
 
 keywords
@@ -353,7 +353,7 @@ service_definition
     : SERVICE service_default_keywords service_attributes END
                                     { }
     ;
-
+//---------------------------------------------------
 type
     : TYPE fields END             { } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
     ;
