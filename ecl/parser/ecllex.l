@@ -252,12 +252,17 @@ xpathseq      ([^}\r\n])+
 <SLCOMMENT>[^\n]+        { updatepos; }
 
 AS                       { setLex(AS); return AS; }
+AND                      { setLex(AND); return AND; }
+
+DIV                      { setLex(DIV); return DIV; }
 END                      { setLex(END); return END; }
 FALSE                    { setBool; return BOOLEAN_CONST; }
 FROM                     { setLex(FROM); return FROM; }
 IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 MODULE                   { setLex(MODULE); return MODULE; }
+NOT                      { setLex(NOT); return NOT; }
+OR                       { setLex(OR); return OR; }
 RECORD                   { setLex(RECORD); return RECORD; }
 SERVICE                   { setLex(SERVICE); return SERVICE; }
 TRUE                     { setBool; return BOOLEAN_CONST; }
@@ -291,11 +296,16 @@ ${digit}+                { setId; return PARSE_ID; }
 ":="                     { setLex(ASSIGN); return ASSIGN; }
 ";"+[; \t\r]*            { setLex(';'); return ';'; }
 "!="                     { setLex(NE); return NE; }
+"<>"                     { setLex(NE); return NE; }
+"~"                      { setLex(NOT); return NOT; }
 "="                      { setLex(EQ); return EQ; }
 "<="                     { setLex(LE); return LE; }
 ">="                     { setLex(GE); return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
 "<"                      { setLex(LT); return LT; }
 ">"                      { setLex(GT); return GT; }
+"|"                      { setLex(OR); return OR; }
+"&"                      { setLex(AND); return AND; }//perhaps not always an AND
+"^"                      { setLex(XOR); return XOR; }
 
 "+"+[+ \t\r]*            { setLex('+'); return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
 "-"+[- \t\r]*            { char op = foldMinus(yytext, yyleng); setLex(op); return op; }

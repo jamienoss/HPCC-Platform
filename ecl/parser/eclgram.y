@@ -53,10 +53,12 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 
 %token
     AS
+    AND
     ASSIGN ":="
     BOOLEAN_CONST
     DECIMAL_CONST
     DIR
+    DIV "Division of integers as reals"
     DOTDOT ".."
     END
     EQ "="
@@ -72,12 +74,15 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     LT "<"
     MODULE
     NE "!="
+    NOT
+    OR
     PARSE_ID
     REAL
     RECORD
     SERVICE
     STRING_CONST
     TYPE
+    XOR
 
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
@@ -87,8 +92,12 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 %left ':' ';' ',' '.'
 
 %left '+' '-'
-%left '*' '/'
 %left NE EQ LE GE LT GT
+%left XOR //not sure about precedence?
+%left OR
+%left AND
+%left NOT
+%left '*' '/'
 
 %left '('
 %left '['
@@ -139,7 +148,7 @@ all_record_options
     ;
 
 assignment
-    : lhs ASSIGN rhs                { } /*should this be an expr???*/
+    : lhs ASSIGN rhs                { }
     ;
 
 //GH: No need to distinguish these
@@ -151,59 +160,53 @@ constant
     | INTEGER_CONST                 { }
     ;
 
-//GH: Note this is a general object expression - not just a scalar expression
+low_prec_op
+    : '+'                           { }
+    | '-'                           { }
+    | LT                            { }
+    | GT                            { }
+    | GE                            { }
+    | LE                            { }
+    | EQ                            { }
+    | NE                            { }
+    ;
+
+high_prec_op
+    : '/'                           { }
+    | DIV                           { }
+    | '%'                           { }
+    | '*'                           { }
+    | NOT                           { }
+    | AND                           { }
+    | OR                            { }
+    | XOR                           { }
+    ;
+
 expr
-    : '+' expr                      { }//not left rec, hmmmm?!? MORE: could make '+' abstract here!!!
-    | '-' expr                      { }//not left rec, hmmmm?!? MORE:this may no longer work since '-' is now left rather than right prec
-    | expr_op_expr                  { }
+    : expr low_prec_op term         { }
+    | term                          { }
+    ;
+
+term
+    : term high_prec_op factor      { }
+    | factor                        { }
+    ;
+
+factor
+    : paren_encaps_expr_expr        { }
+    | '+' factor                    { }
+    | '-' factor                    { }
     | constant                      { }
     | set                           { }
     | id_list                       { }
-    | '(' expr ')'                  { } /*might want to re-think discarding parens - I don't think so!*/
     | record_definition             { }
     | module_definition             { }
     | service_definition            { }
     ;
 
-//expr
-//    : expr '+' term                 { }
-//    | expr '-' term                 { }
-//    | term                          { }
-//    ;
-
-//term
-//    : term '*' factor               { }
-//    | term '/' factor               { }
-//    | factor                        { }
-//    ;
-
-//factor
-//    : '(' expr ')'                  { }
-//    : '+' factor                    { }
-//    | '-' factor                    { }
-//    | constant                      { }
-//    | set                           { }
-//    | id_list                       { }
-//    | '(' ')'                       { }
-//    ;
-
 expr_list
     : expr_list ',' expr            { }
     | expr                          { }
-    ;
-
-expr_op_expr
-    : expr '+' expr                 { }
-    | expr '-' expr                 { }
-    | expr '*' expr                 { }
-    | expr '/' expr                 { }
-    | expr '=' expr                 { }
-    | expr NE expr                  { }
-    | expr EQ expr                  { }
-    | expr LE expr                  { }
-    | expr LT expr                  { }
-    | expr GE expr                  { }
-    | expr GT expr                  { }
     ;
 
 field
@@ -217,8 +220,7 @@ field
 fields
     : fields ';' field              { }
     | fields ',' field              { }
-    | field              { }
-// jn commented   |                               { }
+    | field                         { }
     ;
 
 function
@@ -227,12 +229,12 @@ function
     ;
 
 id_list
-    : id_list identifier            { }  /*This needs further thought inc. whether to swap order of $1 & $2*/
+    : id_list identifier            { }
     | identifier                    { }
     ;
 
 identifier
-    : identifier '.' identifier     { } //Might want to make '.' abstract
+    : identifier '.' identifier     { }
     | function                      { }
     | ID                            %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
@@ -285,6 +287,12 @@ module_symbol
     : ID                            { }
     ;
 
+paren_encaps_expr_expr
+    : paren_encaps_expr_expr '(' expr ')'
+                                    { }
+    | '(' expr ')'                  { }
+    ;
+
 parameter
     :                               { }
     | expr                          { }
@@ -293,18 +301,16 @@ parameter
 
 parameters
     : parameters ',' parameter      { }
-    | parameter                     { } /*perhaps re-think - this creates a comma list even if only one parameter*/
+    | parameter                     { }
     ;
 
 range_op
     : DOTDOT                        { }
-//GH delete    | ':'                           { }//If this conflicts with existing ecl then take out
-//                                                     //otherwise might help, most math lang uses this.
     ;
 
 record_definition
     : RECORD all_record_options fields END
-                                    { } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
+                                    { }
     | '{' all_record_options fields '}'
                                     { }
     ;
@@ -312,7 +318,7 @@ record_definition
 record_options
     : record_options ',' identifier { }
     |                               %prec LOWEST_PRECEDENCE
-                                    { }//Need to change first & add to not account for empty
+                                    { }
     ;
 
 rhs
@@ -324,38 +330,39 @@ set
     : '[' expr_list ']'             { }
     | '[' ']'                       { }
     ;
-//---------------------------------------------
-keyword
-    : ID EQ STRING_CONST   { }
-    ;
-
-keywords
-    : keywords ',' keyword     { }
-    | keyword                  { }
-    ;
 
 service_attribute
-    : function ':' keywords        { }
+    : function ':' service_keywords { }
     ;
 
 service_attributes
-    : service_attributes ';' service_attribute
+    : service_attributes service_attribute ';'
                                     { }
-    | service_attribute             { }
+    | service_attribute ';'         { }
     ;
 
-service_default_keywords
-    : ':' keywords                  { }
-    |                               { }
+service_keyword
+    : ID EQ expr                    { }
+    ;
+
+service_keywords
+    : service_keywords ',' service_keyword
+                                    { }
+    | service_keyword               { }
     ;
 
 service_definition
     : SERVICE service_default_keywords service_attributes END
                                     { }
     ;
-//---------------------------------------------------
+
+service_default_keywords
+    : ':' service_keywords ';'      { }//';' not present in current grammar
+    |                               { }
+    ;
+
 type
-    : TYPE fields END             { } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
+    : TYPE fields END               { }
     ;
 
 %%
