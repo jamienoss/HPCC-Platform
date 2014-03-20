@@ -59,7 +59,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     DIR
     DOTDOT ".."
     END
-    EQ "=="
+    EQ "="
     FLOAT_CONST
     FROM
     GE ">="
@@ -84,7 +84,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 
 %left LOWEST_PRECEDENCE
 
-%left ';' ',' '.'
+%left ':' ';' ',' '.'
 
 %left '+' '-'
 %left '*' '/'
@@ -135,7 +135,7 @@ line_of_code
 all_record_options
     : record_options                %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
-    | '(' expr ')' record_options   { }//Could add '(' to list and "( )" as the parent node.
+    | '(' expr ')' record_options  %prec LOWEST_PRECEDENCE { }//Could add '(' to list and "( )" as the parent node.
     ;
 
 assignment
@@ -163,7 +163,6 @@ expr
     | record_definition             { }
     | module_definition             { }
     | service_definition            { }
-//GH deleted    | '(' ')'                       { }
     ;
 
 //expr
@@ -212,11 +211,14 @@ field
     | expr '{' parameters '}'       { }
     | assignment                    { }
     | ifblock                       { }
+    | { }
     ;
 
 fields
-    : fields field ';'              { }
-    |                               { }
+    : fields ';' field              { }
+    | fields ',' field              { }
+    | field              { }
+// jn commented   |                               { }
     ;
 
 function
@@ -319,12 +321,36 @@ rhs
     ;
 
 set
-    : '[' expr_list ']'               { }
+    : '[' expr_list ']'             { }
     | '[' ']'                       { }
     ;
 
+keyword
+    : identifier '=' STRING_CONST   { }
+    ;
+
+keywords
+    : keywords ',' keyword     { }
+    | keyword                  { }
+    ;
+
+service_attribute
+    : function ':' keywords        { }
+    ;
+
+service_attributes
+    : service_attributes ';' service_attribute
+                                    { }
+    | service_attribute             { }
+    ;
+
+service_default_keywords
+    : ':' keywords                  { }
+    |                               { }
+    ;
+
 service_definition
-    : SERVICE all_record_options fields END
+    : SERVICE service_default_keywords service_attributes END
                                     { }
     ;
 

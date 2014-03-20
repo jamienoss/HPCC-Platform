@@ -76,7 +76,7 @@ static inline void setInteger(YYSTYPE * yylval, char * tokenText, unsigned txtLe
     //std::cout << tokenText << "\n";
 
     yylval->kind = INTEGER_CONST;
-    yylval->value = createIntValue(_value, size, isSigned);
+    //yylval->value = createIntValue(_value, size, isSigned);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -87,7 +87,7 @@ static inline void setReal(YYSTYPE * yylval, char * tokenText, unsigned txtLen, 
     //std::cout << tokenText << "\n";
 
     yylval->kind = FLOAT_CONST;
-    yylval->value = createRealValue(atof(tokenText), 8);
+    //yylval->value = createRealValue(atof(tokenText), 8);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -135,7 +135,7 @@ static inline void setDecimal(YYSTYPE * yylval, char * tokenText, unsigned txtLe
         }
         type.set(makeDecimalType(digits, 0, true));
     }
-    yylval->value = type->castFrom(txtLen-1, tokenText);
+    //yylval->value = type->castFrom(txtLen-1, tokenText);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -146,7 +146,7 @@ static inline void setString(YYSTYPE * yylval, char * tokenText, unsigned txtLen
     //std::cout << tokenText << "\n";
 
     yylval->kind = STRING_CONST;
-    yylval->value = createStringValue(tokenText, 32); //Might need to be UTF8
+    //yylval->value = createStringValue(tokenText, 32); //Might need to be UTF8
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -157,7 +157,7 @@ static inline void setBool(YYSTYPE * yylval, char * tokenText, unsigned txtLen, 
     //std::cout << tokenText << "\n";
 
     yylval->kind = BOOLEAN_CONST;
-    yylval->value = createBoolValue(tokenText);
+    //yylval->value = createBoolValue(tokenText);
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
     lexer.updatePos(txtLen);
@@ -178,7 +178,7 @@ static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, in
 
     yylval->kind = ID;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
-    yylval->id = createIdAtom(tokenText, txtLen);
+    //yylval->id = createIdAtom(tokenText, txtLen);
     lexer.updatePos(txtLen);
 }
   //--------------------------------------------------------------------------------
@@ -251,56 +251,56 @@ xpathseq      ([^}\r\n])+
 <SLCOMMENT>\n            { updatepos; BEGIN(0); }
 <SLCOMMENT>[^\n]+        { updatepos; }
 
-AS                       { updatepos; return AS; }
-END                      { updatepos; return END; }
-FALSE                    { updatepos; return BOOLEAN_CONST; }
-FROM                     { updatepos; return FROM; }
-IFBLOCK                  { updatepos; return IFBLOCK; }
-IMPORT                   { updatepos;return IMPORT; }
-MODULE                   {updatepos; return MODULE; }
-RECORD                   { updatepos; return RECORD; }
-SERVICE                  {updatepos; return SERVICE; }
-TRUE                     { updatepos; return BOOLEAN_CONST; }
-TYPE                     { updatepos; return TYPE; }
-".."                     { updatepos; return DOTDOT; }
+AS                       { setLex(AS); return AS; }
+END                      { setLex(END); return END; }
+FALSE                    { setBool; return BOOLEAN_CONST; }
+FROM                     { setLex(FROM); return FROM; }
+IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
+IMPORT                   { setLex(IMPORT); return IMPORT; }
+MODULE                   { setLex(MODULE); return MODULE; }
+RECORD                   { setLex(RECORD); return RECORD; }
+SERVICE                   { setLex(SERVICE); return SERVICE; }
+TRUE                     { setBool; return BOOLEAN_CONST; }
+TYPE                     { setLex; return TYPE; }
+".."                     { setLex; return DOTDOT; }
 
 
 
-{digit}+                 { updatepos; return INTEGER_CONST; }
-{digit}+U                {updatepos; return INTEGER_CONST; }
+{digit}+                 { manSetInt(str2int64(yyleng, yytext, 10), 8, true); return INTEGER_CONST; }
+{digit}+U                { manSetInt(str2int64(yyleng-1, yytext, 10), 8, false); return INTEGER_CONST; }
 
-0x{hexdigit}+            { updatepos;return INTEGER_CONST;  }
-0x{hexdigit}+U           { updatepos;return INTEGER_CONST;  }
-{digit}{hexdigit}+X      {updatepos; return INTEGER_CONST;  }
-{digit}{hexdigit}+XU     { updatepos; return INTEGER_CONST;  }
+0x{hexdigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 16), 8, true); return INTEGER_CONST;  }
+0x{hexdigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 16), 8, false); return INTEGER_CONST;  }
+{digit}{hexdigit}+X      { manSetInt(str2int64(yyleng-1, yytext, 16), 8, true); return INTEGER_CONST;  }
+{digit}{hexdigit}+XU     { manSetInt(str2int64(yyleng-2, yytext, 16), 8, false); return INTEGER_CONST;  }
 
-0b{bindigit}+            {updatepos;  return INTEGER_CONST; }
-0b{bindigit}+U           {updatepos; return INTEGER_CONST; }
-{bindigit}+B             { updatepos; return INTEGER_CONST; }
-{bindigit}+BU            { updatepos; return INTEGER_CONST; }
+0b{bindigit}+            { manSetInt(str2int64(yyleng-2, yytext+2, 2), 8, true); return INTEGER_CONST; }
+0b{bindigit}+U           { manSetInt(str2int64(yyleng-3, yytext+2, 2), 8, false); return INTEGER_CONST; }
+{bindigit}+B             { manSetInt(str2int64(yyleng-1, yytext, 2), 8, true); return INTEGER_CONST; }
+{bindigit}+BU            { manSetInt(str2int64(yyleng-2, yytext, 2), 8, false); return INTEGER_CONST; }
 
 {digit}*\.{digit}+((e|E)("+"|"-")?{digit}+)? {
-                           updatepos;return FLOAT_CONST; }
-{digit}*\.?{digit}+(d|D) { updatepos; return DECIMAL_CONST; }
+                          setReal; return FLOAT_CONST; }
+{digit}*\.?{digit}+(d|D) { setDecimal; return DECIMAL_CONST; }
 
-\'[^\n]*\'               { updatepos; return STRING_CONST; }
+\'[^\n]*\'               { setString; return STRING_CONST; }
 
-{letter}{alphanum}*      { updatepos; return ID; }
-${digit}+                { updatepos; return PARSE_ID; }
+{letter}{alphanum}*      { setId; return ID; }
+${digit}+                { setId; return PARSE_ID; }
 
-":="                     { updatepos; return ASSIGN; }
-";"+[; \t\r]*            {updatepos; return ';'; }
-"!="                     {updatepos;  return NE; }
-"="                      {updatepos;  return EQ; }
-"<="                     {updatepos; return LE; }
-">="                     { updatepos; return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
-"<"                      {updatepos; ; return LT; }
-">"                      {updatepos;  return GT; }
+":="                     { setLex(ASSIGN); return ASSIGN; }
+";"+[; \t\r]*            { setLex(';'); return ';'; }
+"!="                     { setLex(NE); return NE; }
+"="                      { setLex(EQ); return EQ; }
+"<="                     { setLex(LE); return LE; }
+">="                     { setLex(GE); return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
+"<"                      { setLex(LT); return LT; }
+">"                      { setLex(GT); return GT; }
 
-"+"+[+ \t\r]*            {  return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
+"+"+[+ \t\r]*            { setLex('+'); return '+'; } /*might as well handle this here, though doesn't fold over new lines*/
+"-"+[- \t\r]*            { char op = foldMinus(yytext, yyleng); setLex(op); return op; }
 
-
-.                        {  updatepos; return (yytext[0]); }
+.                        { updatepos; setLex(yytext[0]); return (yytext[0]); }
 
 %%
 
