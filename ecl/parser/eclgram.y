@@ -214,10 +214,22 @@ expr_op_expr
     ;
 
 field
-    : expr                          { }
-    | expr '{' parameters '}'       { }
-    | assignment                    { }
+    // A field or record, or just an id
+    : expr optFieldModifiers        { }
+    // named field
+    | anyID optFieldModifiers ASSIGN expr      { }
+    // <type> name
+    // ANY name
+    | expr anyID optFieldModifiers  { }
+    | expr anyID optFieldModifiers ASSIGN expr      { }
+    //unusual (undocumented/unused?) syntax for an array
+    | expr anyID '[' expr ']' optFieldModifiers ASSIGN expr      { }
     | ifblock                       { }
+    ;
+
+optFieldModifiers
+    :
+    | '{' parameters '}'
     ;
 
 fields
