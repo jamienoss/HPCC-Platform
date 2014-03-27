@@ -184,38 +184,15 @@ expr
     | expr_op_expr                  { }
     | constant                      { }
     | set                           { }
-    | expr '.' function
+    | expr '(' parameters ')'       // function call [ or definition ]
     | expr '.' anyID                %prec NEXT_EXPR_PRECEDENCE
     | expr '[' index_range ']'
     | compound_id                   %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
-    | function                      %prec NEXT_EXPR_PRECEDENCE
     | '(' expr ')'                  { } /*might want to re-think discarding parens - I don't think so!*/
     | record_definition             { }
     | module_definition             { }
     | service_definition            { }
     ;
-
-//expr
-//    : expr '+' term                 { }
-//    | expr '-' term                 { }
-//    | term                          { }
-//    ;
-
-//term
-//    : term '*' factor               { }
-//    | term '/' factor               { }
-//    | factor                        { }
-//    ;
-
-//factor
-//    : '(' expr ')'                  { }
-//    : '+' factor                    { }
-//    | '-' factor                    { }
-//    | constant                      { }
-//    | set                           { }
-//    | id_list                       { }
-//    | '(' ')'                       { }
-//    ;
 
 expr_list
     : expr_list ',' expr            { }
