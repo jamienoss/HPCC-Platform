@@ -79,6 +79,10 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     STRING_CONST
     TYPE
 
+    T_LEFT
+    T_OUTER
+    T_UNSIGNED
+
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
@@ -106,8 +110,12 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 
 %left '('
 %left '['
+%left '{'
 
 %right '='
+
+//The following is a list of identifiers which can occur as the second (or more) identifiers in a compound-id
+%left T_OUTER
 
 %left HIGHEST_PRECEDENCE
 
@@ -176,7 +184,11 @@ expr
     | expr_op_expr                  { }
     | constant                      { }
     | set                           { }
-    | identifier                    { }
+    | expr '.' function
+    | expr '.' anyID                %prec NEXT_EXPR_PRECEDENCE
+    | expr '[' index_range ']'
+    | compound_id                   %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+    | function                      %prec NEXT_EXPR_PRECEDENCE
     | '(' expr ')'                  { } /*might want to re-think discarding parens - I don't think so!*/
     | record_definition             { }
     | module_definition             { }
@@ -229,31 +241,47 @@ field
     | expr '{' parameters '}'       { }
     | assignment                    { }
     | ifblock                       { }
-    | { }
     ;
 
 fields
     : fields ';' field              { }
     | fields ',' field              { }
     | field              { }
-// jn commented   |                               { }
     ;
 
 function
-    : ID '(' parameters ')'         { }
-    | ID '[' index_range ']'        { }
+    : anyID '(' parameters ')'         { }
     ;
 
-id_list
-    : id_list identifier            { }  /*This needs further thought inc. whether to swap order of $1 & $2*/
-    | identifier                    { }
+compound_id
+    : anyID                            %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+// A general rule for compound_id of
+//    compound_id : compound_id ID
+// causes greif.  That's because if attributes can be represented by compound ids, it would be impossible to
+// distinguish between
+//  record,x y      -- a multi id identifier
+//  record,x
+//     y            -- a single id indentifier, followed by a field.
+// Therefore I think we will need to special case any combination of identifiers that can be used as part of a compound id
+//   VIRTUAL RECORD, RULE TYPE, EXPORT|SHARED VIRTUAL
+//   SORT KEYED, SORT ALL,ANY DATASET, VIRTUAL DATASET, LEFT|RIGHT|FULL OUTER, ONLY [LEFT|RIGHT|FULL], MANY LOOKUP,
+//   PARTITION RIGHT, ASSERT SORTED, SCAN ALL, MANY [BEST|MIN|MAX], NOT MATCHED [ONLY], WHOLE RECORD
+// note, we need to special case "NOT MATCHED" - we can't special case NOT ID since 99% of the time it will be wrong.
+// Although for some - like NOT we could always match the expression, and then invert it.
+//   Many of these would be better as OUTER(LEFT|RIGHT|FULL)
+// Known prefixes:
+//   SET OF, UNSIGNED, PACKED< BIG, LITTLE, ASCII, EBCDIC
+//   LINKCOUNTED, STREAMED, EMBEDDED, _ARRAY_
+
+//For all compound ids specified here, the second id must be included in the precedence list at the start of the file,
+//with a higher precedence than NEXT_EXPR_PRECEDENCE, and all leading ids must have a precedence in anyID
+    | T_LEFT T_OUTER
     ;
 
-identifier
-    : identifier '.' identifier     { } //Might want to make '.' abstract
-    | function                      { }
-    | ID                            %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
-                                    { }
+anyID
+    : ID
+    | T_LEFT                        %prec NEXT_EXPR_PRECEDENCE
+    | T_OUTER
     ;
 
 ifblock
@@ -267,7 +295,7 @@ import
 
 import_reference
     : module_list                   { }
-    | module_path AS ID             { }
+    | module_path AS anyID          { }
     | module_list FROM module_path  { }
     ;
 
@@ -279,7 +307,8 @@ index_range
     ;
 
 lhs
-    : id_list                       { }
+    : expr                         %prec NEXT_EXPR_PRECEDENCE
+    | lhs expr                     %prec NEXT_EXPR_PRECEDENCE // if +({ follows then shift instead of reducing
     ;
 
 module_definition
@@ -300,14 +329,13 @@ module_path
     ;
 
 module_symbol
-    : ID                            { }
+    : anyID                         { }
     ;
 
 parameter
     :                               { }
     | expr                          { }
-    | assignment                    { }
-    //MORE: Needs to support multiword attributes - e.g, LEFT OUTER
+    | anyID ASSIGN expr             { }
     ;
 
 parameters
@@ -329,7 +357,7 @@ record_definition
     ;
 
 record_options
-    : record_options ',' identifier { }
+    : record_options ',' expr { }
     |                               %prec NEXT_EXPR_PRECEDENCE
                                     { }//Need to change first & add to not account for empty
     ;
@@ -345,9 +373,9 @@ set
     ;
 //---------------------------------------------
 keyword
-    : ID EQ expr                    { }
-    | ID '(' parameters ')'         { }
-    | ID                            { }
+    : anyID EQ expr                    { }
+    | anyID '(' parameters ')'         { }
+    | anyID                            { }
     ;
 
 
