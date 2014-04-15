@@ -82,12 +82,30 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     SERVICE
     STRING_CONST
     TYPE
-    XOR
+	XOR
+
+    T_LEFT
+    T_OUTER
+    T_UNSIGNED
 
     _EOF_ 0 "End of File"
     YY_LAST_TOKEN
 
+//The grammar contains some shift reduce conflicts because expressions can be followed by other expressions.
+//The examples are:
+//   abc(123)      vs     abc     (123)   // id then brackets
+//   abc[1]        vs     abc     [3]     // id then set
+//   abc + def     vs     abc     +def    // id then unary plus
+//
+// All these want to choose the first form (shift) rather than reduce.
+//
+//However there is also the following
+//  ,abc def       vs    ,abc      def    // a multi-word attribute on a record vs a single word attribute followed by the start of a definition.
+//Here we want to choose the second form (reduce)
+//The NEXT_EXPR_PRECEDENCE is before after the tokens (lower priority) that should be shifted, but before those that should be reduced.
+
 %left LOWEST_PRECEDENCE
+%left NEXT_EXPR_PRECEDENCE
 
 %left ':' ';' ',' '.'
 
@@ -99,10 +117,14 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 %left NOT
 %left '*' '/'
 
+
 %left '('
 %left '['
 
 %right '='
+
+//The following is a list of identifiers which can occur as the second (or more) identifiers in a compound-id
+%left T_OUTER
 
 %left HIGHEST_PRECEDENCE
 
@@ -142,9 +164,9 @@ line_of_code
 // ID(3), ID[3] - if you are allowed expr expr then it is ambiguous
 
 all_record_options
-    : record_options                %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+    : record_options                %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
-    | '(' expr ')' record_options  %prec LOWEST_PRECEDENCE { }//Could add '(' to list and "( )" as the parent node.
+    | '(' expr ')' record_options  %prec NEXT_EXPR_PRECEDENCE { }//Could add '(' to list and "( )" as the parent node.
     ;
 
 assignment
@@ -198,7 +220,11 @@ factor
     | '-' factor                    { }
     | constant                      { }
     | set                           { }
-    | id_list                       { }
+    | expr '(' parameters ')'       // function call [ or definition ]
+    | expr '.' anyID                %prec NEXT_EXPR_PRECEDENCE
+    | expr '[' index_range ']'
+    | compound_id                   %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+    | '(' expr ')'                  { } /*might want to re-think discarding parens - I don't think so!*/
     | record_definition             { }
     | module_definition             { }
     | service_definition            { }
@@ -210,11 +236,22 @@ expr_list
     ;
 
 field
-    : expr                          { }
-    | expr '{' parameters '}'       { }
-    | assignment                    { }
+    // A field or record, or just an id
+    : expr optFieldModifiers        { }
+    // named field
+    | anyID optFieldModifiers ASSIGN expr      { }
+    // <type> name
+    // ANY name
+    | expr anyID optFieldModifiers  { }
+    | expr anyID optFieldModifiers ASSIGN expr      { }
+    //unusual (undocumented/unused?) syntax for an array
+    | expr anyID '[' expr ']' optFieldModifiers ASSIGN expr      { }
     | ifblock                       { }
-    | { }
+    ;
+
+optFieldModifiers
+    :
+    | '{' parameters '}'
     ;
 
 fields
@@ -224,20 +261,38 @@ fields
     ;
 
 function
-    : ID '(' parameters ')'         { }
-    | ID '[' index_range ']'        { }
+    : anyID '(' parameters ')'         { }
     ;
 
-id_list
-    : id_list identifier            { }
-    | identifier                    { }
+compound_id
+    : anyID                            %prec NEXT_EXPR_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+// A general rule for compound_id of
+//    compound_id : compound_id ID
+// causes greif.  That's because if attributes can be represented by compound ids, it would be impossible to
+// distinguish between
+//  record,x y      -- a multi id identifier
+//  record,x
+//     y            -- a single id indentifier, followed by a field.
+// Therefore I think we will need to special case any combination of identifiers that can be used as part of a compound id
+//   VIRTUAL RECORD, RULE TYPE, EXPORT|SHARED VIRTUAL
+//   SORT KEYED, SORT ALL,ANY DATASET, VIRTUAL DATASET, LEFT|RIGHT|FULL OUTER, ONLY [LEFT|RIGHT|FULL], MANY LOOKUP,
+//   PARTITION RIGHT, ASSERT SORTED, SCAN ALL, MANY [BEST|MIN|MAX], NOT MATCHED [ONLY], WHOLE RECORD
+// note, we need to special case "NOT MATCHED" - we can't special case NOT ID since 99% of the time it will be wrong.
+// Although for some - like NOT we could always match the expression, and then invert it.
+//   Many of these would be better as OUTER(LEFT|RIGHT|FULL)
+// Known prefixes:
+//   SET OF, UNSIGNED, PACKED< BIG, LITTLE, ASCII, EBCDIC
+//   LINKCOUNTED, STREAMED, EMBEDDED, _ARRAY_
+
+//For all compound ids specified here, the second id must be included in the precedence list at the start of the file,
+//with a higher precedence than NEXT_EXPR_PRECEDENCE, and all leading ids must have a precedence in anyID
+    | T_LEFT T_OUTER
     ;
 
-identifier
-    : identifier '.' identifier     { }
-    | function                      { }
-    | ID                            %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
-                                    { }
+anyID
+    : ID
+    | T_LEFT                        %prec NEXT_EXPR_PRECEDENCE
+    | T_OUTER
     ;
 
 ifblock
@@ -251,7 +306,7 @@ import
 
 import_reference
     : module_list                   { }
-    | module_path AS ID             { }
+    | module_path AS anyID          { }
     | module_list FROM module_path  { }
     ;
 
@@ -263,7 +318,8 @@ index_range
     ;
 
 lhs
-    : id_list                       { }
+    : expr                         %prec NEXT_EXPR_PRECEDENCE
+    | lhs expr                     %prec NEXT_EXPR_PRECEDENCE // if +({ follows then shift instead of reducing
     ;
 
 module_definition
@@ -284,10 +340,10 @@ module_path
     ;
 
 module_symbol
-    : ID                            { }
+    : anyID                         { }
     ;
 
-paren_encaps_expr_expr
+aren_encaps_expr_expr
     : paren_encaps_expr_expr '(' expr ')'
                                     { }
     | '(' expr ')'                  { }
@@ -296,7 +352,7 @@ paren_encaps_expr_expr
 parameter
     :                               { }
     | expr                          { }
-    | assignment                    { }
+    | anyID ASSIGN expr             { }
     ;
 
 parameters
@@ -316,9 +372,9 @@ record_definition
     ;
 
 record_options
-    : record_options ',' identifier { }
-    |                               %prec LOWEST_PRECEDENCE
-                                    { }
+    : record_options ',' expr { }
+    |                               %prec NEXT_EXPR_PRECEDENCE
+                                    { }//Need to change first & add to not account for empty
     ;
 
 rhs
@@ -329,6 +385,18 @@ rhs
 set
     : '[' expr_list ']'             { }
     | '[' ']'                       { }
+    ;
+//---------------------------------------------
+service_keyword
+    : anyID EQ expr                    { }
+    | anyID '(' parameters ')'         { }
+    | anyID                            { }
+    ;
+
+
+service_keywords
+    : service_keywords ',' service_keyword          { }
+    | service_keyword                       { }
     ;
 
 service_attribute
@@ -341,28 +409,18 @@ service_attributes
     | service_attribute ';'         { }
     ;
 
-service_keyword
-    : ID EQ expr                    { }
-    ;
-
-service_keywords
-    : service_keywords ',' service_keyword
-                                    { }
-    | service_keyword               { }
+service_default_keywords
+    : ':' service_keywords                  { }
+    |                               { }
     ;
 
 service_definition
     : SERVICE service_default_keywords service_attributes END
                                     { }
     ;
-
-service_default_keywords
-    : ':' service_keywords ';'      { }//';' not present in current grammar
-    |                               { }
-    ;
-
+//---------------------------------------------------
 type
-    : TYPE fields END               { }
+    : TYPE fields END             { } //MORE/NOTE inclusion of END for possible #if fix i.e. delay syntax check till semantics
     ;
 
 %%
