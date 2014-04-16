@@ -14,6 +14,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 ############################################################################## */
+#include <iostream>
+#include <limits>
+
 #include <stdio.h>
 #include "jcomp.hpp"
 #include "jfile.hpp"
@@ -41,9 +44,15 @@
 #include "hqlerror.hpp"
 #include "hqlcerrors.hpp"
 
+#include "eclparser.hpp"
+#include "semantics.hpp"
+#include "analyserparser.hpp"
+
 #include "hqlgram.hpp"
 #include "hqltrans.ipp"
 #include "hqlutil.hpp"
+
+
 
 #include "build-config.h"
 #include "rmtfile.hpp"
@@ -324,8 +333,9 @@ protected:
     StringBuffer libraryPath;
 
     StringBuffer cclogFilename;
-    StringAttr optLogfile;
+    StringAttr optGrammarFilename;
     StringAttr optIniFilename;
+    StringAttr optLogfile;
     StringAttr optManifestFilename;
     StringAttr optOutputDirectory;
     StringAttr optOutputFilename;
@@ -1025,6 +1035,8 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
 
     applyDebugOptions(instance.wu);
     applyApplicationOptions(instance.wu);
+
+
 
     if (optTargetCompiler != DEFAULT_COMPILER)
         instance.wu->setDebugValue("targetCompiler", compilerTypeText[optTargetCompiler], true);
@@ -1875,6 +1887,19 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         else if (iter.matchFlag(tempBool, "-syntax"))
         {
             setDebugOption("syntaxCheck", tempBool);
+        }
+        else if (iter.matchFlag(tempBool, "-printsyntaxtree"))
+        {
+             setDebugOption("printSyntaxTree", tempBool);
+        }
+        else if (iter.matchOption(optGrammarFilename, "-grammaranalysis"))
+        {
+            if (!checkFileExists(optGrammarFilename))
+            {
+                ERRLOG("Error: grammar file to be analysed '%s' does not exist",optGrammarFilename.get());
+                return false;
+            }
+            setDebugOption("grammaranalysis", true);
         }
         else if (iter.matchOption(optIniFilename, "-specs"))
         {

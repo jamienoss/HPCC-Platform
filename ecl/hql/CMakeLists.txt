@@ -58,7 +58,7 @@ set (   SRCS
 
         hqlgram.y
         hqllex.l
-         
+
         hqlerror.hpp
         hqlerrors.hpp
         hql.hpp
@@ -87,6 +87,9 @@ set (   SRCS
         hqlvalid.hpp
         hqlwuerr.hpp
         hqlxmldb.hpp
+
+       newparser.hpp
+       newparser.cpp
     )
 
 include_directories ( 
@@ -101,7 +104,8 @@ include_directories (
          ./../../system/include 
          ./../../common/workunit
          ./../../system/jlib 
-         ./../../ecl/hql 
+         ./../../ecl/hql
+         ./../../ecl/parser
          ./../../testing/unittests
     )
 
@@ -111,12 +115,22 @@ if (WIN32)
         COMMAND ${bisoncmdprefix} ${bisoncmd} --report=state --defines=${CMAKE_CURRENT_BINARY_DIR}/hqlgram.h --output=${CMAKE_CURRENT_BINARY_DIR}/hqlgram.cpp ${CMAKE_CURRENT_SOURCE_DIR}/hqlgram.y 2>&1 | findstr /V "unused value" | more
         DEPENDS hqlgram.y
     )
+    #add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/eclgram.cpp ${CMAKE_CURRENT_BINARY_DIR}/eclgram.h
+    #    #pipe result through findstr to remove warnings that are hard to suppress, and pipe through more to prevent error code from no matches aborting the compile
+    #    COMMAND ${bisoncmdprefix} ${bisoncmd} --report=state --defines=${CMAKE_CURRENT_BINARY_DIR}/eclgram.h --output=${CMAKE_CURRENT_BINARY_DIR}/eclgram.cpp ${CMAKE_CURRENT_SOURCE_DIR}/eclgram.y 2>&1 | findstr /V "unused value" | more
+    #    DEPENDS eclgram.y
+    #)
 else()
     add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hqlgram.cpp ${CMAKE_CURRENT_BINARY_DIR}/hqlgram.h
         #pipe result through grep to remove warnings that are hard to suppress, and pipe through cat to prevent error code from no matches aborting the compile
         COMMAND ${bisoncmdprefix} ${bisoncmd} --report=state --defines=${CMAKE_CURRENT_BINARY_DIR}/hqlgram.h --output=${CMAKE_CURRENT_BINARY_DIR}/hqlgram.cpp ${CMAKE_CURRENT_SOURCE_DIR}/hqlgram.y 2>&1 | grep -v "unused value" | cat
         DEPENDS hqlgram.y
     )
+    #add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/eclgram.cpp ${CMAKE_CURRENT_BINARY_DIR}/eclgram.h
+    #    #pipe result through grep to remove warnings that are hard to suppress, and pipe through cat to prevent error code from no matches aborting the compile
+    #    COMMAND ${bisoncmdprefix} ${bisoncmd} --report=state --defines=${CMAKE_CURRENT_BINARY_DIR}/eclgram.h --output=${CMAKE_CURRENT_BINARY_DIR}/eclgram.cpp ${CMAKE_CURRENT_SOURCE_DIR}/eclgram.y 2>&1 | grep -v "unused value" | cat
+    #    DEPENDS eclgram.y
+    #)
 endif()
 
 add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hqllex.cpp 
@@ -124,19 +138,28 @@ add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hqllex.cpp
     DEPENDS hqllex.l
 )
 
+#add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ecllex.cpp
+#    COMMAND ${flexcmdprefix} ${flexcmd} --outfile=${CMAKE_CURRENT_BINARY_DIR}/ecllex.cpp --header-file=${CMAKE_CURRENT_BINARY_DIR}/ecllex.hpp ${CMAKE_CURRENT_SOURCE_DIR}/ecllex.l
+#    DEPENDS ecllex.l
+#)
+
 if (WIN32)
     set_source_files_properties (hqlgram.cpp PROPERTIES COMPILE_FLAGS "/Od")
+#    set_source_files_properties (eclgram.cpp PROPERTIES COMPILE_FLAGS "/Od")
 endif()
 
 ADD_DEFINITIONS( -D_USRDLL -DHQL_EXPORTS -DHQLFOLD_EXPORTS -DHQLTRANS_EXPORTS )
 
 HPCC_ADD_LIBRARY( hql SHARED ${SRCS} ${CMAKE_CURRENT_BINARY_DIR}/hqlgram.cpp ${CMAKE_CURRENT_BINARY_DIR}/hqllex.cpp  )
+                                     #${CMAKE_CURRENT_BINARY_DIR}/eclgram.cpp ${CMAKE_CURRENT_BINARY_DIR}/ecllex.cpp  )
+
 install ( TARGETS hql RUNTIME DESTINATION ${EXEC_DIR} LIBRARY DESTINATION ${LIB_DIR} )
-target_link_libraries ( hql  
+target_link_libraries ( hql
          jlib
-         nbcd 
-         eclrtl 
-         deftype 
+         nbcd
+         eclrtl
+         deftype
+         parser
          ${CPPUNIT_LIBRARIES}
     )
 

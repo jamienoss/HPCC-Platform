@@ -15,7 +15,7 @@
 ################################################################################
 
 
-# Component: eclcc 
+# Component: eclcc
 #####################################################
 # Description:
 # ------------
@@ -23,22 +23,24 @@
 #####################################################
 
 
-project( eclcc ) 
+project( eclcc )
 
-set (    SRCS 
-         eclcc.cpp 
+set (    SRCS
+         eclcc.cpp
     )
 
-include_directories ( 
+include_directories (
          ${CMAKE_BINARY_DIR}
          ${CMAKE_BINARY_DIR}/oss
-         ./../../ecl/hqlcpp 
-         ./../../common/workunit 
-         ./../../common/deftype 
-         ./../../system/include 
-         ./../../ecl/hql 
-         ./../../rtl/include 
-         ./../../system/jlib 
+         ./../../ecl/hqlcpp
+         ./../../common/workunit
+         ./../../common/deftype
+         ./../../system/include
+         ./../../ecl/hql
+         ./../../ecl/parser
+         ./../../ecl/eclanalyser
+         ./../../rtl/include
+         ./../../system/jlib
          ./../../common/remote
     )
 
@@ -51,16 +53,17 @@ endif()
 
 HPCC_ADD_EXECUTABLE ( eclcc ${SRCS} )
 install ( TARGETS eclcc RUNTIME DESTINATION ${EXEC_DIR} )
-target_link_libraries ( eclcc 
+target_link_libraries ( eclcc
          jlib
-         nbcd 
-         eclrtl 
-         deftype 
-         remote 
-         dalibase 
-         workunit 
-         thorhelper 
+         nbcd
+         eclrtl
+         deftype
+         remote
+         dalibase
+         workunit
+         thorhelper
          hql
+         parser
+         eclanalyser
          hqlcpp
     )
-

@@ -586,6 +586,7 @@ public:
     virtual void reportWarning(int warnNo, const char *msg, const char *filename=NULL, int lineno=0, int column=0, int pos=0);
     virtual size32_t errCount();
     virtual size32_t warnCount();
+    bool hadAnyErrors() { return errCount() != initialErrors; }
     
     IHqlExpression * findAssignment(IHqlExpression *field);
     void addAssignment(attribute &field, attribute &source);
@@ -848,6 +849,7 @@ protected:
     PointerArray savedIds;
     UnsignedArray savedLastpos;
     unsigned lastpos;
+    unsigned initialErrors;
     bool inType;
     Owned<IHqlScope> modScope;
     OwnedHqlExpr dotScope;
