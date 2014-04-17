@@ -88,6 +88,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     YY_LAST_TOKEN
 
 %left LOWEST_PRECEDENCE
+//%right ID
 
 %left ':' ';' ',' '.'
 
@@ -101,8 +102,6 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 
 %left '('
 %left '['
-
-%right '='
 
 %left HIGHEST_PRECEDENCE
 
@@ -198,7 +197,7 @@ factor
     | '-' factor                    { }
     | constant                      { }
     | set                           { }
-    | id_list                       { }
+    | compound_id                   { }
     | record_definition             { }
     | module_definition             { }
     | service_definition            { }
@@ -228,8 +227,8 @@ function
     | ID '[' index_range ']'        { }
     ;
 
-id_list
-    : id_list identifier            { }
+compound_id
+    : compound_id identifier        { }
     | identifier                    { }
     ;
 
@@ -263,7 +262,7 @@ index_range
     ;
 
 lhs
-    : id_list                       { }
+    : compound_id                   { }
     ;
 
 module_definition
@@ -332,7 +331,8 @@ set
     ;
 
 service_attribute
-    : function ':' service_keywords { }
+    : compound_id ':' service_keywords
+                                    { }
     ;
 
 service_attributes
@@ -343,6 +343,7 @@ service_attributes
 
 service_keyword
     : ID EQ expr                    { }
+    | identifier                    { }
     ;
 
 service_keywords
@@ -357,7 +358,7 @@ service_definition
     ;
 
 service_default_keywords
-    : ':' service_keywords ';'      { }//';' not present in current grammar
+    : ':' service_keywords          { }//';' not present in current grammar
     |                               { }
     ;
 
