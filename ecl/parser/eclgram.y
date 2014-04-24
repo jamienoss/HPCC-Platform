@@ -61,9 +61,12 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     DIV "Division of integers as reals"
     DOTDOT ".."
     END
+    ENDMACRO
     EQ "="
     FLOAT_CONST
     FROM
+    FUNCTION
+    FUNCTIONMACRO
     GE ">="
     GT ">"
     ID
@@ -72,6 +75,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     INTEGER_CONST
     LE "<="
     LT "<"
+    MACRO
     MODULE
     NE "!="
     NOT
@@ -79,6 +83,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     PARSE_ID
     REAL
     RECORD
+    RETURN
     SERVICE
     STRING_CONST
     TYPE
@@ -118,12 +123,28 @@ eclQuery
     | line_of_code                  { }
     ;
 
-line_of_code
+
+nested_line_of_code
     : expr                          { }
     | import                        { }
     | assignment                    { }
-    |
     ;
+
+un-nested_line_of_code
+   : function_definition            { }
+   ;
+
+line_of_code
+    : un-nested_line_of_code        { }
+    | nested_line_of_code           { }
+    | /*EMPTY*/                     { }
+    ;
+
+nested_eclQuery
+    : nested_eclQuery ';' nested_line_of_code     { }
+    | nested_line_of_code                  { }
+    ;
+
 
 //-----------Listed Alphabetical from here on in------------------------------------------
 
@@ -147,7 +168,12 @@ all_record_options
     ;
 
 assignment
-    : lhs ASSIGN rhs                { }
+    : compound_id ASSIGN rhs                { }
+    ;
+
+compound_id
+    : compound_id identifier        { }
+    | identifier                    { }
     ;
 
 //GH: No need to distinguish these
@@ -168,6 +194,7 @@ low_prec_op
     | LE                            { }
     | EQ                            { }
     | NE                            { }
+    | '?'                           { }
     ;
 
 high_prec_op
@@ -203,6 +230,31 @@ factor
     | service_definition            { }
     ;
 
+function_definition
+    : function_def                  { }
+    | functionmacro_def             { }
+    | macro_def                     { }
+    ;
+
+function_def
+    : compound_id ASSIGN FUNCTION def_body RETURN ID ';' END
+                                    { }
+    ;
+
+macro_def
+    : compound_id ASSIGN MACRO def_body ENDMACRO
+                                    { }
+    ;
+
+functionmacro_def
+    : compound_id ASSIGN FUNCTIONMACRO def_body RETURN ID ';' ENDMACRO
+                                    { }
+    ;
+
+def_body
+    : nested_eclQuery                      { }
+    ;
+
 expr_list
     : expr_list ',' expr            { }
     | expr                          { }
@@ -224,18 +276,13 @@ fields
 
 function
     : ID '(' parameters ')'         { }
-    | ID '[' index_range ']'        { }
-    ;
-
-compound_id
-    : compound_id identifier        { }
-    | identifier                    { }
+    | ID '[' index_range ']'        { } // perhaps move this
     ;
 
 identifier
     : identifier '.' identifier     { }
     | function                      { }
-    | ID                            %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+    | ID                            %prec LOWEST_PRECEDENCE    // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
     ;
 
@@ -260,10 +307,11 @@ index_range
     | range_op expr                 { }
     | expr                          { }
     ;
-
+/*
 lhs
     : compound_id                   { }
     ;
+*/
 
 module_definition
     : MODULE all_record_options fields END
@@ -293,7 +341,7 @@ paren_encaps_expr_expr
     ;
 
 parameter
-    :                               { }
+    : /*EMPTY*/                     { }
     | expr                          { }
     | assignment                    { }
     ;
@@ -316,7 +364,7 @@ record_definition
 
 record_options
     : record_options ',' identifier { }
-    |                               %prec LOWEST_PRECEDENCE
+    | /*EMPTY*/                     %prec LOWEST_PRECEDENCE
                                     { }
     ;
 
@@ -359,7 +407,7 @@ service_definition
 
 service_default_keywords
     : ':' service_keywords          { }//';' not present in current grammar
-    |                               { }
+    | /*EMPTY*/                     { }
     ;
 
 type

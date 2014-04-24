@@ -256,15 +256,20 @@ AND                      { setLex(AND); return AND; }
 
 DIV                      { setLex(DIV); return DIV; }
 END                      { setLex(END); return END; }
+ENDMACRO                 { setLex(ENDMACRO); return ENDMACRO; }
 FALSE                    { setBool; return BOOLEAN_CONST; }
 FROM                     { setLex(FROM); return FROM; }
+FUNCTION                 { setLex(FUNCTION); return FUNCTION; }
+FUNCTIONMACRO            { setLex(FUNCTIONMACRO); return FUNCTIONMACRO; }
 IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
+MACRO                    { setLex(MACRO); return MACRO; }
 MODULE                   { setLex(MODULE); return MODULE; }
 NOT                      { setLex(NOT); return NOT; }
 OR                       { setLex(OR); return OR; }
 RECORD                   { setLex(RECORD); return RECORD; }
-SERVICE                   { setLex(SERVICE); return SERVICE; }
+RETURN                   { setLex(RETURN); return RETURN; }
+SERVICE                  { setLex(SERVICE); return SERVICE; }
 TRUE                     { setBool; return BOOLEAN_CONST; }
 TYPE                     { setLex; return TYPE; }
 ".."                     { setLex; return DOTDOT; }
@@ -290,7 +295,7 @@ TYPE                     { setLex; return TYPE; }
 
 \'[^\n]*\'               { setString; return STRING_CONST; }
 
-{letter}{alphanum}*      { setId; return ID; }
+"#"?{letter}{alphanum}*  { setId; return ID; }
 ${digit}+                { setId; return PARSE_ID; }
 
 ":="                     { setLex(ASSIGN); return ASSIGN; }
