@@ -81,11 +81,14 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     NOT
     OR
     PARSE_ID
+    PATTERN
     REAL
     RECORD
     RETURN
+    RULE
     SERVICE
     STRING_CONST
+    TOKEN
     TYPE
     XOR
 
@@ -132,6 +135,7 @@ nested_line_of_code
 
 un-nested_line_of_code
    : function_definition            { }
+   | parse_support                 { }
    ;
 
 line_of_code
@@ -334,12 +338,6 @@ module_symbol
     : ID                            { }
     ;
 
-paren_encaps_expr_expr
-    : paren_encaps_expr_expr '(' expr ')'
-                                    { }
-    | '(' expr ')'                  { }
-    ;
-
 parameter
     : /*EMPTY*/                     { }
     | expr                          { }
@@ -349,6 +347,34 @@ parameter
 parameters
     : parameters ',' parameter      { }
     | parameter                     { }
+    ;
+    
+paren_encaps_expr_expr
+    : paren_encaps_expr_expr '(' expr ')'
+                                    { }
+    | '(' expr ')'                  { }
+    ;
+    
+parse_support
+    : PATTERN ID ASSIGN pattern     { }
+    | TOKEN ID ASSIGN pattern       { }
+    | RULE parse_support_rule_option ID ASSIGN pattern
+                                    { }
+    ;
+    
+parse_support_rule_option
+    : /*EMPTY*/                     { }
+    ;
+    
+pattern
+    : pattern pattern_definitions   { }
+    | pattern_definitions           { }
+    ;
+    
+pattern_definitions
+    : PARSE_ID                      { }
+    | function                      { }
+    | ID                            { }
     ;
 
 range_op

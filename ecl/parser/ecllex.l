@@ -267,9 +267,12 @@ MACRO                    { setLex(MACRO); return MACRO; }
 MODULE                   { setLex(MODULE); return MODULE; }
 NOT                      { setLex(NOT); return NOT; }
 OR                       { setLex(OR); return OR; }
+PATTERN                  { setLex(PATTERN); return PATTERN; }
 RECORD                   { setLex(RECORD); return RECORD; }
 RETURN                   { setLex(RETURN); return RETURN; }
+RULE                     { setLex(RULE); return RULE; }
 SERVICE                  { setLex(SERVICE); return SERVICE; }
+TOKEN                    { setLex(TOKEN); return TOKEN; }
 TRUE                     { setBool; return BOOLEAN_CONST; }
 TYPE                     { setLex; return TYPE; }
 ".."                     { setLex; return DOTDOT; }
