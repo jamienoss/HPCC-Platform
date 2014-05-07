@@ -1579,7 +1579,7 @@ static bool hashElement(node_operator op, IHqlExpression * expr, unsigned __int6
         case type_unicode:
             {
                 const UChar * udata = static_cast<const UChar *>(value->queryValue());
-                size32_t len = rtlTrimUnicodeStrLen(type->getStringLen(), udata);
+                size32_t len = type->getStringLen();
                 hashCode = (op == no_hash32) ? rtlHash32Unicode(len, udata, (unsigned)hashCode) : rtlHash64Unicode(len, udata, hashCode);
                 return true;
             }
@@ -3417,7 +3417,9 @@ IHqlExpression * NullFolderMixin::foldNullDataset(IHqlExpression * expr)
     case no_distribute:
     case no_distributed:
         {
-            if (isNull(child) || isFail(child))
+            if (isNull(child))
+                return replaceWithNull(expr);
+            if (isFail(child))
                 return removeParentNode(expr);
             if (expr->hasAttribute(skewAtom))
             	break;

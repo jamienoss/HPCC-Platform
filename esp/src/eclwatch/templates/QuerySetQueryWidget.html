@@ -8,13 +8,14 @@
                     <div id="${id}Open" data-dojo-attach-event="onClick:_onOpen" data-dojo-type="dijit.form.Button">${i18n.Open}</div>
                     <div id="${id}Delete" data-dojo-attach-event="onClick:_onDelete" data-dojo-type="dijit.form.Button">${i18n.Delete}</div>
                     <span data-dojo-type="dijit.ToolbarSeparator"></span>
-                    <div id="${id}UnSuspend" data-dojo-attach-event="onClick:_onUnsuspend" data-dojo-type="dijit.form.Button">${i18n.Unsuspend}</div>
                     <div id="${id}OnSuspend" data-dojo-attach-event="onClick:_onSuspend" data-dojo-type="dijit.form.Button">${i18n.Suspend}</div>
+                    <div id="${id}UnSuspend" data-dojo-attach-event="onClick:_onUnsuspend" data-dojo-type="dijit.form.Button">${i18n.Unsuspend}</div>
                     <span data-dojo-type="dijit.ToolbarSeparator"></span>
                     <div id="${id}Activate" data-dojo-attach-event="onClick:_onActivate" data-dojo-type="dijit.form.Button">${i18n.Activate}</div>
                     <div id="${id}Deactivate" data-dojo-attach-event="onClick:_onDeactivate" data-dojo-type="dijit.form.Button">${i18n.Deactivate}</div>
                     <span data-dojo-type="dijit.ToolbarSeparator"></span>
                     <div id="${id}Filter" data-dojo-type="FilterDropDownWidget">
+                        <input id="${id}Wuid" title="${i18n.WUID}:" name="WUID" colspan="2" data-dojo-props="trim: true, placeHolder:'W20130222-171723'" data-dojo-type="dijit.form.TextBox" />
                         <input id="${id}ClusterTargetSelect" title="${i18n.Cluster}:" name="QuerySetName" colspan="2"  data-dojo-type="TargetSelectWidget" />
                         <select id="${id}SuspendedStates" title="${i18n.Suspended}:" name="SuspendedByUser" colspan="2" data-dojo-type="dijit.form.Select">
                             <option value="" selected="selected">${i18n.All}</option>

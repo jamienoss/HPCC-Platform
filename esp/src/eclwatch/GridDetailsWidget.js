@@ -95,15 +95,37 @@ define([
         },
 
         //  Implementation  ---
-        initGrid: function() {
-            var store = new Memory({
-                idProperty: this.idProperty,
-                data: []
-            });
-            this.store = Observable(store);
+        setGridNoDataMessage: function(msg) {
+            if (this.grid && this.grid.store === this.store) {
+                this.grid.noDataMessage = "<span class='dojoxGridNoData'>" + msg + "</span>";
+                if (this.grid.noDataNode) {
+                    this.grid.noDataNode.innerHTML = "<span class='dojoxGridNoData'>" + msg + "</span>";
+                }
+            }
+        },
 
-            this.grid = this.createGrid(this.id + "Grid");
+        initGrid: function() {
             var context = this;
+            var MyMemory = declare("MyMemory", [Memory], {
+                idProperty: this.idProperty,
+                data: [],
+                setData: function (data) {
+                    var retVal = this.inherited(arguments);
+                    context.setGridNoDataMessage(context.i18n.noDataMessage);
+                    return retVal;
+                }
+            });
+            var store = new MyMemory();
+            this.store = Observable(store);
+            this.grid = this.createGrid(this.id + "Grid");
+            this.setGridNoDataMessage(this.i18n.loadingMessage);
+
+            this.grid.on(".dgrid-row:dblclick", function (evt) {
+                if (context._onRowDblClick) {
+                    var row = context.grid.row(evt).data;
+                    context._onRowDblClick(row);
+                }
+            });
             this.grid.on(".dgrid-row:dblclick", function (evt) {
                 if (context._onRowDblClick) {
                     var row = context.grid.row(evt).data;
@@ -111,9 +133,6 @@ define([
                 }
             });
             this.grid.onSelectionChanged(function (event) {
-                context._refreshActionState();
-            });
-            this.grid.onContentChanged(function (object, removedFrom, insertedInto) {
                 context._refreshActionState();
             });
             this.grid.startup();
@@ -166,6 +185,10 @@ define([
                     currSel.refresh(currSel.hpcc.refreshParams);
                 }
             }
+        },
+
+        createDetail: function (id, row, params) {
+            return null;
         },
 
         getDetailID: function (row, params) {

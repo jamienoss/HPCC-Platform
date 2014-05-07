@@ -87,6 +87,10 @@ define([
             return ESPRequest.send("WsWorkunits", "WUShowScheduled", params);
         },
 
+        WUPushEvent: function (params) {
+            return ESPRequest.send("WsWorkunits", "WUPushEvent", params);
+        },
+
         WUQuerysetAliasAction: function (selection, action) {
             var requests = [];
             arrayUtil.forEach(selection, function (item, idx) {
@@ -253,7 +257,7 @@ define([
                 {value: "DojoD3BarChart", label:  "Bar Chart"},
                 {value: "DojoD3PieChart", label:  "Pie Chart"},
                 {value: "DojoD3DonutChart", label:  "Donut Chart"},
-                {value: "DojoD3Choropeth", label:  "Choropeth"},
+                {value: "DojoD3Choropleth", label:  "Choropleth"},
                 {value: "DojoD3CooccurrenceGraph", label:  "Co-Occurrence Graph"},
                 {value: "DojoD3ForceDirectedGraph", label:  "Force Directed Graph"},
                 {value: "DojoD3Histogram", label:  "Histogram"}

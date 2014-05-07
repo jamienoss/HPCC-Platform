@@ -82,8 +82,6 @@ define([
         timersWidgetLoaded: false,
         graphsWidget: null,
         graphsWidgetLoaded: false,
-        vizWidget: null,
-        vizWidgetLoaded: false,
         logsWidget: null,
         logsWidgetLoaded: false,
         playgroundWidget: null,
@@ -105,10 +103,8 @@ define([
         postCreate: function (args) {
             this.inherited(arguments);
             this.summaryWidget = registry.byId(this.id + "_Summary");
-            this.variablesWidget = registry.byId(this.id + "_Variables");
             this.resultsWidget = registry.byId(this.id + "_Results");
             this.filesWidget = registry.byId(this.id + "_Files");
-            this.vizWidget = registry.byId(this.id + "_Visualize");
             this.timersWidget = registry.byId(this.id + "_Timers");
             this.graphsWidget = registry.byId(this.id + "_Graphs");
             this.logsWidget = registry.byId(this.id + "_Logs");
@@ -125,21 +121,6 @@ define([
 
         startup: function (args) {
             this.inherited(arguments);
-            var store = new Memory({
-                idProperty: "Id",
-                data: []
-            });
-            this.variablesStore = Observable(store);
-
-            this.variablesGrid = new declare([OnDemandGrid, Keyboard, ColumnResizer, DijitRegistry])({
-                allowSelectAll: true,
-                columns: {
-                    Name: { label: "Name", width: 360 },
-                    Value: { label: "Value" }
-                },
-                store: this.variablesStore
-            }, this.id + "VariablesGrid");
-            this.variablesGrid.startup();
         },
 
         destroy: function (args) {
@@ -251,7 +232,6 @@ define([
                 this.wu.refresh();
             }
             this.infoGridWidget.init(params);
-            this.selectChild(this.summaryWidget, true);
         },
 
         initTab: function () {
@@ -259,7 +239,15 @@ define([
                 return
             }
             var currSel = this.getSelectedChild();
-            if (currSel.id == this.resultsWidget.id && !this.resultsWidgetLoaded) {
+            if (currSel.id == this.widget._Variables.id && !this.widget._Variables.__hpcc_initalized) {
+                this.widget._Variables.init({
+                    Wuid: this.wu.Wuid
+                });
+            } else if (currSel.id == this.widget._Workflows.id && !this.widget._Workflows.__hpcc_initalized) {
+                this.widget._Workflows.init({
+                    Wuid: this.wu.Wuid
+                });
+            } else if (currSel.id == this.resultsWidget.id && !this.resultsWidgetLoaded) {
                 this.resultsWidgetLoaded = true;
                 this.resultsWidget.init({
                     Wuid: this.wu.Wuid
@@ -280,9 +268,13 @@ define([
                 this.graphsWidget.init({
                     Wuid: this.wu.Wuid
                 });
-            } else if (currSel.id == this.vizWidget.id && !this.vizWidgetLoaded) {
-                this.vizWidgetLoaded = true;
-                this.vizWidget.init({
+            } else if (currSel.id == this.widget._Queries.id && !this.widget._Queries.__hpcc_initalized) {
+                this.widget._Queries.init({
+                    Wuid: this.wu.Wuid
+                });
+            } else if (currSel.id == this.widget._Resources.id && !this.resourcesWidgetLoaded) {
+                this.resourcesWidgetLoaded = true;
+                this.widget._Resources.init({
                     Wuid: this.wu.Wuid
                 });
             } else if (currSel.id == this.logsWidget.id && !this.logsWidgetLoaded) {
@@ -350,14 +342,22 @@ define([
                 dom.byId(this.id + "ProtectedImage").src = this.wu.getProtectedImage();
             } else if (name === "Jobname") {
                 this.updateInput("Jobname2", oldValue, newValue);
-            } else if (name === "VariableCount" && newValue) {
-                this.variablesWidget.set("title", this.i18n.Variables + " (" + newValue + ")");
+            } else if (name === "WorkflowCount" && newValue) {
+                this.widget._Workflows.set("title", this.i18n.Workflows + " (" + newValue + ")");
+                this.setDisabled(this.widget._Workflows.id, false);
             } else if (name === "variables") {
-                this.variablesWidget.set("title", this.i18n.Variables + " (" + newValue.length + ")");
-                this.variablesStore.setData(newValue);
-                this.variablesGrid.refresh();
+                var tooltip = "";
+                for (var key in newValue) {
+                    if (tooltip != "")
+                        tooltip += "\n";
+                    tooltip += newValue[key].Name;
+                    if (newValue[key].Value)
+                        tooltip += " " + newValue[key].Value;
+                }
+                this.widget._Variables.set("tooltip", tooltip);
             } else if (name === "ResultCount" && newValue) {
                 this.resultsWidget.set("title", this.i18n.Outputs + " (" + newValue + ")");
+                this.setDisabled(this.resultsWidget.id, false);
             } else if (name === "results") {
                 this.resultsWidget.set("title", this.i18n.Outputs + " (" + newValue.length + ")");
                 var tooltip = "";
@@ -369,8 +369,10 @@ define([
                         tooltip += " " + newValue[key].Value;
                 }
                 this.resultsWidget.set("tooltip", tooltip);
+                this.setDisabled(this.resultsWidget.id, false);
             } else if (name === "SourceFileCount" && newValue) {
                 this.filesWidget.set("title", this.i18n.Inputs + " (" + newValue + ")");
+                this.setDisabled(this.filesWidget.id, false);
             } else if (name === "sourceFiles") {
                 this.filesWidget.set("title", this.i18n.Inputs + " (" + newValue.length + ")");
                 var tooltip = "";
@@ -380,16 +382,16 @@ define([
                     tooltip += newValue[i].Name;
                 }
                 this.filesWidget.set("tooltip", tooltip);
+                this.setDisabled(this.filesWidget.id, false);
             } else if (name === "TimerCount" && newValue) {
                 this.timersWidget.set("title", this.i18n.Timers + " (" + newValue + ")");
+                this.setDisabled(this.timersWidget.id, false);
             } else if (name === "timers") {
                 this.timersWidget.set("title", this.i18n.Timers + " (" + newValue.length + ")");
                 var tooltip = "";
                 for (var i = 0; i < newValue.length; ++i) {
                     if (newValue[i].GraphName)
                         continue;
-                    if (newValue[i].Name == "Process")
-                        dom.byId(this.id + "Time").innerHTML = newValue[i].Value;
                     if (tooltip != "")
                         tooltip += "\n";
                     tooltip += newValue[i].Name;
@@ -397,8 +399,10 @@ define([
                         tooltip += " " + newValue[i].Value;
                 }
                 this.timersWidget.set("tooltip", tooltip);
+                this.setDisabled(this.timersWidget.id, false);
             } else if (name === "GraphCount" && newValue) {
                 this.graphsWidget.set("title", this.i18n.Graphs + " (" + newValue + ")");
+                this.setDisabled(this.graphsWidget.id, false);
             } else if (name === "graphs") {
                 this.graphsWidget.set("title", this.i18n.Graphs + " (" + newValue.length + ")");
                 var tooltip = "";
@@ -410,6 +414,10 @@ define([
                         tooltip += " " + newValue[i].Time;
                 }
                 this.graphsWidget.set("tooltip", tooltip);
+                this.setDisabled(this.graphsWidget.id, false);
+            } else if (name === "ResourceURLCount" && newValue) {
+                this.widget._Resources.set("title", this.i18n.Resources + " (" + newValue + ")");
+                this.setDisabled(this.widget._Resources.id, false);
             } else if (name === "Archived") {
                 this.refreshActionState();
             } else if (name === "StateID") {
@@ -418,6 +426,15 @@ define([
                 this.refreshActionState();
             } else if (name === "hasCompleted") {
                 this.checkIfComplete();
+            }
+            if (name === "changedCount" && newValue > 0) {
+                var getInt = function (item) {
+                    if (item)
+                        return item;
+                    return 0;
+                };
+                this.widget._Variables.set("title", this.i18n.Variables + " (" + (getInt(this.wu.VariableCount) + getInt(this.wu.ApplicationValueCount) + getInt(this.wu.DebugValueCount)) + ")");
+                this.setDisabled(this.widget._Variables.id, false);
             }
         },
 
@@ -462,6 +479,7 @@ define([
                         }
 
                         context.logsWidget.set("title", context.i18n.Helpers + " (" + helpersCount + ")");
+                        context.setDisabled(context.logsWidget.id, false);
                     }
                 });
             }

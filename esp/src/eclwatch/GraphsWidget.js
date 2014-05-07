@@ -32,6 +32,7 @@ define([
 
     "hpcc/GridDetailsWidget",
     "hpcc/ESPWorkunit",
+    "hpcc/ESPQuery",
     "hpcc/DelayLoadWidget",
     "hpcc/TimingTreeMapWidget",
     "hpcc/ESPUtil"
@@ -39,7 +40,7 @@ define([
 ], function (declare, lang, i18n, nlsHPCC, arrayUtil, on,
                 Button,
                 OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
-                GridDetailsWidget, ESPWorkunit, DelayLoadWidget, TimingTreeMapWidget, ESPUtil) {
+                GridDetailsWidget, ESPWorkunit, ESPQuery, DelayLoadWidget, TimingTreeMapWidget, ESPUtil) {
     return declare("GraphsWidget", [GridDetailsWidget], {
         i18n: nlsHPCC,
 
@@ -75,8 +76,8 @@ define([
                     }
                 });
             }
-            else if (params.Query){
-                this.query = params.Query;
+            else if (params.QuerySetId && params.Id) {
+                this.query = ESPQuery.Get(params.QuerySetId, params.Id);
                 this.refreshGrid();
             }
 
@@ -107,7 +108,15 @@ define([
                         safeMode: true
                     });
                 }
-            }, this.id + "ContainerNode");
+            }).placeAt(this.widget.Open.domNode, "after");
+            this.openTreeMode = new Button({
+                label: this.i18n.OpenTreeMode,
+                onClick: function (event) {
+                    context._onOpen(event, {
+                        treeMode: true
+                    });
+                }
+            }).placeAt(this.widget.Open.domNode, "after");
 
             var retVal = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
                 allowSelectAll: true,
@@ -153,6 +162,16 @@ define([
             return retVal;
         },
 
+        getDetailID: function (row, params) {
+            var retVal = "Detail" + row[this.idProperty];
+            if (params && params.treeMode) {
+                retVal += "Tree";
+            } else if (params && params.safeMode) {
+                retVal += "Safe";
+            }
+            return retVal;
+        },
+
         createDetail: function (id, row, params) {
             var localParams = {}
             if (this.wu) {
@@ -172,11 +191,17 @@ define([
                     SafeMode: (params && params.safeMode) ? true : false
                 }
             }
+            var title = row.Name;
+            if (params && params.treeMode) {
+                title += " (T)";
+            } else if (params && params.safeMode) {
+                title += " (S)";
+            }
             return new DelayLoadWidget({
                 id: id,
-                title: row.Name,
+                title: title,
                 closable: true,
-                delayWidget: "GraphPageWidget",
+                delayWidget: (params && params.treeMode) ? "GraphTreeWidget" : "GraphPageWidget",
                 hpcc: {
                     type: "graph",
                     params: localParams
@@ -197,27 +222,31 @@ define([
                     }
                 });
             } else if (this.query) {
-                var graphs = [];
-                if (lang.exists("GraphIds.Item", this.query)) {
-                    arrayUtil.forEach(this.query.GraphIds.Item, function (item, idx) {
-                        var graph = {
-                            Name: item,
-                            Label: "",
-                            Completed: "",
-                            Time: 0,
-                            Type: ""
-                        };
-                        graphs.push(graph);
-                    });
-                }
-                this.store.setData(graphs);
-                this.grid.refresh();
+                var context = this;
+                this.query.refresh().then(function (response) {
+                    var graphs = [];
+                    if (lang.exists("GraphIds.Item", context.query)) {
+                        arrayUtil.forEach(context.query.GraphIds.Item, function (item, idx) {
+                            var graph = {
+                                Name: item,
+                                Label: "",
+                                Completed: "",
+                                Time: 0,
+                                Type: ""
+                            };
+                            graphs.push(graph);
+                        });
+                    }
+                    context.store.setData(graphs);
+                    context.grid.refresh();
+                });
             }
         },
 
         refreshActionState: function (selection) {
             this.inherited(arguments);
 
+            this.openTreeMode.set("disabled", !selection.length);
             this.openSafeMode.set("disabled", !selection.length);
         },
 

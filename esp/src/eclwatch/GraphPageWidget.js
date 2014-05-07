@@ -24,12 +24,7 @@ define([
     "dojo/dom-construct",
     "dojo/on",
     "dojo/html",
-    "dojo/store/Memory",
-    "dojo/store/Observable",
 
-    "dijit/layout/BorderContainer",
-    "dijit/layout/TabContainer",
-    "dijit/layout/ContentPane",
     "dijit/registry",
     "dijit/Dialog",
 
@@ -40,18 +35,21 @@ define([
     "dgrid/Selection",
     "dgrid/selector",
     "dgrid/extensions/ColumnResizer",
+    "dgrid/extensions/ColumnHider",
     "dgrid/extensions/DijitRegistry",
 
     "hpcc/_Widget",
     "hpcc/GraphWidget",
     "hpcc/ESPUtil",
     "hpcc/ESPWorkunit",
-    "hpcc/TimingGridWidget",
     "hpcc/TimingTreeMapWidget",
     "hpcc/WsWorkunits",
 
     "dojo/text!../templates/GraphPageWidget.html",
 
+    "dijit/layout/BorderContainer",
+    "dijit/layout/TabContainer",
+    "dijit/layout/ContentPane",
     "dijit/PopupMenuItem",
     "dijit/Menu",
     "dijit/MenuItem",
@@ -61,11 +59,11 @@ define([
     "dijit/form/SimpleTextarea",
     "dijit/form/NumberSpinner",
     "dijit/form/DropDownButton"
-], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, dom, domConstruct, on, html, Memory, Observable,
-            BorderContainer, TabContainer, ContentPane, registry, Dialog,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, Deferred, dom, domConstruct, on, html,
+            registry, Dialog,
             entities,
-            OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
-            _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingGridWidget, TimingTreeMapWidget, WsWorkunits,
+            OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, ColumnHider, DijitRegistry,
+            _Widget, GraphWidget, ESPUtil, ESPWorkunit, TimingTreeMapWidget, WsWorkunits,
             template) {
     return declare("GraphPageWidget", [_Widget], {
         templateString: template,
@@ -81,7 +79,6 @@ define([
         main: null,
         overview: null,
         local: null,
-        timingGrid: null,
         timingTreeMap: null,
         subgraphsGrid: null,
         verticesGrid: null,
@@ -102,7 +99,6 @@ define([
             this.borderContainer = registry.byId(this.id + "BorderContainer");
             this.rightBorderContainer = registry.byId(this.id + "RightBorderContainer");
             this.overviewTabContainer = registry.byId(this.id + "OverviewTabContainer");
-            this.timingsGrid = registry.byId(this.id + "TimingsGrid");
             this.localTabContainer = registry.byId(this.id + "LocalTabContainer");
             this.properties = registry.byId(this.id + "Properties");
             this.findField = registry.byId(this.id + "FindField");
@@ -161,7 +157,7 @@ define([
             this.overview.onSelectionChanged = function (items) {
                 context.syncSelectionFrom(context.overview);
             };
-            this.overview.onDoubleClick = function (globalID) {
+            this.overview.onDoubleClick = function (globalID, keyState) {
                 var mainItem = context.main.getItem(globalID);
                 context.main.centerOnItem(mainItem, true);
             };
@@ -170,8 +166,12 @@ define([
             this.main.onSelectionChanged = function (items) {
                 context.syncSelectionFrom(context.main);
             };
-            this.main.onDoubleClick = function (globalID) {
-                context.main._onSyncSelection();
+            this.main.onDoubleClick = function (globalID, keyState) {
+                if (keyState && context.main.KeyState_Shift) {
+                    context.main._onSyncSelection();
+                } else {
+                    context.main.centerOn(globalID);
+                }
                 context.syncSelectionFrom(context.main);
             };
 
@@ -179,26 +179,18 @@ define([
             this.local.onSelectionChanged = function (items) {
                 context.syncSelectionFrom(context.local);
             };
-            this.local.onDoubleClick = function (globalID) {
-                context.local._onSyncSelection();
+            this.local.onDoubleClick = function (globalID, keyState) {
+                if (keyState && context.main.KeyState_Shift) {
+                    context.local._onSyncSelection();
+                } else {
+                    context.local.centerOn(globalID);
+                }
                 context.syncSelectionFrom(context.local);
             };
         },
 
         _initTimings: function () {
-            this.timingGrid = registry.byId(this.id + "TimingsGrid");
-
             var context = this;
-            this.timingGrid.onClick = function (items) {
-                context.syncSelectionFrom(context.timingGrid);
-            };
-
-            this.timingGrid.onDblClick = function (item) {
-                var subgraphID = item.SubGraphId;
-                var mainItem = context.main.getItem(subgraphID);
-                context.main.centerOnItem(mainItem, true);
-            };
-
             this.timingTreeMap = registry.byId(this.id + "TimingsTreeMap");
             this.timingTreeMap.onClick = function (value) {
                 context.syncSelectionFrom(context.timingTreeMap);
@@ -243,7 +235,7 @@ define([
 
         _initItemGrid: function (grid) {
             var context = this;
-            grid.on(".dgrid-row:click", function (evt) {
+            grid.on("dgrid-select, dgrid-deselect", function (event) {
                 context.syncSelectionFrom(grid);
             });
             grid.on(".dgrid-row:dblclick", function (evt) {
@@ -256,12 +248,8 @@ define([
         },
 
         _initSubgraphs: function () {
-            var store = new Memory({
-                idProperty: "id",
-                data: []
-            });
-            this.subgraphsStore = Observable(store);
-            this.subgraphsGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
+            this.subgraphsStore = this.global.createStore();
+            this.subgraphsGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, ColumnHider, DijitRegistry, ESPUtil.GridHelper])({
                 store: this.subgraphsStore
             }, this.id + "SubgraphsGrid");
 
@@ -269,12 +257,8 @@ define([
         },
 
         _initVertices: function () {
-            var store = new Memory({
-                idProperty: "id",
-                data: []
-            });
-            this.verticesStore = Observable(store);
-            this.verticesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
+            this.verticesStore =  this.global.createStore();
+            this.verticesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, ColumnHider, DijitRegistry, ESPUtil.GridHelper])({
                 store: this.verticesStore
             }, this.id + "VerticesGrid");
 
@@ -282,12 +266,8 @@ define([
         },
 
         _initEdges: function () {
-            var store = new Memory({
-                idProperty: "id",
-                data: []
-            });
-            this.edgesStore = Observable(store);
-            this.edgesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
+            this.edgesStore =  this.global.createStore();
+            this.edgesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, ColumnHider, DijitRegistry, ESPUtil.GridHelper])({
                 store: this.edgesStore
             }, this.id + "EdgesGrid");
 
@@ -379,7 +359,7 @@ define([
                 return;
 
             if (params.SafeMode && params.SafeMode != "false") {
-                this.overviewTabContainer.selectChild(this.timingsGrid);
+                this.overviewTabContainer.selectChild(this.widget.SubgraphsGridCP);
                 this.localTabContainer.selectChild(this.properties);
                 this.overview.depth.set("value", 0);
                 this.main.depth.set("value", 1);
@@ -411,6 +391,8 @@ define([
                             } else {
                                 context.refreshGraphFromWU(context.wu, context.graphName);
                             }
+                        },
+                        onGetTimers: function (timers) {
                         }
                     });
                 });
@@ -421,10 +403,6 @@ define([
 
                 this.loadGraphFromQuery(this.targetQuery, this.queryId, this.graphName);
             }
-
-            this.timingGrid.init(lang.mixin({
-                query: this.graphName
-            }, params));
 
             this.timingTreeMap.init(lang.mixin({
                 query: {
@@ -451,7 +429,7 @@ define([
         },
 
         loadGraphFromXGMML: function (xgmml) {
-            if (this.global.loadXGMML(xgmml, false)) {
+            if (this.global.loadXGMML(xgmml, false, this.wu.getGraphTimers(this.params.GraphName))) {
                 this.global.setMessage("...");  //  Just in case it decides to render  ---
                 var initialSelection = [];
                 if (this.overview.depth.get("value") === -1) {
@@ -476,7 +454,7 @@ define([
         },
 
         mergeGraphFromXGMML: function (xgmml) {
-            if (this.global.loadXGMML(xgmml, true)) {
+            if (this.global.loadXGMML(xgmml, true, this.wu.getGraphTimers(this.params.GraphName))) {
                 this.global.setMessage("...");  //  Just in case it decides to render  ---
                 this.refreshOverviewXGMML();
                 this.refreshMainXGMML();
@@ -561,101 +539,65 @@ define([
             });
         },
 
-        isNumber: function(n) {
-            return !isNaN(parseFloat(n)) && isFinite(n);
-        },
-
         loadSubgraphs: function () {
             var subgraphs = this.global.getSubgraphsWithProperties();
-
-            var layoutMap = [];
-            for (var i = 0; i < subgraphs.length; ++i) {
-                for (var key in subgraphs[i]) {
-                    if (key != "id" && key.substring(0, 1) != "_") {
-                        layoutMap[key] = true;
-                    }
-                    if (this.isNumber(subgraphs[i][key])) {
-                        subgraphs[i][key] = parseFloat(subgraphs[i][key]);
+            this.subgraphsStore.setData(subgraphs);
+            var columns = [
+                {
+                    label: this.i18n.ID, field: "id", width: 54,
+                    formatter: function (_id, row) {
+                        var img = dojoConfig.getImageURL("folder.png");
+                        return "<img src='" + img + "'/>&nbsp;" + _id;
                     }
                 }
-            }
-
-            var layout = [
-                { label: this.i18n.ID, field: "id", width: 50 }
             ];
-
-            for (var key in layoutMap) {
-                layout.push({ label: key, field: key, width: 100 });
-            }
-
-            this.subgraphsStore.setData(subgraphs);
-            this.subgraphsGrid.set("columns", layout);
+            this.subgraphsStore.appendColumns(columns, [this.i18n.TimeSeconds, "DescendantCount", "SubgraphCount", "ActivityCount"], ["ChildCount", "Depth"]);
+            this.subgraphsGrid.set("columns", columns);
             this.subgraphsGrid.refresh();
         },
 
         loadVertices: function () {
             var vertices = this.global.getVerticesWithProperties();
-
-            var layoutMap = [];
-            for (var i = 0; i < vertices.length; ++i) {
-                for (var key in vertices[i]) {
-                    if (key != "id" && key != "ecl" && key != "label" && key.substring(0, 1) != "_") {
-                        layoutMap[key] = true;
+            this.verticesStore.setData(vertices);
+            var columns = [
+                {
+                    label: this.i18n.ID, field: "id", width: 54,
+                    formatter: function (_id, row) {
+                        var img = dojoConfig.getImageURL("file.png");
+                        return "<img src='" + img + "'/>&nbsp;" + _id;
                     }
-                    if (this.isNumber(vertices[i][key])) {
-                        vertices[i][key] = parseFloat(vertices[i][key]);
-                    }
-                }
-            }
-
-            var layout = [
-                { label: this.i18n.ID, field: "id", width: 50 },
+                },
                 { label: this.i18n.Label, field: "label", width: 150 }
             ];
-
-            for (var key in layoutMap) {
-                layout.push({ label: key, field: key, width: 200 });
-            }
-            layout.push({ label: this.i18n.ECL, field: "ecl", width: 1024 });
-
-            this.verticesStore.setData(vertices);
-            this.verticesGrid.set("columns", layout);
+            this.verticesStore.appendColumns(columns, ["name"], ["ecl", "definition"]);
+            this.verticesGrid.set("columns", columns);
             this.verticesGrid.refresh();
         },
 
         loadEdges: function () {
             var edges = this.global.getEdgesWithProperties();
-
-            var layoutMap = [];
-            for (var i = 0; i < edges.length; ++i) {
-                for (var key in edges[i]) {
-                    if (key != "id" && key.substring(0, 1) != "_") {
-                        layoutMap[key] = true;
-                    }
-                    if (this.isNumber(edges[i][key])) {
-                        edges[i][key] = parseFloat(edges[i][key]);
-                    }
-                }
-            }
-
-            var layout = [
+            this.edgesStore.setData(edges);
+            var columns = [
                 { label: this.i18n.ID, field: "id", width: 50 }
             ];
-
-            for (var key in layoutMap) {
-                layout.push({ label: key, field: key, width: 100 });
-            }
-
-            this.edgesStore.setData(edges);
-            this.edgesGrid.set("columns", layout);
+            this.edgesStore.appendColumns(columns, ["label", "count"], ["source", "target"]);
+            this.edgesGrid.set("columns", columns);
             this.edgesGrid.refresh();
         },
 
+        inSyncSelectionFrom: false,
         syncSelectionFrom: function (sourceControl) {
+            if (!this.inSyncSelectionFrom) {
+                this._syncSelectionFrom(sourceControl);
+            }
+        },
+
+        _syncSelectionFrom: dojoConfig.debounce(function (sourceControl) {
+            this.inSyncSelectionFrom = true;
             var selectedGlobalIDs = [];
 
             //  Get Selected Items  ---
-            if (sourceControl == this.timingGrid || sourceControl == this.timingTreeMap) {
+            if (sourceControl == this.timingTreeMap) {
                 var items = sourceControl.getSelected();
                 for (var i = 0; i < items.length; ++i) {
                     if (items[i].SubGraphId) {
@@ -665,7 +607,7 @@ define([
             } else if (sourceControl == this.verticesGrid || sourceControl == this.edgesGrid || sourceControl == this.subgraphsGrid) {
                 var items = sourceControl.getSelected();
                 for (var i = 0; i < items.length; ++i) {
-                    if (items[i]._globalID) {
+                    if (lang.exists("_globalID", items[i])) {
                         selectedGlobalIDs.push(items[i]._globalID);
                     }
                 }
@@ -674,9 +616,6 @@ define([
             }
 
             //  Set Selected Items  ---
-            if (sourceControl != this.timingGrid) {
-                this.timingGrid.setSelectedAsGlobalID(selectedGlobalIDs);
-            }
             if (sourceControl != this.timingTreeMap) {
                 this.timingTreeMap.setSelectedAsGlobalID(selectedGlobalIDs);
             }
@@ -696,8 +635,6 @@ define([
             }
             if (sourceControl != this.main) {
                 switch (sourceControl) {
-                    case this.verticesGrid:
-                    case this.edgesGrid:
                     case this.local:
                         this.main.setSelectedAsGlobalID(selectedGlobalIDs);
                         break;
@@ -706,15 +643,7 @@ define([
                 }
             }
             if (sourceControl != this.local) {
-                switch (sourceControl) {
-                    case this.verticesGrid:
-                    case this.edgesGrid:
-                    case this.main:
-                        this.setLocalRootItems(selectedGlobalIDs);
-                        break;
-                    default:
-                        this.local.setSelectedAsGlobalID(selectedGlobalIDs);
-                }
+                this.setLocalRootItems(selectedGlobalIDs);
             }
 
             var propertiesDom = dom.byId(this.id + "Properties");
@@ -722,7 +651,8 @@ define([
             for (var i = 0; i < selectedGlobalIDs.length; ++i) {
                 this.global.displayProperties(selectedGlobalIDs[i], propertiesDom);
             }
-        },
+            this.inSyncSelectionFrom = false;
+        }, 500, false),
 
         resetPage: function () {
             this.main.clear();

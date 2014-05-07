@@ -124,8 +124,10 @@ define([
                 includeBlank: true,
                 Target: params.Cluster
             });
+            if (params.Wuid) {
+                this.filter.setValue(this.id + "Wuid", params.Wuid);
+            }
             this.initQuerySetGrid();
-            this.selectChild(this.queriesTab, true);
 
             var context = this;
             this.filter.on("clear", function (evt) {
@@ -303,10 +305,11 @@ define([
                         selectorType: 'checkbox'
                     }),
                     Suspended: {
+                        label: this.i18n.Suspended,
                         renderHeaderCell: function (node) {
-                            node.innerHTML = dojoConfig.getImageHTML("suspended.png");
+                            node.innerHTML = dojoConfig.getImageHTML("suspended.png", context.i18n.Suspended);
                         },
-                        width: 21,
+                        width: 25,
                         sortable: false,
                         formatter: function (suspended) {
                             if (suspended == true) {
@@ -315,24 +318,11 @@ define([
                             return "";
                         }
                     },
-                    Activated: {
-                        renderHeaderCell: function (node) {
-                            node.innerHTML = dojoConfig.getImageHTML("active.png");
-                        },
-                        width: 21,
-                        sortable: false,
-                        formatter: function (activated) {
-                            if (activated == true) {
-                                return dojoConfig.getImageHTML("active.png");
-                            }
-                            return "";
-                        }
-                    },
                     ErrorCount: {
                         renderHeaderCell: function (node) {
-                            node.innerHTML = dojoConfig.getImageHTML("errwarn.png");
+                            node.innerHTML = dojoConfig.getImageHTML("errwarn.png", context.i18n.ErrorWarnings);
                         },
-                        width: 21,
+                        width: 25,
                         sortable: false,
                         formatter: function (error) {
                             if (error > 0) {
@@ -341,11 +331,23 @@ define([
                             return "";
                         }
                     },
+                    Activated: {
+                        renderHeaderCell: function (node) {
+                            node.innerHTML = dojoConfig.getImageHTML("active.png", context.i18n.Active);
+                        },
+                        width: 25,
+                        sortable: false,
+                        formatter: function (activated) {
+                            if (activated == true) {
+                                return dojoConfig.getImageHTML("active.png");
+                            }
+                            return dojoConfig.getImageHTML("inactive.png");
+                        }
+                    },
                     Id: {
-                        width: 220,
                         label: this.i18n.ID,
                         formatter: function (Id, idx) {
-                            return "<a href='#' rowIndex=" + idx + " class='" + context.id + "WuidClick'>" + Id + "</a>";
+                            return "<a href='#' rowIndex=" + idx + " class='" + context.id + "IdClick'>" + Id + "</a>";
                         }
                     },
                     Name: {
@@ -359,50 +361,34 @@ define([
                     },
                     Wuid: {
                         width: 180,
-                        label: this.i18n.WUID
+                        label: this.i18n.WUID,
+                        formatter: function (Wuid, idx) {
+                            return "<a href='#' rowIndex=" + idx + " class='" + context.id + "WuidClick'>" + Wuid + "</a>";
+                        }
                     },
-                     Dll: {
+                    Dll: {
                         width: 180,
                         label: this.i18n.Dll
-                    },
-                    priority: {
-                        width: 80,
-                        label: this.i18n.Priority,
-                        sortable: false
-                    },
-                    IsLibrary: {
-                        width: 100,
-                        label: this.i18n.IsLibrary,
-                        sortable: false
                     },
                     PublishedBy: {
                         width: 100,
                         label: this.i18n.PublishedBy
-                    },
-                    SuspendedReason:{
-                        width: 100,
-                        label: context.i18n.SuspendedReason,
-                        formatter: function (sbe) {
-                            if(sbe === "User"){
-                                return context.i18n.User;
-                            }
-                            if (sbe === "Cluster"){
-                                return context.i18n.Cluster;
-                            }
-                            else{
-                                return "";
-                            }
-                        }
                     }
                 }
             }, this.id + "QuerySetGrid");
-            on(document, "." + context.id + "WuidClick:click", function (evt) {
+            on(document, "." + context.id + "IdClick:click", function (evt) {
                 if (context._onRowDblClick) {
                     var item = context.querySetGrid.row(evt).data;
                     context._onRowDblClick(item);
                 }
             });
-             this.querySetGrid.on(".dgrid-row:dblclick", function (evt) {
+            on(document, "." + context.id + "WuidClick:click", function (evt) {
+                if (context._onRowDblClick) {
+                    var item = context.querySetGrid.row(evt).data;
+                    context._onRowDblClick(item, true);
+                }
+            });
+            this.querySetGrid.on(".dgrid-row:dblclick", function (evt) {
                 if (context._onRowDblClick) {
                     var item = context.querySetGrid.row(evt).data;
                     context._onRowDblClick(item);
@@ -418,9 +404,6 @@ define([
                 }
             });
             this.querySetGrid.onSelectionChanged(function (event) {
-                context.refreshActionState();
-            });
-            this.querySetGrid.onContentChanged(function (event) {
                 context.refreshActionState();
             });
             this.querySetGrid.startup();
@@ -524,30 +507,53 @@ define([
             }
         },
 
-        _onRowDblClick: function (item) {
-            var wuTab = this.ensurePane(item.Id, item);
-            this.selectChild(wuTab);
+        _onRowDblClick: function (item, workunitTab) {
+            var tab = null;
+            if (workunitTab) {
+                tab = this.ensurePane(item.Wuid, item, true);
+            } else {
+                tab = this.ensurePane(item.Id, item, false);
+            }
+            this.selectChild(tab);
         },
 
         getFilter: function(){
             return this.filter.toObject();
         },
 
-        ensurePane: function (id, params) {
+        ensurePane: function (id, params, workunitTab) {
             id = this.createChildTabID(id);
             var retVal = registry.byId(id);
             if (!retVal) {
                 var context = this;
-                retVal = new DelayLoadWidget({
-                    id: id,
-                    title: params.Id,
-                    closable: true,
-                    delayWidget: "QuerySetDetailsWidget",
-                    hpcc: {
-                        type: "QuerySetDetailsWidget",
-                        params: params
-                    }
-                });
+                if (workunitTab) {
+                    retVal = new DelayLoadWidget({
+                        id: id,
+                        title: params.Wuid,
+                        closable: true,
+                        delayWidget: "WUDetailsWidget",
+                        hpcc: {
+                            type: "WUDetailsWidget",
+                            params: {
+                                Wuid: params.Wuid
+                            }
+                        }
+                    });
+                } else {
+                    retVal = new DelayLoadWidget({
+                        id: id,
+                        title: params.Id,
+                        closable: true,
+                        delayWidget: "QuerySetDetailsWidget",
+                        hpcc: {
+                            type: "QuerySetDetailsWidget",
+                            params: {
+                                QuerySetId: params.QuerySetId,
+                                Id: params.Id
+                            }
+                        }
+                    });
+                }
                 this.addChild(retVal, 1);
             }
             return retVal;

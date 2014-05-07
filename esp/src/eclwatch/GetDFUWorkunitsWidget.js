@@ -196,7 +196,6 @@ define([
                 DFUState: true,
                 includeBlank: true
             });
-            this.selectChild(this.workunitsTab, true);
 
             var context = this;
             this.filter.on("clear", function (evt) {
@@ -308,6 +307,7 @@ define([
         },
 
         initWorkunitsGrid: function() {
+            var context = this;
             var store = new ESPDFUWorkunit.CreateWUQueryStore();
             this.workunitsGrid = new declare([Grid, Pagination, Selection, ColumnResizer, Keyboard, DijitRegistry, ESPUtil.GridHelper])({
                 allowSelectAll: true,
@@ -325,7 +325,7 @@ define([
                     }),
                     isProtected: {
                         renderHeaderCell: function (node) {
-                            node.innerHTML = dojoConfig.getImageHTML("locked.png");
+                            node.innerHTML = dojoConfig.getImageHTML("locked.png", context.i18n.Protected);
                         },
                         width: 25,
                         sortable: false,
@@ -385,9 +385,6 @@ define([
                 }
             });
             this.workunitsGrid.onSelectionChanged(function (event) {
-                context.refreshActionState();
-            });
-            this.workunitsGrid.onContentChanged(function (object, removedFrom, insertedInto) {
                 context.refreshActionState();
             });
             this.workunitsGrid.startup();

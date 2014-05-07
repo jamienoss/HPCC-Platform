@@ -20,11 +20,13 @@ define([
     "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/Stateful",
+    "dojo/query",
     "dojo/json",
 
-    "dijit/registry"
-], function (declare, lang, i18n, nlsHPCC, arrayUtil, Stateful, json,
-    registry) {
+    "dijit/registry",
+    "dijit/Tooltip"
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, Stateful, query, json,
+    registry, Tooltip) {
 
     var SingletonData = declare([Stateful], {
         //  Attributes  ---
@@ -148,32 +150,44 @@ define([
 
         GridHelper: declare(null, {
             allowTextSelection: true,
-            pagedGridObserver: [],
             noDataMessage: "<span class='dojoxGridNoData'>" + nlsHPCC.noDataMessage + "</span>",
             loadingMessage: "<span class='dojoxGridNoData'>" + nlsHPCC.loadingMessage + "</span>",
 
-            onSelectionChanged: function (callback) {
-                this.on("dgrid-select", function (event) {
-                    callback(event);
+            postCreate: function (args) {
+                this.inherited(arguments);
+
+                this.__hpcc_tooltip = new Tooltip({
+                    connectId: [this.id],
+                    selector: "td",
+                    showDelay: 800,
+                    getContent: function (node) {
+                        if (node.offsetWidth < node.scrollWidth) {
+                            return node.innerHTML;
+                        }
+                        return "";
+                    }
                 });
-                this.on("dgrid-deselect", function (event) {
+            },
+
+            _onNotify: function(object, existingId){
+                this.inherited(arguments);
+                if (this.onSelectedChangedCallback) {
+                    this.onSelectedChangedCallback();
+                }
+            },
+
+            onSelectionChanged: function (callback) {
+                this.onSelectedChangedCallback = callback;
+                this.on("dgrid-select, dgrid-deselect, dgrid-refresh-complete", function (event) {
                     callback(event);
                 });
             },
 
-            onContentChanged: function (callback) {
-                var context = this;
-                this.on("dgrid-page-complete", function (event) {
-                    callback();
-                    if (context.pagedGridObserver[event.page]) {
-                        context.pagedGridObserver[event.page].cancel();
-                    }
-                    context.pagedGridObserver[event.page] = event.results.observe(function (object, removedFrom, insertedInto) {
-                        callback(object, removedFrom, insertedInto);
-                    }, true);
-                });
-                this.on("dgrid-children-complete", function (event) {
-                    callback();
+            clearSelection: function () {
+                this.inherited(arguments);
+                query("input[type=checkbox]", this.domNode).forEach(function (node) {
+                    node.checked = false;
+                    node.indeterminate = false;
                 });
             },
 

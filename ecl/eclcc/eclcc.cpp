@@ -51,6 +51,7 @@
 #include "hqlgram.hpp"
 #include "hqltrans.ipp"
 #include "hqlutil.hpp"
+#include "hqlstmt.hpp"
 
 
 
@@ -265,6 +266,7 @@ public:
         optSaveQueryText = false;
         optGenerateHeader = false;
         optShowPaths = false;
+        optNoSourcePath = false;
         optTargetClusterType = HThorCluster;
         optTargetCompiler = DEFAULT_COMPILER;
         optThreads = 0;
@@ -283,7 +285,6 @@ public:
     void processBatchedFile(IFile & file, bool multiThreaded);
 
     virtual void noteCluster(const char *clusterName);
-    virtual void registerFile(const char * filename, const char * description);
     virtual bool allowAccess(const char * category);
 
 protected:
@@ -382,6 +383,7 @@ protected:
     bool optLegacyWhen;
     bool optGenerateHeader;
     bool optShowPaths;
+    bool optNoSourcePath;
     int argc;
     const char **argv;
 };
@@ -1301,7 +1303,7 @@ void EclCC::processFile(EclCompileInstance & instance)
     const char * curFilename = instance.inputFile->queryFilename();
     assertex(curFilename);
 
-    Owned<ISourcePath> sourcePath = createSourcePath(curFilename);
+    Owned<ISourcePath> sourcePath = optNoSourcePath ? NULL : createSourcePath(curFilename);
     Owned<IFileContents> queryText = createFileContentsFromFile(curFilename, sourcePath);
     const char * queryTxt = queryText->getText();
     if (optArchive || optGenerateDepend)
@@ -1339,12 +1341,12 @@ void EclCC::processFile(EclCompileInstance & instance)
         }
         else
         {
-            withinRepository = !inputFromStdIn && checkWithinRepository(attributePath, curFilename);
+            withinRepository = !inputFromStdIn && !optNoSourcePath && checkWithinRepository(attributePath, curFilename);
         }
 
 
         StringBuffer expandedSourceName;
-        if (!inputFromStdIn)
+        if (!inputFromStdIn && !optNoSourcePath)
             makeAbsolutePath(curFilename, expandedSourceName);
         else
             expandedSourceName.append(curFilename);
@@ -1370,7 +1372,7 @@ void EclCC::processFile(EclCompileInstance & instance)
         {
             //Ensure that $ is valid for any file submitted - even if it isn't in the include direcotories
             //Disable this for the moment when running the regression suite.
-            if (!optBatchMode && !withinRepository && !inputFromStdIn && !optLegacyImport)
+            if (!optBatchMode && !withinRepository && !inputFromStdIn && !optNoSourcePath && !optLegacyImport)
             {
                 //Associate the contents of the directory with an internal module called _local_directory_
                 //(If it was root it might override existing root symbols).  $ is the only public way to get at the symbol
@@ -1715,9 +1717,6 @@ bool EclCompileInstance::reportErrorSummary()
 void EclCC::noteCluster(const char *clusterName)
 {
 }
-void EclCC::registerFile(const char * filename, const char * description)
-{
-}
 bool EclCC::allowAccess(const char * category)
 {
     ForEachItemIn(idx1, deniedPermissions)
@@ -1802,6 +1801,7 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         }
         else if (strcmp(arg, "-internal")==0)
         {
+            outputSizeStmts();
             testHqlInternals();
         }
         else if (iter.matchFlag(tempBool, "-save-cpps"))
@@ -1864,6 +1864,9 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         {
         }
         else if (iter.matchFlag(optEvaluateResult, "-Me"))
+        {
+        }
+        else if (iter.matchFlag(optNoSourcePath, "--nosourcepath"))
         {
         }
         else if (iter.matchFlag(optOutputFilename, "-o"))
@@ -2079,6 +2082,7 @@ const char * const helpText[] = {
 #ifdef _WIN32
     "!   -m            Enable leak checking",
 #endif
+    "    --nosourcepath Compile as if the source came from stdin",
 #ifndef _WIN32
     "!   -pch          Generate precompiled header for eclinclude4.hpp",
 #endif

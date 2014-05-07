@@ -139,6 +139,26 @@ define([
             }
             this.set("timers", timers);
         },
+        _ResourceURLsSetter: function (resourceURLs) {
+            var data = [];
+            arrayUtil.forEach(resourceURLs.URL, function (url, idx) {
+                var cleanedURL = url.split("\\").join("/");
+                var urlParts = cleanedURL.split("/");
+                var matchStr = "res/" + this.wu.Wuid + "/";
+                if (cleanedURL.indexOf(matchStr) === 0) {
+                    var displayPath = cleanedURL.substr(matchStr.length);
+                    var displayName = urlParts[urlParts.length - 1];
+                    var row = {
+                        __hpcc_id: idx,
+                        DisplayName: displayName,
+                        DisplayPath: displayPath,
+                        URL: cleanedURL
+                    };
+                    data.push(row);
+                }
+            }, this);
+            this.set("resourceURLs", data);
+        },
         _GraphsSetter: function (Graphs) {
             this.set("graphs", Graphs.ECLGraph);
         },
@@ -306,26 +326,20 @@ define([
         },
         refresh: function (full) {
             if (full || this.Archived || this.changedCount === 0) {
-                this.getInfo({
+                return this.getInfo({
                     onGetText: function () {
                     },
                     onGetWUExceptions: function () {
-                    },
-                    onGetVariables: function () {
-                    },
-                    onGetTimers: function () {
-                    },
-                    onGetApplicationValues: function () {
                     }
                 });
             } else {
-                this.getQuery();
+                return this.getQuery();
             }
         },
         getQuery: function () {
             this._assertHasWuid();
             var context = this;
-            WsWorkunits.WUQuery({
+            return WsWorkunits.WUQuery({
                 request: {
                     Wuid: this.Wuid
                 }
@@ -335,12 +349,13 @@ define([
                         context.updateData(item);
                     });
                 }
+                return response;
             });
         },
         getInfo: function (args) {
             this._assertHasWuid();
             var context = this;
-            WsWorkunits.WUInfo({
+            return WsWorkunits.WUInfo({
                 request: {
                     Wuid: this.Wuid,
                     TruncateEclTo64k: args.onGetText ? false : true,
@@ -351,9 +366,10 @@ define([
                     IncludeResultsViewNames: (args.onGetResults || args.onGetSequenceResults) ? true : false,
                     IncludeVariables: args.onGetVariables ? true : false,
                     IncludeTimers: args.onGetTimers ? true : false,
-                    IncludeDebugValues: false,
+                    IncludeResourceURLs: args.onGetResourceURLs ? true : false,
+                    IncludeDebugValues: args.onGetDebugValues ? true : false,
                     IncludeApplicationValues: args.onGetApplicationValues ? true : false,
-                    IncludeWorkflows: false,
+                    IncludeWorkflows: args.onGetWorkflows ? true : false,
                     IncludeXmlSchemas: false,
                     SuppressResultSchemas: true
                 }
@@ -370,29 +386,35 @@ define([
                     }
                     context.updateData(response.WUInfoResponse.Workunit);
 
-                    if (args.onGetText && lang.exists("Query.Text", context)) {
-                        args.onGetText(context.Query.Text);
+                    if (args.onGetText) {
+                        args.onGetText(lang.exists("Query.Text", context) ? context.Query.Text : "");
                     }
-                    if (args.onGetWUExceptions && lang.exists("Exceptions.ECLException", context)) {
-                        args.onGetWUExceptions(context.Exceptions.ECLException);
+                    if (args.onGetWUExceptions) {
+                        args.onGetWUExceptions(lang.exists("Exceptions.ECLException", context) ? context.Exceptions.ECLException : []);
                     }
-                    if (args.onGetApplicationValues && lang.exists("ApplicationValues.ApplicationValue", context)) {
-                        args.onGetApplicationValues(context.ApplicationValues.ApplicationValue)
+                    if (args.onGetApplicationValues) {
+                        args.onGetApplicationValues(lang.exists("ApplicationValues.ApplicationValue", context) ? context.ApplicationValues.ApplicationValue : []);
                     }
-                    if (args.onGetVariables && lang.exists("variables", context)) {
-                        args.onGetVariables(context.variables);
+                    if (args.onGetDebugValues) {
+                        args.onGetDebugValues(lang.exists("DebugValues.DebugValue", context) ? context.DebugValues.DebugValue : []);
                     }
-                    if (args.onGetResults && lang.exists("results", context)) {
-                        args.onGetResults(context.results);
+                    if (args.onGetVariables) {
+                        args.onGetVariables(lang.exists("variables", context) ? context.variables: []);
                     }
-                    if (args.onGetSequenceResults && lang.exists("sequenceResults", context)) {
-                        args.onGetSequenceResults(context.sequenceResults);
+                    if (args.onGetResults) {
+                        args.onGetResults(lang.exists("results", context) ? context.results : []);
                     }
-                    if (args.onGetSourceFiles && lang.exists("sourceFiles", context)) {
-                        args.onGetSourceFiles(context.sourceFiles);
+                    if (args.onGetSequenceResults) {
+                        args.onGetSequenceResults(lang.exists("sequenceResults", context) ? context.sequenceResults : []);
                     }
-                    if (args.onGetTimers && lang.exists("timers", context)) {
-                        args.onGetTimers(context.timers);
+                    if (args.onGetSourceFiles) {
+                        args.onGetSourceFiles(lang.exists("sourceFiles", context) ? context.sourceFiles : []);
+                    }
+                    if (args.onGetTimers) {
+                        args.onGetTimers(lang.exists("timers", context) ? context.timers : []);
+                    }
+                    if (args.onGetResourceURLs && lang.exists("resourceURLs", context)) {
+                        args.onGetResourceURLs(context.resourceURLs);
                     }
                     if (args.onGetGraphs && lang.exists("graphs", context)) {
                         if (context.timers || lang.exists("ApplicationValues.ApplicationValue", context)) {
@@ -414,12 +436,18 @@ define([
                                 }
                             }
                         }
-                        args.onGetGraphs(context.graphs)
+                        args.onGetGraphs(context.graphs);
+                    } else if (args.onGetGraphs) {
+                        args.onGetGraphs([]);
+                    }
+                    if (args.onGetWorkflows && lang.exists("Workflows.ECLWorkflow", context)) {
+                        args.onGetWorkflows(context.Workflows.ECLWorkflow);
                     }
                     if (args.onAfterSend) {
                         args.onAfterSend(context);
                     }
                 }
+                return response;
             });
         },
         getGraphIndex: function (name) {
@@ -429,6 +457,15 @@ define([
                 }
             }
             return -1;
+        },
+        getGraphTimers: function (name) {
+            var retVal = [];
+            arrayUtil.forEach(this.timers, function (timer, idx) {
+                if (timer.HasSubGraphId && timer.GraphName === name) {
+                    retVal.push(timer);
+                }
+            }, this);
+            return retVal;
         },
         getApplicationValueIndex: function (application, name) {
             if (lang.exists("ApplicationValues.ApplicationValue", this)) {
@@ -575,13 +612,13 @@ define([
                 onGetResults: onFetchResults
             });
         },
-        fetchNamedResults: function (resultNames) {
-            var deferred = new Deferred()
+        fetchNamedResults: function (resultNames, row, count) {
+            var deferred = new Deferred();
             var context = this;
             this.fetchResults(function (results) {
                 var resultContents = [];
                 arrayUtil.forEach(resultNames, function (item, idx) {
-                    resultContents.push(context.namedResults[item].fetchContent());
+                    resultContents.push(context.namedResults[item].fetchContent(row, count));
                 });
                 all(resultContents).then(function (resultContents) {
                     var results = [];
@@ -589,6 +626,20 @@ define([
                         results[resultNames[idx]] = item;
                     });
                     deferred.resolve(results);
+                });
+            });
+            return deferred.promise;
+        },
+        fetchAllNamedResults: function (row, count) {
+            var deferred = new Deferred();
+            var context = this;
+            this.fetchResults(function (results) {
+                var resultNames = [];
+                arrayUtil.forEach(results, function (item, idx) {
+                    resultNames.push(item.Name);
+                });
+                context.fetchNamedResults(resultNames, row, count).then(function(response) {
+                    deferred.resolve(response);
                 });
             });
             return deferred.promise;

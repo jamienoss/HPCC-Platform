@@ -228,6 +228,24 @@ interface IConstWUGraphIterator : extends IScmIterator
     virtual IConstWUGraph & query() = 0;
 };
 
+interface IConstWUTimer : extends IInterface
+{
+    virtual IStringVal & getName(IStringVal & ret) const = 0;
+    virtual unsigned getCount() const = 0;
+    virtual unsigned getDuration() const = 0;
+};
+
+interface IWUTimer : extends IConstWUTimer
+{
+    virtual void setName(const char * str) = 0;
+    virtual void setCount(unsigned c) = 0;
+    virtual void setDuration(unsigned d) = 0;
+};
+
+interface IConstWUTimerIterator : extends IScmIterator
+{
+    virtual IConstWUTimer & query() = 0;
+};
 
 //! IWUResult
 enum
@@ -899,6 +917,7 @@ interface IConstWorkUnit : extends IInterface
     virtual IConstWUWebServicesInfo * getWebServicesInfo() const = 0;
     virtual IConstWURoxieQueryInfo * getRoxieQueryInfo() const = 0;
     virtual IStringIterator & getTimers() const = 0;
+    virtual IConstWUTimerIterator & getTimerIterator() const = 0;
     virtual IConstWUTimeStampIterator & getTimeStamps() const = 0;
     virtual IConstWUStatisticIterator & getStatistics() const = 0;
     virtual IConstWUStatistic * getStatistic(const char * name) const = 0;
@@ -1288,7 +1307,7 @@ enum WUQueryActivationOptions
 
 extern WORKUNIT_API int calcPriorityValue(const IPropertyTree * p);  // Calls to this should really go through the workunit interface.
 
-extern WORKUNIT_API IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, const char * wuid, const char * dll, bool library, const char *userid);       // result not linked
+extern WORKUNIT_API IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, const char * wuid, const char * dll, bool library, const char *userid, const char *snapshot);       // result not linked
 extern WORKUNIT_API void removeNamedQuery(IPropertyTree * queryRegistry, const char * id);
 extern WORKUNIT_API void removeWuidFromNamedQueries(IPropertyTree * queryRegistry, const char * wuid);
 extern WORKUNIT_API void removeDllFromNamedQueries(IPropertyTree * queryRegistry, const char * dll);
@@ -1334,5 +1353,7 @@ extern WORKUNIT_API void descheduleWorkunit(char const * wuid);
 #if 0
 void WORKUNIT_API testWorkflow();
 #endif
+
+extern WORKUNIT_API const char * getWorkunitStateStr(WUState state);
 
 #endif

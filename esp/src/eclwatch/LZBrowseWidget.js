@@ -20,12 +20,10 @@ define([
     "dojo/i18n!./nls/hpcc",
     "dojo/_base/array",
     "dojo/dom",
-    "dojo/dom-attr",
-    "dojo/dom-class",
     "dojo/dom-form",
     "dojo/request/iframe",
-    "dojo/date",
     "dojo/on",
+    "dojo/topic",
 
     "dijit/registry",
     "dijit/Dialog",
@@ -75,7 +73,7 @@ define([
     "dojox/form/uploader/FileList",
 
     "hpcc/TableContainer"
-], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domAttr, domClass, domForm, iframe, date, on,
+], function (declare, lang, i18n, nlsHPCC, arrayUtil, dom, domForm, iframe, on, topic,
                 registry, Dialog, Menu, MenuItem, MenuSeparator, PopupMenuItem,
                 OnDemandGrid, tree, Keyboard, Selection, editor, selector, ColumnResizer, DijitRegistry, Pagination,
                 _TabContainerWidget, FileSpray, ESPUtil, ESPRequest, ESPDFUWorkunit, DelayLoadWidget, TargetSelectWidget, SelectionGridWidget,
@@ -109,18 +107,17 @@ define([
             this.fileListDialog = registry.byId(this.id + "FileListDialog");
 
             var context = this;
-            this.connect(this.uploader, "onComplete", function () {
+            this.connect(this.uploader, "onComplete", function (response) {
+                if (lang.exists("Exceptions.Source", response)) {
+                    topic.publish("hpcc/brToaster", {
+                        Severity: "Error",
+                        Source: "FileSpray.UploadFile",
+                        Exceptions: response.Exceptions.Exception
+                    });
+                }
                 context.fileListDialog.hide();
                 context.refreshGrid();
             });
-            //  Workaround for HPCC-9414  --->
-            this.connect(this.uploader, "onError", function (msg, e) {
-                if (msg === context.i18n.Errorparsingserverresult + ":") {   
-                    context.fileListDialog.hide();
-                    context.refreshGrid();
-                }
-            });
-            //  <---  Workaround for HPCC-9414
         },
 
         startup: function (args) {
@@ -152,6 +149,37 @@ define([
         _onUpload: function (event) {
             this.uploadFileList.hideProgress();
             this.fileListDialog.show();
+        },
+
+        _onUploadBegin: function (dataArray) {
+            this.fileListDialog.hide();
+            this.uploadString = this.i18n.FileUploadStillInProgress + ":";
+            arrayUtil.forEach(dataArray, function (item, idx) {
+                this.uploadString += "\n" + item.name;
+            }, this);
+        },
+
+        _onUploadProgress: function (progress) {
+            if (progress.decimal < 1) {
+                this.widget.Upload.set("label", this.i18n.Upload + " " + progress.percent);
+                var context = this;
+                window.onbeforeunload = function (e) {
+                    return context.uploadString;
+                };
+            } else {
+                this.widget.Upload.set("label", this.i18n.Upload);
+                window.onbeforeunload = null;
+            }
+        },
+
+        _onUploadSubmit: function (event) {
+            var item = this.dropZoneSelect.get("row");
+            this.uploader.set("uploadUrl", "/FileSpray/UploadFile.json?upload_&rawxml_=1&NetAddress=" + item.machine.Netaddress + "&OS=" + item.machine.OS + "&Path=" + item.machine.Directory);
+            this.uploader.upload();
+        },
+
+        _onUploadCancel: function (event) {
+            this.fileListDialog.hide();
         },
 
         _onDownload: function (event) {
@@ -198,16 +226,6 @@ define([
             if (firstTab) {
                 this.selectChild(firstTab);
             }
-        },
-
-        _onUploadSubmit: function (event) {
-            var item = this.dropZoneSelect.get("row");
-            this.uploader.set("uploadUrl", "/FileSpray/UploadFile.json?upload_&rawxml_=1&NetAddress=" + item.machine.Netaddress + "&OS=" + item.machine.OS + "&Path=" + item.machine.Directory);
-            this.uploader.upload();
-        },
-
-        _onUploadCancel: function (event) {
-            registry.byId(this.id + "FileListDialog").hide();
         },
 
         _spraySelectedOneAtATime: function (dropDownID, formID, doSpray) {
@@ -326,7 +344,6 @@ define([
                 return;
 
             this.initLandingZonesGrid();
-            this.selectChild(this.landingZonesTab, true);
             this.sprayFixedDestinationSelect.init({
                 Groups: true
             });
@@ -422,9 +439,6 @@ define([
                 }
             });
             this.landingZonesGrid.onSelectionChanged(function (event) {
-                context.refreshActionState();
-            });
-            this.landingZonesGrid.onContentChanged(function (object, removedFrom, insertedInto) {
                 context.refreshActionState();
             });
             this.landingZonesGrid.startup();
@@ -531,7 +545,7 @@ define([
                 arrayUtil.forEach(selection, function (item, idx) {
                     lang.mixin(item, lang.mixin({
                         targetName: item.displayName,
-                        targetRecordLength: 1,
+                        targetRecordLength: "",
                         targetRowTag: context.i18n.tag
                     }, item));
                     data.push(item);

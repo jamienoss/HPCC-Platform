@@ -1039,12 +1039,12 @@ IHqlExpression * HqlGram::processIndexBuild(attribute & indexAttr, attribute * r
         checkIndexRecordType(dataset->queryRecord(), 1, false, indexAttr);
     }
 
-
     HqlExprArray args;
     args.append(*LINK(inputDataset));
     args.append(*filenameAttr.getExpr());
     if (flags)
         flags->unwindList(args, no_comma);
+
     checkDistributer(flagsAttr, args);
     return createValue(no_buildindex, makeVoidType(), args);
 }
@@ -6720,6 +6720,11 @@ IHqlExpression * HqlGram::createBuildIndexFromIndex(attribute & indexAttr, attri
                     distribution.setown(replaceSelector(cur, queryActiveTableSelector(), select));
                 args.append(*createLocalAttribute());
             }
+            else if (name == maxLengthAtom)
+            {
+                if (!queryAttribute(name, args))
+                    args.append(*LINK(cur));
+            }
         }
     }
     IHqlExpression * payload = index->queryAttribute(_payload_Atom);
@@ -7977,9 +7982,9 @@ void HqlGram::expandPayload(HqlExprArray & fields, IHqlExpression * payload, IHq
                     IHqlExpression * matchValue = match->queryChild(0);
                     IHqlExpression * curValue = cur->queryChild(0);
                     if (matchValue)
-                        matchValue = matchValue->queryNormalizedSelector();
+                        matchValue = queryStripCasts(matchValue->queryNormalizedSelector());
                     if (curValue)
-                        curValue = curValue->queryNormalizedSelector();
+                        curValue = queryStripCasts(curValue->queryNormalizedSelector());
                     if (matchValue != curValue)
                         reportError(ERR_REC_DUPFIELD, errpos, "Field %s is already defined in the key portion", cur->queryName()->str());
                 }
@@ -8056,7 +8061,7 @@ void HqlGram::modifyIndexPayloadRecord(SharedHqlExpr & record, SharedHqlExpr & p
         payloadCount = fields.ordinality() - oldFields;
     }
     //This needs to be here until filepositions are no longer special cased.
-    if (!lastFieldType || !lastFieldType->isInteger() && getBoolAttributeInList(extra, filepositionAtom, true))
+    if ((!lastFieldType || !lastFieldType->isInteger()) && getBoolAttributeInList(extra, filepositionAtom, true))
     {
         if (ADD_IMPLICIT_FILEPOS_FIELD_TO_INDEX)
         {
@@ -9966,6 +9971,8 @@ IIdAtom * HqlGram::createFieldNameFromExpr(IHqlExpression * expr)
         case no_select:
             return createFieldNameFromExpr(expr->queryChild(1));
         case no_indirect:
+        case no_cast:
+        case no_implicitcast:
             return createFieldNameFromExpr(expr->queryChild(0));
         case no_countgroup:
             name = createUnnamedFieldId("_unnamed_cnt_");

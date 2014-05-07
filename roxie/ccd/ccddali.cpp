@@ -344,6 +344,35 @@ private:
         return dstfdesc.getClear();
     }
 
+    static StringBuffer &normalizeName(const char *name, StringBuffer &ret)
+    {
+        // Ensure only chars that are accepted by jptree in an xpath element are used
+        loop
+        {
+            char c = *name++;
+            if (!c)
+                break;
+            switch (c)
+            {
+            case '.':
+                ret.append(".."); // Double . as we use it to escape illegal chars
+                break;
+            case ':':
+            case '_':
+            case '-':
+                ret.append(c);
+                break;
+            default:
+                if (isalnum(c))
+                    ret.append(c); // Note - we COULD make the cache case-insensitive and we would be right to 99.9% if the time. But there is a weird syntax using H to force uppercase filenames...
+                else
+                    ret.append('.').append((unsigned) (unsigned char) c);
+                break;
+            }
+        }
+        return ret;
+    }
+
 public:
 
     IMPLEMENT_IINTERFACE;
@@ -401,6 +430,19 @@ public:
     {
         buf.appendf("PackageMaps/PackageMap[@id='%s']", id);
         return buf.str();
+    }
+
+    static const char *getSuperFilePath(StringBuffer &buf, const char *lfn)
+    {
+        CDfsLogicalFileName lfnParser;
+        lfnParser.set(lfn);
+        if (!lfnParser.isForeign())
+        {
+            lfnParser.makeFullnameQuery(buf, DXB_SuperFile, true);
+            return buf.str();
+        }
+        else
+            return NULL;
     }
 
     virtual IPropertyTree *getPackageMap(const char *id)
@@ -487,9 +529,8 @@ public:
 
     virtual IFileDescriptor *resolveCachedLFN(const char *logicalName)
     {
-        StringBuffer xpath("Files/");
-        StringBuffer lcname;
-        xpath.append(lcname.append(logicalName).toLowerCase());
+        StringBuffer xpath("Files/F.");
+        normalizeName(logicalName, xpath);
         Owned<IPropertyTree> pt = readCache(xpath.str());
         if (pt)
         {
@@ -633,6 +674,16 @@ public:
         return getSubscription(id, getPackageMapPath(xpath, id), notifier);
     }
 
+    virtual IDaliPackageWatcher *getSuperFileSubscription(const char *lfn, ISDSSubscription *notifier)
+    {
+        StringBuffer xpathBuf;
+        const char *xpath = getSuperFilePath(xpathBuf, lfn);
+        if (xpath)
+            return getSubscription(lfn, xpath, notifier);
+        else
+            return NULL;
+    }
+
     virtual bool connected() const
     {
         return isConnected;
@@ -716,9 +767,8 @@ protected:
         Owned<IPropertyTree> pt;
         if (fd)
             pt.setown(fd->getFileTree());
-        StringBuffer xpath("Files/");
-        StringBuffer lcname;
-        xpath.append(lcname.append(logicalName).toLowerCase());
+        StringBuffer xpath("Files/F.");
+        normalizeName(logicalName, xpath);
         writeCache(xpath.str(), xpath.str(), pt);
     }
 };

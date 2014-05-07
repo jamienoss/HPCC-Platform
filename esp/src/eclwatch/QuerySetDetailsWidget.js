@@ -76,8 +76,8 @@ define([
         graphsTabLoaded: false,
         logicalFilesTab: null,
         logicalFilesTabLoaded: false,
-        superFilesTab: false,
-        superFilesTabLoaded: null,
+        superFilesTab: null,
+        superFilesTabLoaded: false,
         workunitsTab: null,
         workunitsTabLoaded: false,
         testPagesTab: null,
@@ -130,8 +130,6 @@ define([
                 context.updateInput(name, oldValue, newValue);
             });
             this.query.refresh();
-
-            this.selectChild(this.summaryTab, true);
         },
 
         initTab: function () {
@@ -146,26 +144,39 @@ define([
             } else if (currSel.id == this.errorsTab.id && !this.errorsTabLoaded) {
                 this.errorsTabLoaded = true;
                 this.errorsTab.init({
-                    Query: this.query
+                    QuerySetId:this.params.QuerySetId,
+                    Id: this.params.Id
                 });
             } else if (currSel.id == this.graphsTab.id && !this.graphsTabLoaded) {
                 this.graphsTabLoaded = true;
                 this.graphsTab.init({
-                    Query: this.query
+                    QuerySetId: this.params.QuerySetId,
+                    Id: this.params.Id
                 });
             } else if (currSel.id == this.logicalFilesTab.id && !this.logicalFilesTabLoaded) {
                 this.logicalFilesTabLoaded = true;
                 this.logicalFilesTab.init({
-                    QueryId: this.query.Id,
-                    QuerySet: this.query.QuerySet,
-                    Query: this.query
+                    QuerySetId: this.params.QuerySetId,
+                    Id: this.params.Id
+                });
+            } else if (currSel.id == this.superFilesTab.id && !this.superFilesTabLoaded) {
+                this.superFilesTabLoaded = true;
+                this.superFilesTab.init({
+                    QuerySetId:this.params.QuerySetId,
+                    Id: this.params.Id
+                });
+            } else if (currSel.id == this.widget._Resources.id && !this.resourcesWidgetLoaded) {
+                this.resourcesWidgetLoaded = true;
+                this.widget._Resources.init({
+                    Wuid: this.query.Wuid,
+                    QuerySetId: this.params.QuerySetId,
+                    Id: this.params.Id
                 });
             } else if (currSel.id == this.testPagesTab.id && !this.testPagesTabLoaded) {
                 this.testPagesTabLoaded = true;
                 this.testPagesTab.init({
-                    QueryId: this.query.Id,
-                    QuerySet: this.query.QuerySet,
-                    Query: this.query
+                    QuerySetId: this.params.QuerySetId,
+                    Id: this.params.Id
                 });
             }
         },
@@ -194,17 +205,13 @@ define([
             }
             if (name === "Wuid") {
                 this.workunitsTab.set("title", newValue);
-            }
-            else if (name === "Suspended") {
+            } else if (name === "Suspended") {
                 dom.byId(this.id + "SuspendImg").src = newValue ? dojoConfig.getImageURL("suspended.png") : "";
-            }
-            else if (name === "Activated") {
+            } else if (name === "Activated") {
                 dom.byId(this.id + "ActiveImg").src = newValue ? dojoConfig.getImageURL("active.png") : "";
-            }
-            else if (name === "SuspendedReason" && newValue === "cluster"){
+            } else if (name === "SuspendedReason" && newValue === "cluster"){
                 dom.byId(this.id + "SuspendCluster").src = dojoConfig.getImageURL("error-icon.png");
-            }
-            else if (name === "CountGraphs" && newValue) {
+            } else if (name === "CountGraphs" && newValue) {
                 this.graphsTab.set("title", this.i18n.Graphs + " (" + newValue + ")");
             } else if (name === "graphs") {
                 this.graphsTab.set("title", this.i18n.Graphs + " (" + newValue.length + ")");
@@ -217,8 +224,9 @@ define([
                         tooltip += " " + newValue[i].Time;
                 }
                 this.graphsTab.set("tooltip", tooltip);
-            }
-            else if (name === "LogicalFiles") {
+            } else if (name === "ResourceURLCount" && newValue) {
+                this.widget._Resources.set("title", this.i18n.Resources + " (" + newValue + ")");
+            } else if (name === "LogicalFiles") {
                 if (lang.exists("Item.length", newValue)) {
                     this.logicalFilesTab.set("title", this.i18n.LogicalFiles + " (" + newValue.Item.length + ")");
                     var tooltip = "";
@@ -229,8 +237,18 @@ define([
                     }
                     this.logicalFilesTab.set("tooltip", tooltip);
                 }
-            }
-            else if (name === "Clusters") {
+            } else if (name === "SuperFiles") {
+                if (lang.exists("SuperFile.length", newValue)) {
+                    this.superFilesTab.set("title", this.i18n.SuperFiles + " (" + newValue.SuperFile.length + ")");
+                    var tooltip = "";
+                    for (var i = 0; i < newValue.SuperFile.length; ++i) {
+                        if (tooltip != "")
+                            tooltip += "\n";
+                        tooltip += newValue.SuperFile[i];
+                    }
+                    this.superFilesTab.set("tooltip", tooltip);
+                }
+            } else if (name === "Clusters") {
                 if (lang.exists("ClusterQueryState.length", newValue)) {
                     this.errorsTab.set("title", this.i18n.ErrorsStatus + " (" + newValue.ClusterQueryState.length + ")");
                     var tooltip = "";

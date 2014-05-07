@@ -72,19 +72,169 @@ SafePluginMap *plugins;
 
 // These two helper functions will return the original filenames placed in the XGMML by the codegen, regardless of how/if roxieconfig resolved them
 
-const char *queryNodeFileName(const IPropertyTree &graphNode)
+static const char *_queryNodeFileName(const IPropertyTree &graphNode)
 {
-    const char *id = graphNode.queryProp("att[@name='_fileName']/@value");
-    return id;
+    if (graphNode.hasProp("att[@name='_file_dynamic']"))
+        return NULL;
+    else
+        return graphNode.queryProp("att[@name='_fileName']/@value");
 }
 
-const char *queryNodeIndexName(const IPropertyTree &graphNode)
+static const char *_queryNodeIndexName(const IPropertyTree &graphNode)
 {
-    const char * id = graphNode.queryProp("att[@name='_indexFileName']/@value");
-    if (!id && !graphNode.hasProp("att[@name='_indexFileName_dynamic']"))   // can remove soon
-        id = graphNode.queryProp("att[@name='_fileName']/@value");
-    return id;
+    if (graphNode.hasProp("att[@name='_indexFile_dynamic']"))
+        return NULL;
+    else
+        return graphNode.queryProp("att[@name='_indexFileName']/@value");
 }
+
+static bool isSimpleIndexActivity(ThorActivityKind kind)
+{
+    switch (kind)
+    {
+    case TAKindexaggregate:
+    case TAKindexcount:
+    case TAKindexexists:
+    case TAKindexgroupaggregate:
+    case TAKindexgroupcount:
+    case TAKindexgroupexists:
+    case TAKindexnormalize:
+    case TAKindexread:
+        return true;
+    default:
+        return false;
+    }
+}
+
+const char *queryNodeFileName(const IPropertyTree &graphNode, ThorActivityKind kind)
+{
+    if (isSimpleIndexActivity(kind))
+        return false;
+    else
+        return _queryNodeFileName(graphNode);
+}
+
+const char *queryNodeIndexName(const IPropertyTree &graphNode, ThorActivityKind kind)
+{
+    if (isSimpleIndexActivity(kind))
+        return _queryNodeFileName(graphNode);
+    else
+        return _queryNodeIndexName(graphNode);
+}
+
+// DelayedReleaser mechanism hangs on to a link to an object for a while...
+
+class DelayedReleaseQueueItem : public CInterfaceOf<IInterface>
+{
+    Owned<IInterface> goer;
+    time_t goTime;
+public:
+    DelayedReleaseQueueItem(IInterface *_goer, unsigned delaySeconds)
+    : goer(_goer)
+    {
+        time(&goTime);
+        goTime += delaySeconds;
+    }
+    unsigned remaining()
+    {
+        time_t now;
+        time(&now);
+        if (now > goTime)
+            return 0;
+        else
+            return goTime - now;
+    }
+};
+
+class DelayedReleaserThread : public Thread
+{
+private:
+    bool closing;
+    bool started;
+    CriticalSection lock;
+    IArrayOf<DelayedReleaseQueueItem> queue;
+    Semaphore sem;
+public:
+    DelayedReleaserThread() : Thread("DelayedReleaserThread")
+    {
+        closing = false;
+        started = false;
+    }
+
+    ~DelayedReleaserThread()
+    {
+        stop();
+    }
+
+    virtual int run()
+    {
+        if (traceLevel)
+            DBGLOG("DelayedReleaserThread %p starting", this);
+        unsigned nextTimeout = INFINITE;
+        while (!closing)
+        {
+            sem.wait(nextTimeout);
+            CriticalBlock b(lock);
+            nextTimeout = INFINITE;
+            ForEachItemInRev(idx, queue)
+            {
+                DelayedReleaseQueueItem &goer = queue.item(idx);
+                unsigned timeRemaining = goer.remaining();
+                if (!timeRemaining)
+                    queue.remove(idx);
+                else if (timeRemaining < nextTimeout)
+                    nextTimeout = timeRemaining;
+            }
+            if (nextTimeout != INFINITE)
+                nextTimeout = nextTimeout * 1000;
+        }
+        if (traceLevel)
+            DBGLOG("DelayedReleaserThread %p exiting", this);
+        return 0;
+    }
+
+    void stop()
+    {
+        if (started)
+        {
+            closing = true;
+            sem.signal();
+            join();
+        }
+    }
+
+    void delayedRelease(IInterface *goer, unsigned delaySeconds)
+    {
+        if (goer)
+        {
+            CriticalBlock b(lock);
+            if (!started)
+            {
+                start();
+                started = true;
+            }
+            queue.append(*new DelayedReleaseQueueItem(goer, delaySeconds));
+            sem.signal();
+        }
+    }
+};
+
+Owned<DelayedReleaserThread> delayedReleaser;
+
+void createDelayedReleaser()
+{
+    delayedReleaser.setown(new DelayedReleaserThread);
+}
+
+void stopDelayedReleaser()
+{
+    if (delayedReleaser)
+        delayedReleaser->stop();
+    delayedReleaser.clear();
+}
+
+
+//-------------------------------------------------------------------------
 
 class CSimpleSuperFileArray : public CInterface, implements ISimpleSuperFileEnquiry
 {
@@ -321,7 +471,7 @@ protected:
                 {
                     Owned<IDistributedFile> dFile = daliHelper->resolveLFN(fileName, cacheResult, writeAccess);
                     if (dFile)
-                        result = createResolvedFile(fileName, NULL, dFile.getClear(), daliHelper, cacheResult, writeAccess);
+                        result = createResolvedFile(fileName, NULL, dFile.getClear(), daliHelper, !useCache, cacheResult, writeAccess);
                 }
                 else if (!writeAccess)  // If we need write access and expect a dali, but don't have one, we should probably fail
                 {
@@ -402,7 +552,7 @@ protected:
                 {
                     if (subFileName.charAt(0)=='~')
                     {
-                        // implies that a package file had ~ in subfile names - shouldn't really, but we allow it (and just strip the ~
+                        // implies that a package file had ~ in subfile names - shouldn't really, but we allow it (and just strip the ~)
                         subFileName.remove(0,1);
                     }
                     if (traceLevel > 9)
@@ -462,7 +612,7 @@ public:
     virtual IPropertyTreeIterator *getInMemoryIndexInfo(const IPropertyTree &graphNode) const 
     {
         StringBuffer xpath;
-        xpath.append("SuperFile[@id='").append(queryNodeFileName(graphNode)).append("']");
+        xpath.append("SuperFile[@id='").append(queryNodeFileName(graphNode, getActivityKind(graphNode))).append("']");
         return lookupElements(xpath.str(), "MemIndex");
     }
 
@@ -707,7 +857,7 @@ protected:
             throw MakeStringException(ROXIE_INTERNAL_ERROR, "Invalid parameters to addAlias");
     }
 
-    virtual IQueryFactory *loadQueryFromDll(const char *id, const IQueryDll *dll, const IHpccPackage &package, const IPropertyTree *stateInfo, bool forceRetry) = 0;
+    virtual IQueryFactory *loadQueryFromDll(const char *id, const IQueryDll *dll, const IRoxiePackage &package, const IPropertyTree *stateInfo, bool forceRetry) = 0;
 
 public:
     IMPLEMENT_IINTERFACE;
@@ -754,8 +904,8 @@ public:
                     if(!package) package = packages.matchPackage(id);
                     if (!package) package = &queryRootRoxiePackage();
                 }
-                assertex(package);
-                addQuery(id, loadQueryFromDll(id, queryDll.getClear(), *package, &query, forceRetry), hash);
+                assertex(package && QUERYINTERFACE(package, const IRoxiePackage));
+                addQuery(id, loadQueryFromDll(id, queryDll.getClear(), *QUERYINTERFACE(package, const IRoxiePackage), &query, forceRetry), hash);
             }
             catch (IException *E)
             {
@@ -883,7 +1033,7 @@ public:
     {
     }
 
-    virtual IQueryFactory * loadQueryFromDll(const char *id, const IQueryDll *dll, const IHpccPackage &package, const IPropertyTree *stateInfo, bool forceRetry)
+    virtual IQueryFactory * loadQueryFromDll(const char *id, const IQueryDll *dll, const IRoxiePackage &package, const IPropertyTree *stateInfo, bool forceRetry)
     {
         return createServerQueryFactory(id, dll, package, stateInfo, false, forceRetry);
     }
@@ -907,7 +1057,7 @@ public:
         channelNo = _channelNo;
     }
 
-    virtual IQueryFactory *loadQueryFromDll(const char *id, const IQueryDll *dll, const IHpccPackage &package, const IPropertyTree *stateInfo, bool forceRetry)
+    virtual IQueryFactory *loadQueryFromDll(const char *id, const IQueryDll *dll, const IRoxiePackage &package, const IPropertyTree *stateInfo, bool forceRetry)
     {
         return createSlaveQueryFactory(id, dll, package, channelNo, stateInfo, false, forceRetry);
     }
@@ -1146,6 +1296,8 @@ protected:
             serverManager.setown(newServerManager);
             queryHash = newHash;
         }
+        if (slaveQueryReleaseDelaySeconds)
+            delayedReleaser->delayedRelease(oldSlaveManagers.getClear(), slaveQueryReleaseDelaySeconds);
     }
 
     mutable CriticalSection updateCrit;  // protects updates of slaveManagers and serverManager
@@ -1495,13 +1647,23 @@ class CRoxiePackageSetManager : public CInterface, implements IRoxieQueryPackage
 public:
     IMPLEMENT_IINTERFACE;
     CRoxiePackageSetManager(const IQueryDll *_standAloneDll) :
-        standAloneDll(_standAloneDll)
+        autoReloadThread(*this), standAloneDll(_standAloneDll)
     {
         daliHelper.setown(connectToDali(ROXIE_DALI_CONNECT_TIMEOUT));
+        atomic_set(&autoPending, 0);
+        autoReloadThread.start();
     }
 
     ~CRoxiePackageSetManager()
     {
+        autoReloadThread.stop();
+        autoReloadThread.join();
+    }
+
+    virtual void requestReload()
+    {
+        atomic_inc(&autoPending);
+        autoReloadTrigger.signal();
     }
 
     virtual void load()
@@ -1563,8 +1725,7 @@ public:
 
     virtual void notify(SubscriptionId id, const char *xpath, SDSNotifyFlags flags, unsigned valueLen, const void *valueData)
     {
-        reload(false);
-        daliHelper->commitCache();
+        requestReload();
     }
 
 private:
@@ -1574,6 +1735,58 @@ private:
     mutable ReadWriteLock packageCrit;
     InterruptableSemaphore controlSem;
     Owned<CRoxiePackageSetWatcher> allQueryPackages;
+
+    Semaphore autoReloadTrigger;
+    atomic_t autoPending;
+
+    class AutoReloadThread : public Thread
+    {
+        bool closing;
+        CRoxiePackageSetManager &owner;
+    public:
+        AutoReloadThread(CRoxiePackageSetManager &_owner)
+        : owner(_owner), Thread("AutoReloadThread")
+        {
+            closing = false;
+        }
+
+        virtual int run()
+        {
+            if (traceLevel)
+                DBGLOG("AutoReloadThread %p starting", this);
+            while (!closing)
+            {
+                owner.autoReloadTrigger.wait();
+                if (atomic_read(&owner.autoPending))
+                {
+                    atomic_set(&owner.autoPending, 0);
+                    try
+                    {
+                        owner.reload(false); // Arguably true should be better...
+                    }
+                    catch (IException *E)
+                    {
+                        if (!closing)
+                            EXCLOG(MCoperatorError, E, "AutoReloadThread: ");
+                        E->Release();
+                    }
+                    catch (...)
+                    {
+                        DBGLOG("Unknown exception in AutoReloadThread");
+                    }
+                }
+            }
+            if (traceLevel)
+                DBGLOG("AutoReloadThread %p exiting", this);
+            return 0;
+        }
+
+        void stop()
+        {
+            closing = true;
+            owner.autoReloadTrigger.signal();
+        }
+    } autoReloadThread;
 
     void reload(bool forceRetry)
     {
@@ -1594,6 +1807,7 @@ private:
             oldPackages.setown(allQueryPackages.getLink());  // To ensure that the setown just below does not delete it
             allQueryPackages.setown(newPackages.getClear());
         }
+        daliHelper->commitCache();
     }
 
     // Common code used by control:queries and control:getQueryXrefInfo
@@ -1601,7 +1815,7 @@ private:
     void getQueryInfo(IPropertyTree *control, StringBuffer &reply, bool full, const IRoxieContextLogger &logctx) const
     {
         Owned<IPropertyTreeIterator> ids = control->getElements("Query");
-        reply.append("<Queries>\n");
+        reply.append("<Queries reporting='1'>\n");
         if (ids->first())
         {
             ForEach(*ids)
@@ -2628,6 +2842,35 @@ void mergeStats(IPropertyTree *s1, IPropertyTree *s2)
         s1->addPropTree("Exception", LINK(&elems->query()));
     }
     mergeStats(s1, s2, 0);
+}
+
+void mergeQueries(IPropertyTree *dest, IPropertyTree *src)
+{
+    IPropertyTree *destQueries = ensurePTree(dest, "Queries");
+    IPropertyTree *srcQueries = src->queryPropTree("Queries");
+    if (!srcQueries)
+        return;
+    destQueries->setPropInt("@reporting", destQueries->getPropInt("@reporting") + srcQueries->getPropInt("@reporting"));
+
+    Owned<IPropertyTreeIterator> it = srcQueries->getElements("Query");
+    ForEach(*it)
+    {
+        IPropertyTree *srcQuery = &it->query();
+        const char *id = srcQuery->queryProp("@id");
+        if (!id || !*id)
+            continue;
+        VStringBuffer xpath("Query[@id='%s']", id);
+        IPropertyTree *destQuery = destQueries->queryPropTree(xpath);
+        if (!destQuery)
+        {
+            destQueries->addPropTree("Query", LINK(srcQuery));
+            continue;
+        }
+        int suspended = destQuery->getPropInt("@suspended") + srcQuery->getPropInt("@suspended"); //keep count to recognize "partially suspended" queries
+        mergePTree(destQuery, srcQuery);
+        if (suspended)
+            destQuery->setPropInt("@suspended", suspended);
+    }
 }
 
 #ifdef _USE_CPPUNIT

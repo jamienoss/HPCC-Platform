@@ -67,7 +67,9 @@ define([
                     }));
                 }, this);
                 this.setData(data);
-                return this.data;
+                return arrayUtil.map(data, function (item) {
+                    return item;
+                });
             }));
             return QueryResults(results);
         },
@@ -139,7 +141,9 @@ define([
                     }
                 }, this);
                 this.setData(data);
-                return this.data;
+                return arrayUtil.map(data, function (item) {
+                    return item;
+                });
             }));
             return QueryResults(results);
         },
@@ -220,7 +224,9 @@ define([
                     }));
                 }, this);
                 this.setData(data);
-                return data;
+                return arrayUtil.map(data, function (item) {
+                    return item;
+                });
             }));
             return QueryResults(results);
         },
@@ -228,7 +234,9 @@ define([
         refreshResources: function (query) {
             return self.Resources({
                 request: {
-                    basedn: this.basedn
+                    basedn: this.parentRow.basedn,
+                    rtype: this.parentRow.rtype,
+                    rtitle: this.parentRow.rtitle
                 }
             }).then(lang.hitch(this, function (response) {
                 if (lang.exists("ResourcesResponse.Resources.Resource", response)) {
@@ -239,6 +247,9 @@ define([
         },
 
         refreshAccountPermissions: function () {
+            if (!this.groupname && !this.username) {
+                return [];
+            }
             return self.AccountPermissions({
                 request: {
                     AccountName: this.groupname ? this.groupname : this.username,
@@ -312,14 +323,16 @@ define([
                     }, this);
                 }
                 this.setData(data);
-                return data;
+                return arrayUtil.map(data, function (item) {
+                    return item;
+                });
             }));
             return QueryResults(results);
         }
     });
 
     var self = {
-        checkError: function (response, sourceMethod) {
+        checkError: function (response, sourceMethod, showOkMsg) {
             var retCode = lang.getObject(sourceMethod + "Response.retcode", false, response);
             var retMsg = lang.getObject(sourceMethod + "Response.retmsg", false, response);
             if (retCode) {
@@ -328,13 +341,20 @@ define([
                     Source: "WsAccess." + sourceMethod,
                     Exceptions: [{ Message: retMsg }]
                 });
+            } else if (showOkMsg && retMsg) {
+                topic.publish("hpcc/brToaster", {
+                    Severity: "Message",
+                    Source: "WsAccess." + sourceMethod,
+                    Exceptions: [{ Message: retMsg }]
+                });
+
             }
         },
 
         _doCall: function (action, params) {
             var context = this;
             return ESPRequest.send("ws_access", action, params).then(function (response) {
-                context.checkError(response, action);
+                context.checkError(response, action, params ? params.showOkMsg : false);
                 return response;
             });
         },
@@ -391,16 +411,48 @@ define([
             return this._doCall("Permissions", params);
         },
 
-        Resources: function (params) {
-            return this._doCall("Resources", params);
-        },
-
         AccountPermissions: function (params) {
             return this._doCall("AccountPermissions", params);
         },
 
+        Resources: function (params) {
+            return this._doCall("Resources", params);
+        },
+
+        ResourceAdd: function (params) {
+            return this._doCall("ResourceAdd", params);
+        },
+
+        ResourceDelete: function(params) {
+            return this._doCall("ResourceDelete", params);
+        },
+
         PermissionAction: function (params) {
             return this._doCall("PermissionAction", params);
+        },
+
+        ClearPermissionsCache: function() {
+            return this._doCall("ClearPermissionsCache", {
+                request: {
+                    action :"Clear Permissions Cache"
+                }
+            });
+        },
+
+        EnableScopeScans: function () {
+            return this._doCall("EnableScopeScans", {
+                request: {
+                    action: "Enable Scope Scans"
+                }
+            });
+        },
+
+        DisableScopeScans: function () {
+            return this._doCall("DisableScopeScans", {
+                request: {
+                    action: "Disable Scope Scans"
+                }
+            });
         },
 
         CreateUsersStore: function (groupname) {

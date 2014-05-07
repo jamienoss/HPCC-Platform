@@ -39,11 +39,11 @@ define([
             this.__hpcc_id = id;
 
             this._watched = [];
-            this.children = Observable(new Memory({
+            this.children = new Memory({
                 idProperty: "__hpcc_id",
                 parent: this,
                 data: []
-            }));
+            });
         },
 
         pause: function () {
@@ -133,16 +133,20 @@ define([
             this.set("DisplaySize", "");
         },
 
+        tmp: 0,
         addChild: function (wu) {
             wu.set("ESPQueue", this);
-            this.children.put(wu, {
-                overwrite: true
-            });
+            if (!this.children.get(wu.__hpcc_id)) {
+                this.children.add(wu);
+            }
             if (!this._watched[wu.__hpcc_id]) {
                 var context = this;
                 this._watched[wu.__hpcc_id] = wu.watch("changedCount", function (name, oldValue, newValue) {
                     if (oldValue !== newValue) {
-                        context.children.notify(wu, wu.__hpcc_id);
+                        //  If child changes force the parent to refresh...
+                        context.updateData({
+                            childChangedCount: ++context.tmp
+                        });
                     }
                 });
             }
@@ -169,6 +173,10 @@ define([
     var TargetCluster = declare([Queue], {
         getDisplayName: function () {
             return this.ClusterName;
+        },
+
+        isNormal: function () {
+            return this.ClusterStatus === 0;
         },
 
         isPaused: function () {
@@ -198,12 +206,32 @@ define([
                 });
                 return response;
             });
+        },
+
+        getStateImageName: function () {
+            switch (this.ClusterStatus) {
+                case 1:
+                case 2:
+                    return "server_paused.png";
+                case 3:
+                case 4:
+                    return "server_notfound.png";
+            }
+            return "server.png";
+        },
+
+        getStateImage: function () {
+            return dojoConfig.getImageURL(this.getStateImageName());
         }
     });
 
     var ServerJobQueue = declare([Queue], {
         getDisplayName: function () {
             return this.QueueName;
+        },
+
+        isNormal: function () {
+            return this.QueueStatus === "running";
         },
 
         isPaused: function () {
@@ -231,6 +259,22 @@ define([
                 });
                 return response;
             });
+        },
+
+        getStateImageName: function () {
+            switch (this.QueueStatus) {
+                case "running":
+                    return "server.png";
+                case "paused":
+                    return "server_paused.png";
+                default:
+                    console.log("ESPQueue:  New State - " + this.QueueStatus);
+            }
+            return "server.png";
+        },
+
+        getStateImage: function () {
+            return dojoConfig.getImageURL(this.getStateImageName());
         }
 
     });

@@ -53,6 +53,11 @@ define([
             }
         },
 
+        _onNewPageNoFrame: function (event) {
+            var win = window.open(this.params.src);
+            win.focus();
+        },
+
         //  Hitched actions  ---
         _onRefresh: function (event) {
             this.contentPane.set("content", domConstruct.create("iframe", {
@@ -67,6 +72,7 @@ define([
             if (this.inherited(arguments))
                 return;
 
+            this.wrapInHRef(this.id + "NewPageNoFrame", this.getURL());
             this._onRefresh();
         }
     });

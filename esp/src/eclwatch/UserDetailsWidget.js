@@ -38,6 +38,7 @@ define([
 
     "dojo/text!../templates/UserDetailsWidget.html",
 
+    "dijit/form/Form",
     "dijit/form/Textarea",
     "dijit/form/TextBox",
     "dijit/form/Button",
@@ -80,6 +81,7 @@ define([
             if (this.userForm.validate()) {
                 var formInfo = domForm.toObject(this.id + "UserForm");
                 WsAccess.UserInfoEdit({
+                    showOkMsg: true,
                     request: {
                         username: this.user,
                         firstname: formInfo.firstname,
@@ -89,6 +91,7 @@ define([
 
                 if (formInfo.newPassword) {
                     WsAccess.UserResetPass({
+                        showOkMsg: true,
                         request: {
                             username: this.user,
                             newPassword: formInfo.newPassword,

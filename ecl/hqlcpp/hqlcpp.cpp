@@ -515,14 +515,6 @@ bool isProjectedInRecord(IHqlExpression * record, IHqlExpression * expr)
     return false;
 }
 
-IHqlExpression * queryStripCasts(IHqlExpression * expr)
-{
-    while ((expr->getOperator() == no_cast) || (expr->getOperator() == no_implicitcast))
-        expr = expr->queryChild(0);
-    return expr;
-}
-
-
 // Format the list is stored in doesn't matter, so allow constant strings to be stored by reference
 IHqlExpression * getOptimialListFormat(IHqlExpression * table)
 {
@@ -1271,8 +1263,6 @@ void HqlCppInstance::addHint(const char * hintXml, ICodegenContextCallback * ctx
 
         Owned<IWUQuery> query = workunit->updateQuery();
         associateLocalFile(query, FileTypeCpp, hintFilename.str(), "Hints", 0);
-
-        ctxCallback->registerFile(hintFilename.str(), "Hints");
     }
     appendHintText(hintXml);
 }
@@ -1340,7 +1330,6 @@ void HqlCppInstance::flushResources(const char *filename, ICodegenContextCallbac
         {
             Owned<IWUQuery> query = workunit->updateQuery();
             associateLocalFile(query, FileTypeHintXml, resTextName, "Workunit resource text", 0);
-            ctxCallback->registerFile(resTextName, "Workunit Res.txt");
         }
         useLibrary(filename);
     }
@@ -1590,7 +1579,7 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.convertJoinToLookup,"convertJoinToLookup", true),
         DebugOption(options.convertJoinToLookupIfSorted,"convertJoinToLookupIfSorted", false),
         DebugOption(options.spotCSE,"spotCSE", true),
-        DebugOption(options.spotCseInIfDatasetConditions,"spotCseInIfDatasetConditions", false),
+        DebugOption(options.spotCseInIfDatasetConditions,"spotCseInIfDatasetConditions", true),
         DebugOption(options.optimizeNonEmpty,"optimizeNonEmpty", !targetThor()),                // not sure that it will be conditional resourced correctly for thor
         DebugOption(options.allowVariableRoxieFilenames,"allowVariableRoxieFilenames", false),
         DebugOption(options.foldConstantDatasets,"foldConstantDatasets", true),
@@ -7946,7 +7935,7 @@ void HqlCppTranslator::doBuildAssignCompareTable(BuildCtx & ctx, EvaluateCompare
         //     if (cmp != 0) break;
         BuildCtx donectx(loopctx);
         donectx.addFilter(info.target.expr);
-        donectx.addQuoted("break;");
+        donectx.addQuotedLiteral("break;");
     }
 
     //     i1.next();
@@ -11703,7 +11692,7 @@ void HqlCppTranslator::buildScriptFunctionDefinition(BuildCtx &funcctx, IHqlExpr
         args.append(*createActualFromFormal(param));
         buildFunctionCall(funcctx, bindFunc, args);
     }
-    funcctx.addQuoted("__ctx->callFunction();");
+    funcctx.addQuotedLiteral("__ctx->callFunction();");
     IIdAtom * returnFunc;
     HqlExprArray retargs;
     Owned<ITypeInfo> newReturnType;

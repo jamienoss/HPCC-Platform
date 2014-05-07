@@ -179,21 +179,21 @@ define([
             this.openButton = registry.byId(this.id + "Open");
             this.clusterPauseButton = new Button({
                 id: this.id + "PauseButton",
-                label: "Pause",
+                label: this.i18n.Pause,
                 onClick: function (event) {
                     context._onPause(event);
                 }
             }).placeAt(this.openButton.domNode, "before");
             this.clusterResumeButton = new Button({
                 id: this.id + "ResumeButton",
-                label: "Resume",
+                label: this.i18n.Resume,
                 onClick: function (event) {
                     context._onResume(event);
                 }
             }).placeAt(this.openButton.domNode, "before");
             this.clusterClearButton = new Button({
                 id: this.id + "ClearButton",
-                label: "Clear",
+                label: this.i18n.Clear,
                 onClick: function (event) {
                     context._onClear(event);
                 }
@@ -202,28 +202,28 @@ define([
 
             this.wuMoveBottomButton = new Button({
                 id: this.id + "MoveBottomButton",
-                label: "Bottom",
+                label: this.i18n.Bottom,
                 onClick: function (event) {
                     context._onWUBottom(event);
                 }
             }).placeAt(this.openButton.domNode, "after");
             this.wuMoveDownButton = new Button({
                 id: this.id + "MoveDownButton",
-                label: "Down",
+                label: this.i18n.Down,
                 onClick: function (event) {
                     context._onWUDown(event);
                 }
             }).placeAt(this.openButton.domNode, "after");
             this.wuMoveUpButton = new Button({
                 id: this.id + "MoveUpButton",
-                label: "Up",
+                label: this.i18n.Up,
                 onClick: function (event) {
                     context._onWUUp(event);
                 }
             }).placeAt(this.openButton.domNode, "after");
             this.wuMoveTopButton = new Button({
                 id: this.id + "MoveTopButton",
-                label: "Top",
+                label: this.i18n.Top,
                 onClick: function (event) {
                     context._onWUTop(event);
                 }
@@ -231,21 +231,21 @@ define([
             tmpSplitter = new ToolbarSeparator().placeAt(this.openButton.domNode, "after");
             this.wuLowPriorityButton = new Button({
                 id: this.id + "LowPriorityButton",
-                label: "Low",
+                label: this.i18n.Low,
                 onClick: function (event) {
                     context._onWUPriority(event, "low");
                 }
             }).placeAt(this.openButton.domNode, "after");
             this.wuNormalPriorityButton = new Button({
                 id: this.id + "NormalPriorityButton",
-                label: "Normal",
+                label: this.i18n.Normal,
                 onClick: function (event) {
                     context._onWUPriority(event, "normal");
                 }
             }).placeAt(this.openButton.domNode, "after");
             this.wuHighPriorityButton = new Button({
                 id: this.id + "HighPriorityButton",
-                label: "High",
+                label: this.i18n.High,
                 onClick: function (event) {
                     context._onWUPriority(event, "high");
                 }
@@ -253,7 +253,7 @@ define([
             tmpSplitter = new ToolbarSeparator().placeAt(this.openButton.domNode, "after");
             this.wuAbortButton = new Button({
                 id: this.id + "AbortButton",
-                label: "Abort",
+                label: this.i18n.Abort,
                 onClick: function (event) {
                     context._onWUAbort(event);
                 }
@@ -272,7 +272,7 @@ define([
                     }),
                     Priority: {
                         renderHeaderCell: function (node) {
-                            node.innerHTML = dojoConfig.getImageHTML("priority.png");
+                            node.innerHTML = dojoConfig.getImageHTML("priority.png", context.i18n.Priority);
                         },
                         width: 25,
                         sortable: false,
@@ -294,20 +294,9 @@ define([
                             return true;
                         },
                         formatter: function (_name, row) {
-                            var img = "";
-                            var name = "";
-                            if (context.activity.isInstanceOfQueue(row)) {
-                                if (row.isPaused()) {
-                                    img = dojoConfig.getImageURL("server_paused.png");
-                                } else {
-                                    img = dojoConfig.getImageURL("server.png");
-                                }
-                                name = _name;
-                            } else {
-                                img = row.getStateImage();
-                                name = "<a href='#' class='" + context.id + "WuidClick'>" + row.Wuid + "</a>";
-                            }
-                            return "<img src='" + img + "'/>&nbsp;" + name;
+                            var img = row.getStateImage();
+                            var name = context.activity.isInstanceOfQueue(row) ? _name : row.Wuid;
+                            return "<img src='" + img + "'/>&nbsp;<a href='#' class='" + context.id + "RowClick'>" + name + "</a>";
                         }
                     }),
                     DisplaySize: { label: this.i18n.Size, width: 59, sortable: true },
@@ -316,10 +305,7 @@ define([
                         sortable: false,
                         formatter: function (state, row) {
                             if (context.activity.isInstanceOfQueue(row)) {
-                                if (row.isPaused()) {
-                                    return row.StatusDetails;
-                                }
-                                return "";
+                                return row.isNormal() ? "" : row.StatusDetails;
                             }
                             if (row.Duration) {
                                 return state + " (" + row.Duration + ")";
@@ -344,7 +330,7 @@ define([
                 }
             }, domID);
 
-            on(document, "." + this.id + "WuidClick:click", function (evt) {
+            on(document, "." + this.id + "RowClick:click", function (evt) {
                 if (context._onRowDblClick) {
                     var row = retVal.row(evt).data;
                     context._onRowDblClick(row);
@@ -355,15 +341,16 @@ define([
 
         createDetail: function (id, row, params) {
             if (this.activity.isInstanceOfQueue(row)) {
-                return new ContentPane({
+                return new DelayLoadWidget({
                     id: id,
-                    title: row.DisplayName,
+                    title: row.ClusterName,
                     closable: true,
-                    style: "padding: 0px; border:0px; border-color:none; overflow: hidden",
-                    content: dojo.create("iframe", {
-                        src: dojoConfig.urlInfo.pathname + "?Widget=IFrameWidget&src=" + encodeURIComponent(ESPRequest.getBaseURL("WsWorkunits") + "/WUJobList?form_&Cluster=" + row.ClusterName + "&Range=30"),
-                        style: "border: 0; width: 100%; height: 100%"
-                    })
+                    delayWidget: "TpClusterInfoWidget",
+                    hpcc: {
+                        params: {
+                            ClusterName: row.ClusterName
+                        }
+                    }
                 });
             } else if (this.activity.isInstanceOfWorkunit(row)) {
                 if (row.Server === "DFUserver") {

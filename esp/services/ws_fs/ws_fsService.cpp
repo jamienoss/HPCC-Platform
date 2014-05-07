@@ -129,6 +129,22 @@ void CFileSprayEx::init(IPropertyTree *cfg, const char *process, const char *ser
 
 }
 
+StringBuffer& CFileSprayEx::getAcceptLanguage(IEspContext& context, StringBuffer& acceptLanguage)
+{
+    context.getAcceptLanguage(acceptLanguage);
+    if (!acceptLanguage.length())
+    {
+        acceptLanguage.set("en");
+        return acceptLanguage;
+    }
+    acceptLanguage.setLength(2);
+    VStringBuffer languageFile("%ssmc_xslt/nls/%s/hpcc.xml", getCFD(), acceptLanguage.str());
+    if (!checkFileExists(languageFile.str()))
+        acceptLanguage.set("en");
+    return acceptLanguage;
+}
+
+
 void ParsePath(const char * fullPath, StringBuffer &ip, StringBuffer &filePath, StringBuffer &title)
 {
     ip.clear();
@@ -355,7 +371,8 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
         if (version >= 1.04 && (file->getFormat() == DFUff_csv))
         {
             StringBuffer separate, terminate, quote, escape;
-            file->getCsvOptions(separate,terminate,quote, escape);
+            bool quotedTerminator;
+            file->getCsvOptions(separate,terminate,quote, escape, quotedTerminator);
             if(separate.length() > 0)
                 dest.setSourceCsvSeparate(separate.str());
             if(terminate.length() > 0)
@@ -364,6 +381,8 @@ static void DeepAssign(IEspContext &context, IConstDFUWorkUnit *src, IEspDFUWork
                 dest.setSourceCsvQuote(quote.str());
             if((version >= 1.05) && (escape.length() > 0))
                 dest.setSourceCsvEscape(escape.str());
+            if(version >=1.10)
+                dest.setQuotedTerminator(quotedTerminator);
         }
     }
 
@@ -2071,7 +2090,9 @@ bool CFileSprayEx::onSprayVariable(IEspContext &context, IEspSprayVariable &req,
             const char* cq = req.getSourceCsvQuote();
             if(cq== NULL)
                 cq = "'";
-            source->setCsvOptions(cs, ct, cq, req.getSourceCsvEscape());
+            source->setCsvOptions(cs, ct, cq, req.getSourceCsvEscape(), req.getQuotedTerminator());
+
+            options->setQuotedTerminator(req.getQuotedTerminator());
         }
 
         destination->setLogicalName(destname);
@@ -2676,6 +2697,7 @@ bool CFileSprayEx::onFileList(IEspContext &context, IEspFileListRequest &req, IE
         if (!path || !*path)
             throw MakeStringException(ECLWATCH_INVALID_INPUT, "Path not specified.");
 
+        double version = context.getClientVersion();
         const char* netaddr = req.getNetaddr();
         const char* mask = req.getMask();
         bool directoryOnly = req.getDirectoryOnly();
@@ -2754,6 +2776,11 @@ bool CFileSprayEx::onFileList(IEspContext &context, IEspFileListRequest &req, IE
         if (mask && *mask)
             resp.setMask(mask);
 
+        if (version >= 1.10)
+        {
+            StringBuffer acceptLanguage;
+            resp.setAcceptLanguage(getAcceptLanguage(context, acceptLanguage).str());
+        }
         resp.setDirectoryOnly(directoryOnly);
     }
     catch(IException* e)

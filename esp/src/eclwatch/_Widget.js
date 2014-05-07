@@ -2,6 +2,7 @@ define([
     "dojo/_base/declare", // declare
     "dojo/io-query",
     "dojo/dom",
+    "dojo/dom-construct",
     "dojo/dom-attr",
     "dojo/dom-style",
 
@@ -10,7 +11,7 @@ define([
     "dijit/_WidgetsInTemplateMixin",
     "dijit/registry"
 
-], function (declare, ioQuery, dom, domAttr, domStyle,
+], function (declare, ioQuery, dom, domConstruct, domAttr, domStyle,
     _LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin, registry) {
 
     return declare("_Widget", [_LayoutWidget, _TemplatedMixin, _WidgetsInTemplateMixin], {
@@ -29,11 +30,15 @@ define([
             this.registerChildWidgets(this.domNode);
         },
 
-        _onNewPage: function (event) {
+        getURL: function() {
             var baseUrl = document.URL.split("#")[0];
             baseUrl = baseUrl.split("?")[0];
             var paramsString = ioQuery.objectToQuery(this.params);
-            var win = window.open(baseUrl + "?" + paramsString, "_blank");
+            return baseUrl + "?" + paramsString;
+        },
+
+        _onNewPage: function (event) {
+            var win = window.open(this.getURL(), "_blank");
             win.focus();
         },
 
@@ -45,7 +50,7 @@ define([
             if (!this.params.Widget) {
                 this.params.Widget = this.declaredClass;
             }
-            
+            this.wrapInHRef(this.id + "NewPage", this.getURL());
             return false;
         },
 
@@ -82,7 +87,17 @@ define([
             }
         },
 
-        updateInput: function (name, oldValue, newValue) {
+        isDefined: function(variable) {
+            if (typeof variable === "undefined") {
+                return false;
+            } else if (variable === null) {
+                return false;
+            }
+            return true;
+        },
+
+        updateInput: function (name, oldValue, _newValue) {
+            var newValue = this.isDefined(_newValue) ? _newValue : "";
             var registryNode = registry.byId(this.id + name);
             if (registryNode) {
                 registryNode.set("value", newValue);
@@ -102,6 +117,19 @@ define([
                             throw new Error("Unknown DOM element:  " + domElem.tagName);
                     }
                 }
+            }
+        },
+        
+        wrapInHRef: function(node, href) {
+            var nodeToWrap = dom.byId(node);
+            if (nodeToWrap) {
+                var hrefNode = domConstruct.create("a", {
+                    href: href,
+                    onClick: function (event) {
+                        event.preventDefault();
+                    }
+                }, nodeToWrap, "after");
+                domConstruct.place(nodeToWrap, hrefNode, "first");
             }
         },
 

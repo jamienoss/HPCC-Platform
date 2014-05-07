@@ -558,6 +558,7 @@ class CLocalWorkUnit : public CInterface, implements IConstWorkUnit , implements
     mutable bool activitiesCached;
     mutable bool webServicesInfoCached;
     mutable bool roxieQueryInfoCached;
+    mutable bool timersCached;
     mutable IArrayOf<IWUActivity> activities;
     mutable IArrayOf<IWUPlugin> plugins;
     mutable IArrayOf<IWULibrary> libraries;
@@ -566,6 +567,7 @@ class CLocalWorkUnit : public CInterface, implements IConstWorkUnit , implements
     mutable IArrayOf<IWUResult> results;
     mutable IArrayOf<IWUResult> temporaries;
     mutable IArrayOf<IWUResult> variables;
+    mutable IArrayOf<IWUTimer> timers;
     mutable CachedTags<CLocalWUTimeStamp,IConstWUTimeStamp> timestamps;
     mutable CachedTags<CLocalWUAppValue,IConstWUAppValue> appvalues;
     mutable CachedTags<CLocalWUStatistic,IConstWUStatistic> statistics;
@@ -657,6 +659,7 @@ public:
     virtual unsigned getTimerDuration(const char * timerName) const;
     virtual IStringVal & getTimerDescription(const char * timerName, IStringVal & str) const;
     virtual IStringIterator & getTimers() const;
+    virtual IConstWUTimerIterator & getTimerIterator() const;
     virtual IConstWUTimeStampIterator & getTimeStamps() const;
     virtual IConstWUStatisticIterator & getStatistics() const;
     virtual IConstWUStatistic * getStatistic(const char * name) const;
@@ -812,6 +815,7 @@ private:
     void loadLibraries() const;
     void loadClusters() const;
     void loadActivities() const;
+    void loadTimers() const;
     void unsubscribe();
     void checkAgentRunning(WUState & state);
 
@@ -1072,6 +1076,8 @@ public:
             { return c->getTimeStamp(name, instance, str); }
     virtual IStringIterator & getTimers() const
             { return c->getTimers(); }
+    virtual IConstWUTimerIterator & getTimerIterator() const
+            { return c->getTimerIterator(); }
     virtual IConstWUTimeStampIterator & getTimeStamps() const
             { return c->getTimeStamps(); }
     virtual IConstWUStatisticIterator & getStatistics() const
@@ -2987,6 +2993,7 @@ void CLocalWorkUnit::init()
     activities.kill();
     exceptions.kill();
     temporaries.kill();
+    timers.kill();
     roxieQueryInfo.clear();
     webServicesInfo.clear();
     workflowIteratorCached = false;
@@ -2999,6 +3006,7 @@ void CLocalWorkUnit::init()
     activitiesCached = false;
     webServicesInfoCached = false;
     roxieQueryInfoCached = false;
+    timersCached = false;
     dirty = false;
     abortDirty = true;
     abortState = false;
@@ -3218,29 +3226,37 @@ bool CLocalWorkUnit::archiveWorkUnit(const char *base,bool del,bool ignoredllerr
                 setState(WUStateArchived);  // to allow delete
             cleanupAndDelete(false,deleteOwned);    // no query, may as well delete 
         }
-        return false;   
+        return false;
     }
 
     StringArray deleteExclusions; // associated files not to delete, added if failure to copy
     Owned<IConstWUAssociatedFileIterator> iter = &q->getAssociatedFiles();
-    SCMStringBuffer name;
-    Owned<IException> exception;
-    Owned<IDllLocation> loc;
-    StringBuffer dst, locpath;
     Owned<IPropertyTree> generatedDlls = createPTree("GeneratedDlls");
     ForEach(*iter)
     {
         IConstWUAssociatedFile & cur = iter->query();
+        SCMStringBuffer name;
         cur.getNameTail(name);
         if (name.length())
         {
             Owned<IDllEntry> entry = queryDllServer().getEntry(name.str());
+            SCMStringBuffer curPath, curIp;
+            cur.getName(curPath);
+            cur.getIp(curIp);
+            SocketEndpoint curEp(curIp.str());
+            RemoteFilename curRfn;
+            curRfn.setPath(curEp, curPath.str());
+            StringBuffer dst(base);
+            addPathSepChar(dst);
+            curRfn.getTail(dst);
+            Owned<IFile> dstFile = createIFile(dst.str());
             if (entry.get())
             {
+                Owned<IException> exception;
+                Owned<IDllLocation> loc;
                 Owned<IPropertyTree> generatedDllBranch = createPTree();
                 generatedDllBranch->setProp("@name", entry->queryName());
                 generatedDllBranch->setProp("@kind", entry->queryKind());
-                exception.clear();
                 try
                 {
                     loc.setown(entry->getBestLocation()); //throws exception if no readable locations
@@ -3255,20 +3271,16 @@ bool CLocalWorkUnit::archiveWorkUnit(const char *base,bool del,bool ignoredllerr
                 if (!exception)
                 {
                     Owned<IFile> srcfile = createIFile(filename);
-                    addPathSepChar(dst.clear().append(base));
-                    filename.getTail(dst);
-                    Owned<IFile> dstfile = createIFile(dst.str());
                     try
                     {
-                        if (dstfile->exists())
+                        if (dstFile->exists())
                         {
-                            if (streq(srcfile->queryFilename(), dstfile->queryFilename()))
-                                deleteExclusions.append(name.str()); // restored workunit, referencing archive location for query dll
+                            if (streq(srcfile->queryFilename(), dstFile->queryFilename()))
+                                deleteExclusions.append(name.str()); // restored workunit, referencing archive location for query dll (no longer true post HPCC-11191 fix)
                             // still want to delete if already archived but there are source file copies
                         }
                         else
-                            copyFile(dstfile,srcfile);
-                        makeAbsolutePath(dstfile->queryFilename(), locpath.clear());
+                            copyFile(dstFile, srcfile);
                     }
                     catch(IException * e)
                     {
@@ -3280,30 +3292,21 @@ bool CLocalWorkUnit::archiveWorkUnit(const char *base,bool del,bool ignoredllerr
                     if (ignoredllerrors)
                     {
                         EXCLOG(exception.get(), "archiveWorkUnit (copying associated file)");
-                        //copy failed, so store original (best) location and don't delete the files
-                        filename.getRemotePath(locpath.clear());
+                        //copy failed, so don't delete the registred dll files
                         deleteExclusions.append(name.str());
                     }
                     else
-                    {
-                        throw exception.getLink();
-                    }
+                        throw exception.getClear();
                 }
-                generatedDllBranch->setProp("@location", locpath.str());
+                // Record Associated path to restore back to
+                StringBuffer restorePath;
+                curRfn.getRemotePath(restorePath);
+                generatedDllBranch->setProp("@location", restorePath.str());
                 generatedDlls->addPropTree("GeneratedDll", generatedDllBranch.getClear());
             }
             else // no generated dll entry
             {
-                SCMStringBuffer localPath, ip;
-                cur.getName(localPath);
-                cur.getIp(ip);
-                SocketEndpoint ep(ip.str());
-                RemoteFilename rfn;
-                rfn.setPath(ep, localPath.str());
-                Owned<IFile> srcFile = createIFile(rfn);
-                addPathSepChar(dst.clear().append(base));
-                rfn.getTail(dst);
-                Owned<IFile> dstFile = createIFile(dst.str());
+                Owned<IFile> srcFile = createIFile(curRfn);
                 try
                 {
                     copyFile(dstFile, srcFile);
@@ -3440,7 +3443,17 @@ bool restoreWorkUnit(const char *base,const char *wuid)
             char const * location = dll.queryProp("@location");
             Owned<IDllEntry> got = queryDllServer().getEntry(name);
             if (!got)
+            {
+                RemoteFilename dstRfn;
+                dstRfn.setRemotePath(location);
+                StringBuffer srcPath(base);
+                addPathSepChar(srcPath);
+                dstRfn.getTail(srcPath);
+                OwnedIFile srcFile = createIFile(srcPath);
+                OwnedIFile dstFile = createIFile(dstRfn);
+                copyFile(dstFile, srcFile);
                 queryDllServer().registerDll(name, kind, location);
+            }
         }
     }
     if (associatedFiles)
@@ -3917,6 +3930,11 @@ mapEnums states[] = {
    { WUStateSize, NULL }
 };
 
+const char * getWorkunitStateStr(WUState state)
+{
+    return states[state].str;
+}
+
 IConstWorkUnitIterator * CWorkUnitFactory::getWorkUnitsByState(WUState state)
 {
     StringBuffer path("*");
@@ -4380,9 +4398,9 @@ public:
         else if (roxie)
         {
             roxieProcess.set(roxie->queryProp("@name"));
-            clusterWidth = roxie->getPropInt("@numChannels", 1);
             platform = RoxieCluster;
             getRoxieProcessServers(roxie, roxieServers);
+            clusterWidth = roxieServers.length();
         }
         else 
         {
@@ -4562,7 +4580,7 @@ extern WORKUNIT_API IStringIterator *getTargetClusters(const char *processType, 
     {
         StringBuffer xpath;
         xpath.appendf("%s", processType ? processType : "*");
-        if (processName)
+        if (processName && *processName)
             xpath.appendf("[@process=\"%s\"]", processName);
         Owned<IPropertyTreeIterator> targets = conn->queryRoot()->getElements("Software/Topology/Cluster");
         ForEach(*targets)
@@ -5482,6 +5500,49 @@ IStringIterator& CLocalWorkUnit::getTimers() const
     return *new CStringPTreeAttrIterator(p->getElements("Timings/Timing"), "@name");
 }
 
+IConstWUTimerIterator& CLocalWorkUnit::getTimerIterator() const
+{
+    CriticalBlock block(crit);
+    loadTimers();
+    return *new CArrayIteratorOf<IConstWUTimer,IConstWUTimerIterator> (timers, 0, (IConstWorkUnit *) this);
+
+}
+
+class CLocalWUTimer : public CInterface, implements IWUTimer
+{
+    StringAttr name;
+    unsigned count;
+    unsigned duration;
+
+public:
+    IMPLEMENT_IINTERFACE;
+    CLocalWUTimer(const char* _name, unsigned _count, unsigned _duration) : name(_name), count(_count), duration(_duration) { };
+
+    virtual IStringVal & getName(IStringVal & str) const { str.set(name.get()); return str; } ;
+    virtual unsigned getCount() const { return count; };
+    virtual unsigned getDuration() const { return duration; };
+
+    virtual void setName(const char * str) { name.set(str); };
+    virtual void setCount(unsigned c) { count = c; };
+    virtual void setDuration(unsigned d) { duration = d; };
+};
+
+void CLocalWorkUnit::loadTimers() const
+{
+    CriticalBlock block(crit);
+    if (timersCached)
+        return;
+
+    assertex(timers.length() == 0);
+    Owned<IPropertyTreeIterator> r = p->getElements("Timings/Timing");
+    ForEach(*r)
+    {
+        IPropertyTree *rp = &r->query();
+        timers.append(*new CLocalWUTimer(rp->queryProp("@name"), rp->getPropInt("@count"), rp->getPropInt("@duration")));
+    }
+    timersCached = true;
+}
+
 StringBuffer &formatGraphTimerLabel(StringBuffer &str, const char *graphName, unsigned subGraphNum, unsigned __int64 subId)
 {
     str.append("Graph ").append(graphName);
@@ -5533,7 +5594,7 @@ bool parseGraphTimerLabel(const char *label, StringAttr &graphName, unsigned & g
         }
     }
 
-    if (graphName && memicmp(graphName, "graph", 5))
+    if (graphName && !memicmp(graphName, "graph", 5))
         graphNum = atoi(graphName + 5);
 
     return true;
@@ -9755,7 +9816,7 @@ static void clearAliases(IPropertyTree * queryRegistry, const char * id)
     }
 }
 
-IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, const char * wuid, const char * dll, bool library, const char *userid)
+IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, const char * wuid, const char * dll, bool library, const char *userid, const char *snapshot)
 {
     StringBuffer lcName(name);
     lcName.toLowerCase();
@@ -9787,6 +9848,8 @@ IPropertyTree * addNamedQuery(IPropertyTree * queryRegistry, const char * name, 
         newEntry->setPropBool("@isLibrary", true);
     if (userid && *userid)
         newEntry->setProp("@publishedBy", userid);
+    if (snapshot && *snapshot)
+        newEntry->setProp("@snapshot", snapshot);
     return queryRegistry->addPropTree("Query", newEntry);
 }
 
@@ -10058,6 +10121,9 @@ void addQueryToQuerySet(IWorkUnit *workunit, const char *querySetName, const cha
     SCMStringBuffer targetClusterType;
     workunit->getDebugValue("targetclustertype", targetClusterType);
 
+    SCMStringBuffer snapshot;
+    workunit->getSnapshot(snapshot);
+
     if (currentTargetClusterType.length() < 1) 
     {
         queryRegistry->setProp("@targetclustertype", targetClusterType.str());
@@ -10070,7 +10136,7 @@ void addQueryToQuerySet(IWorkUnit *workunit, const char *querySetName, const cha
         }
     }
 
-    IPropertyTree *newEntry = addNamedQuery(queryRegistry, cleanQueryName, wuid.str(), dllName.str(), isLibrary(workunit), userid);
+    IPropertyTree *newEntry = addNamedQuery(queryRegistry, cleanQueryName, wuid.str(), dllName.str(), isLibrary(workunit), userid, snapshot.str());
     newQueryId.append(newEntry->queryProp("@id"));
     workunit->setIsQueryService(true); //will check querysets before delete
     workunit->commit();

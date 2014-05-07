@@ -48,9 +48,8 @@ define([
             if (this.inherited(arguments))
                 return;
 
-            if (params.Query) {
-                this.query = params.Query
-            }
+            this.query = ESPQuery.Get(params.QuerySetId, params.Id);
+
             this.refreshGrid();
         },
 
@@ -62,61 +61,54 @@ define([
                 store: this.store,
                 columns: {
                     col1: selector({ width: 27, selectorType: 'checkbox' }),
-                    Name: {label: this.i18n.LogicalFiles}
+                    Name: {label: this.i18n.LogicalFiles
+                    }
                 }
             }, domID);
-
-            on(document, "." + this.id + "WuidClick:click", function (evt) {
-                if (context._onRowDblClick) {
-                    var row = retVal.row(evt).data;
-                    context._onRowDblClick(row);
-                }
-            });
             return retVal;
         },
 
         createDetail: function (id, row, params) {
-            return new LFDetailsWidget.fixCircularDependency({
-                id: id,
-                title: params.Name,
-                closable: true,
-                hpcc: {
-                    params: {
-                        Name: params.Name
+            if(row.Name) {
+                return new LFDetailsWidget.fixCircularDependency({
+                    id: id,
+                    title: row.Name,
+                    closable: true,
+                    hpcc: {
+                        params: {
+                            Name: row.Name
+                        }
                     }
-                }
-            });
-        },
-
-        _onOpen: function(){
-            var selections = this.grid.getSelected();
-            var firstTab = null;
-            for (var i = selections.length - 1; i >= 0; --i) {
-                var tab = this.ensurePane(selections[i].Id, selections[i]);
-                if (i == 0) {
-                    firstTab = tab;
-                }
-            }
-            if (firstTab) {
-                this.selectChild(firstTab);
+                });
+            } else {
+                return new LFDetailsWidget.fixCircularDependency({
+                    id: id,
+                    title: params.Name,
+                    closable: true,
+                    hpcc: {
+                        params: {
+                            Name: params.Name
+                        }
+                    }
+                });
             }
         },
 
         refreshGrid: function (args) {
-            if (this.query) {
+            var context = this;
+            this.query.refresh().then(function (response) {
                 var logicalFiles = [];
-                if (lang.exists("LogicalFiles.Item", this.query)) {
-                    var context = this;
-                    arrayUtil.forEach(this.query.LogicalFiles.Item, function (item, idx) {
+                if (lang.exists("LogicalFiles.Item", context.query)) {
+                    arrayUtil.forEach(context.query.LogicalFiles.Item, function (item, idx) {
                         var file = {
                             Name: item
                         }
                         logicalFiles.push(file);
                     });
                 }
-                this.store.setData(logicalFiles);
-                this.grid.refresh();
-            }
+                context.store.setData(logicalFiles);
+                context.grid.refresh();
+            });
         }
     });
 });

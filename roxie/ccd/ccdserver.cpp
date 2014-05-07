@@ -395,9 +395,9 @@ public:
     {
         return ctx->queryServerContext();
     }
-    virtual IWorkUnitRowReader *getWorkunitRowReader(const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, IEngineRowAllocator *rowAllocator, bool isGrouped)
+    virtual IWorkUnitRowReader *getWorkunitRowReader(const char *wuid, const char * name, unsigned sequence, IXmlToRowTransformer * xmlTransformer, IEngineRowAllocator *rowAllocator, bool isGrouped)
     {
-        return ctx->getWorkunitRowReader(name, sequence, xmlTransformer, rowAllocator, isGrouped);
+        return ctx->getWorkunitRowReader(wuid, name, sequence, xmlTransformer, rowAllocator, isGrouped);
     }
 protected:
     IRoxieSlaveContext * ctx;
@@ -5327,9 +5327,7 @@ public:
         CRoxieServerActivity::start(parentExtractSize, parentExtract, paused);
         IXmlToRowTransformer * xmlTransformer = helper.queryXmlTransformer();
         OwnedRoxieString fromWuid(helper.getWUID());
-        if (fromWuid)
-            UNIMPLEMENTED;
-        wuReader.setown(ctx->getWorkunitRowReader(helper.queryName(), helper.querySequence(), xmlTransformer, rowAllocator, meta.isGrouped()));
+        wuReader.setown(ctx->getWorkunitRowReader(fromWuid, helper.queryName(), helper.querySequence(), xmlTransformer, rowAllocator, meta.isGrouped()));
         // MORE _ should that be in onCreate?
     }
 
@@ -11136,11 +11134,13 @@ public:
 class CRoxieServerDiskWriteActivityFactory : public CRoxieServerMultiOutputFactory
 {
     bool isRoot;
+    bool isTemp;
 public:
     CRoxieServerDiskWriteActivityFactory(unsigned _id, unsigned _subgraphId, IQueryFactory &_queryFactory, HelperFactory *_helperFactory, ThorActivityKind _kind, bool _isRoot)
         : CRoxieServerMultiOutputFactory(_id, _subgraphId, _queryFactory, _helperFactory, _kind), isRoot(_isRoot)
     {
         Owned<IHThorDiskWriteArg> helper = (IHThorDiskWriteArg *) helperFactory();
+        isTemp = (helper->getFlags() & TDXtemporary) != 0;
         setNumOutputs(helper->getTempUsageCount());
         if (_kind!=TAKdiskwrite)
             assertex(numOutputs == 0);
@@ -11167,7 +11167,7 @@ public:
 
     virtual bool isSink() const
     {
-        return numOutputs == 0; // MORE - check with Gavin if this is right if not a temp but reread in  same job...
+        return numOutputs == 0 && !isTemp; // MORE - check with Gavin if this is right if not a temp but reread in  same job...
     }
 
 };
@@ -23388,24 +23388,29 @@ public:
             if (_graphNode.getPropBool("att[@name='_isSpill']/@value", false) || _graphNode.getPropBool("att[@name='_isSpillGlobal']/@value", false))
                 return;  // ignore 'spills'
             bool isLocal = _graphNode.getPropBool("att[@name='local']/@value") && queryFactory.queryChannel()!=0;
-            bool isOpt = _graphNode.getPropBool("att[@name='_isOpt']/@value") || pretendAllOpt;
-            const char *fileName = queryNodeFileName(_graphNode);
-            const char *indexName = queryNodeIndexName(_graphNode);
-            if (indexName && (!fileName || !streq(indexName, fileName)))
+            ThorActivityKind kind = getActivityKind(_graphNode);
+            if (kind != TAKdiskwrite && kind != TAKindexwrite && kind != TAKpiperead && kind != TAKpipewrite)
             {
-                indexfile.setown(queryFactory.queryPackage().lookupFileName(indexName, isOpt, true, true, queryFactory.queryWorkUnit()));
-                if (indexfile)
-                    keySet.setown(indexfile->getKeyArray(NULL, &layoutTranslators, isOpt, isLocal ? queryFactory.queryChannel() : 0, false));
-            }
-            if (fileName)
-            {
-                datafile.setown(_queryFactory.queryPackage().lookupFileName(fileName, isOpt, true, true, queryFactory.queryWorkUnit()));
-                if (datafile)
+                const char *fileName = queryNodeFileName(_graphNode, kind);
+                const char *indexName = queryNodeIndexName(_graphNode, kind);
+                if (indexName)
                 {
-                    if (isLocal)
-                        files.setown(datafile->getIFileIOArray(isOpt, queryFactory.queryChannel()));
-                    else
-                        map.setown(datafile->getFileMap());
+                    bool isOpt = pretendAllOpt || _graphNode.getPropBool("att[@name='_isIndexOpt']/@value");
+                    indexfile.setown(queryFactory.queryPackage().lookupFileName(indexName, isOpt, true, true, queryFactory.queryWorkUnit()));
+                    if (indexfile)
+                        keySet.setown(indexfile->getKeyArray(NULL, &layoutTranslators, isOpt, isLocal ? queryFactory.queryChannel() : 0, false));
+                }
+                if (fileName)
+                {
+                    bool isOpt = pretendAllOpt || _graphNode.getPropBool("att[@name='_isOpt']/@value");
+                    datafile.setown(_queryFactory.queryPackage().lookupFileName(fileName, isOpt, true, true, queryFactory.queryWorkUnit()));
+                    if (datafile)
+                    {
+                        if (isLocal)
+                            files.setown(datafile->getIFileIOArray(isOpt, queryFactory.queryChannel()));
+                        else
+                            map.setown(datafile->getFileMap());
+                    }
                 }
             }
         }
@@ -24953,7 +24958,7 @@ public:
         if (!isHalfKeyed && !variableFetchFileName)
         {
             bool isFetchOpt = (helper->getFetchFlags() & FFdatafileoptional) != 0;
-            datafile.setown(_queryFactory.queryPackage().lookupFileName(queryNodeFileName(_graphNode), isFetchOpt, true, true, _queryFactory.queryWorkUnit()));
+            datafile.setown(_queryFactory.queryPackage().lookupFileName(queryNodeFileName(_graphNode, _kind), isFetchOpt, true, true, _queryFactory.queryWorkUnit()));
             if (datafile)
             {
                 if (isLocal)

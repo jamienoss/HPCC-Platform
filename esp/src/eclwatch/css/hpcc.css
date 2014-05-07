@@ -79,6 +79,14 @@ form li label{
     padding-top: 4px;
 }
 
+.dijitDialogPaneContent form li label {
+    float: left;
+    width: 25%;
+    margin: 0 15px 0 0;
+    text-align: left;
+    padding-top: 4px;
+}
+
 form li textarea{
     font-size: 13px;
     font-family: Arial;
@@ -205,6 +213,8 @@ hr.dashedLine {
     background-repeat: no-repeat;
     padding-left:25px;
 }
+
+.claro .dgrid-cell { text-overflow: ellipsis; white-space: nowrap; }
 
 #stubTitlebar :focus {
     outline: none;
@@ -389,6 +399,30 @@ hr.dashedLine {
 
 .iconFolderTree{
     background-image: url("../img/folderTree.png"); 
+    width: 16px;
+    height: 16px;
+}
+
+.iconFolderList{
+    background-image: url("../img/folderList.png"); 
+    width: 16px;
+    height: 16px;
+}
+
+.iconFileList{
+    background-image: url("../img/fileList.png"); 
+    width: 16px;
+    height: 16px;
+}
+
+.iconEdgeList{
+    background-image: url("../img/edgeList.png"); 
+    width: 16px;
+    height: 16px;
+}
+
+.iconTreeMap{
+    background-image: url("../img/treeMap.png"); 
     width: 16px;
     height: 16px;
 }
@@ -681,6 +715,12 @@ margin-left:-20px;
     height: 16px;
 }
 
+.iconNewPageNoFrame {
+    background-image: url("../img/openNewPageNoFrame.png"); 
+    width: 16px;
+    height: 16px;
+}
+
 .iconZoomOrig {
     background-image: url("../img/zoomOrig.png");
     width: 16px;
@@ -884,6 +924,7 @@ margin-left:-20px;
 
 .Prompt{
     font-weight:bold;
+    white-space: nowrap;
 }
 
 .resultGridCell {

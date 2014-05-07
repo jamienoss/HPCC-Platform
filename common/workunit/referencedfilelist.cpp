@@ -241,6 +241,7 @@ void ReferencedFile::processLocalFileInfo(IDistributedFile *df, const char *dstC
     }
     else
     {
+        flags |= RefSubFile;
         if (!dstCluster || !*dstCluster)
             return;
         if (df->findCluster(dstCluster)==NotFound)
@@ -585,7 +586,7 @@ void ReferencedFileList::addFilesFromQuery(IConstWorkUnit *cw, const IHpccPackag
                         {
                             StringBuffer subfile;
                             ssfe->getSubFileName(count, subfile);
-                            ensureFile(subfile, RefSubFile | RefFileInPackage, NULL);
+                            ensureFile(subfile, RefSubFile | RefFileInPackage, pkgid);
                         }
                     }
                 }

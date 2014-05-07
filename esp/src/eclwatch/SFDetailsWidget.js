@@ -27,6 +27,7 @@ define([
     "dojo/query",
     "dojo/store/Memory",
     "dojo/store/Observable",
+    "dojo/promise/all",
 
     "dijit/layout/BorderContainer",
     "dijit/layout/TabContainer",
@@ -55,7 +56,7 @@ define([
     "dojo/text!../templates/SFDetailsWidget.html",
 
     "dijit/TooltipDialog"
-], function (exports, declare, lang, i18n, nlsHPCC, arrayUtil, dom, domAttr, domClass, domForm, query, Memory, Observable,
+], function (exports, declare, lang, i18n, nlsHPCC, arrayUtil, dom, domAttr, domClass, domForm, query, Memory, Observable, all,
                 BorderContainer, TabContainer, ContentPane, Toolbar, TooltipDialog, Form, SimpleTextarea, TextBox, Button, DropDownButton, TitlePane, registry,
                 OnDemandGrid, Keyboard, Selection, selector, ColumnResizer, DijitRegistry,
                 _TabContainerWidget,
@@ -135,7 +136,7 @@ define([
 
             var context = this;
             if (params.Name) {
-                this.logicalFile = ESPLogicalFile.Get(params.Name);
+                this.logicalFile = ESPLogicalFile.Get(params.ClusterName, params.Name);
                 var data = this.logicalFile.getData();
                 for (var key in data) {
                     this.updateInput(key, null, data[key]);
@@ -145,17 +146,16 @@ define([
                 });
                 this.logicalFile.refresh();
             }
-            this.selectChild(this.summaryWidget, true);
             this.subfilesGrid.startup();
         },
 
         initSubfilesGrid: function () {
+            var context = this;
             var store = new Memory({
                 idProperty: "Name",
                 data: []
             });
             this.subfilesStore = Observable(store);
-
             this.subfilesGrid = new declare([OnDemandGrid, Keyboard, Selection, ColumnResizer, DijitRegistry, ESPUtil.GridHelper])({
                 allowSelectAll: true,
                 columns: {
@@ -163,29 +163,38 @@ define([
                         width: 27,
                         selectorType: 'checkbox'
                     }),
-                    isZipfile: {
-                        label: "C", width: 16, sortable: false,
+                    IsCompressed: {
+                        width: 25, sortable: false,
+                        renderHeaderCell: function (node) {
+                            node.innerHTML = dojoConfig.getImageHTML("compressed.png", context.i18n.Compressed);
+                        },
                         formatter: function (compressed) {
                             if (compressed == true) {
-                                return "C";
+                                return dojoConfig.getImageHTML("compressed.png");
                             }
                             return "";
                         }
                     },
                     IsKeyFile: {
-                        label: "K", width: 16, sortable: false,
-                        formatter: function (keyfile) {
-                            if (keyfile == true) {
-                                return "K";
+                        width: 25, sortable: false,
+                        renderHeaderCell: function (node) {
+                            node.innerHTML = dojoConfig.getImageHTML("index.png", context.i18n.Index);
+                        },
+                        formatter: function (keyfile, row) {
+                            if (row.ContentType === "key") {
+                                return dojoConfig.getImageHTML("index.png");
                             }
                             return "";
                         }
                     },
                     isSuperfile: {
-                        label: "S", width: 16, sortable: false,
+                        width: 25, sortable: false,
+                        renderHeaderCell: function (node) {
+                            node.innerHTML = dojoConfig.getImageHTML("superfile.png", context.i18n.Superfile);
+                        },
                         formatter: function (superfile) {
                             if (superfile == true) {
-                                return "S";
+                                return dojoConfig.getImageHTML("superfile.png");
                             }
                             return "";
                         }
@@ -233,12 +242,21 @@ define([
                 }
             }
             if (name === "subfiles") {
+                var dataPromise = [];
                 var data = [];
                 arrayUtil.forEach(newValue.Item, function (item, idx) {
-                    data.push(ESPLogicalFile.Get(item));
+                    var logicalFile = ESPLogicalFile.Get("", item);
+                    dataPromise.push(logicalFile.getInfo2({
+                        onAfterSend: function (response) {
+                        }
+                    }));
+                    data.push(logicalFile);
                 });
-                this.subfilesStore.setData(data);
-                this.subfilesGrid.refresh();
+                var context = this;
+                all(dataPromise).then(function (logicalFiles) {
+                    context.subfilesStore.setData(data);
+                    context.subfilesGrid.refresh();
+                })
             }
         }
     });

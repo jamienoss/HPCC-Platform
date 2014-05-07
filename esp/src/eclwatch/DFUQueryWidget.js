@@ -185,7 +185,7 @@ define([
             if (this.copyForm.validate()) {
                 var context = this;
                 arrayUtil.forEach(this.copyGrid.store.data, function (item, idx) {
-                    var logicalFile = ESPLogicalFile.Get(item.Name);
+                    var logicalFile = ESPLogicalFile.Get(item.ClusterName, item.Name);
                     var request = domForm.toObject(context.id + "CopyForm");
                     request.RenameSourceName = item.Name;
                     request.destLogicalName = item.targetCopyName;
@@ -204,7 +204,7 @@ define([
             if (this.renameForm.validate()) {
                 var context = this;
                 arrayUtil.forEach(this.renameGrid.store.data, function (item, idx) {
-                    var logicalFile = ESPLogicalFile.Get(item.Name);
+                    var logicalFile = ESPLogicalFile.Get(item.ClusterName, item.Name);
                     var request = domForm.toObject(context.id + "RenameForm");
                     request.RenameSourceName = item.Name;
                     request.dstname = item.targetRenameName;
@@ -311,7 +311,6 @@ define([
                 }
             });
             this.initWorkunitsGrid();
-            this.selectChild(this.workunitsTab, true);
 
             this.filter.on("clear", function (evt) {
                 context.refreshGrid();
@@ -398,7 +397,8 @@ define([
             pMenu.startup();
         },
 
-        initWorkunitsGrid: function() {
+        initWorkunitsGrid: function () {
+            var context = this;
             this.listStore = new ESPLogicalFile.CreateLFQueryStore();
             this.treeStore = new ESPLogicalFile.CreateLFQueryTreeStore();
             this.workunitsGrid = new declare([Grid, Pagination, Selection, ColumnResizer, Keyboard, DijitRegistry, ESPUtil.GridHelper])({
@@ -418,29 +418,38 @@ define([
                         },
                         selectorType: 'checkbox'
                     }),
-                    isZipfile: {
-                        label: "C", width: 16, sortable: false,
+                    IsCompressed: {
+                        width: 25, sortable: false,
+                        renderHeaderCell: function (node) {
+                            node.innerHTML = dojoConfig.getImageHTML("compressed.png", context.i18n.Compressed);
+                        },
                         formatter: function (compressed) {
                             if (compressed == true) {
-                                return "C";
+                                return dojoConfig.getImageHTML("compressed.png");
                             }
                             return "";
                         }
                     },
                     IsKeyFile: {
-                        label: "K", width: 16, sortable: false,
+                        width: 25, sortable: false,
+                        renderHeaderCell: function (node) {
+                            node.innerHTML = dojoConfig.getImageHTML("index.png", context.i18n.Index);
+                        },
                         formatter: function (keyfile, row) {
                             if (row.ContentType === "key") {
-                                return "K";
+                                return dojoConfig.getImageHTML("index.png");
                             }
                             return "";
                         }
                     },
                     isSuperfile: {
-                        label: "S", width: 16, sortable: false,
+                        width: 25, sortable: false,
+                        renderHeaderCell: function (node) {
+                            node.innerHTML = dojoConfig.getImageHTML("superfile.png", context.i18n.Superfile);
+                        },
                         formatter: function (superfile) {
                             if (superfile == true) {
-                                return "S";
+                                return dojoConfig.getImageHTML("superfile.png");
                             }
                             return "";
                         }
@@ -497,9 +506,6 @@ define([
                 }
             });
             this.workunitsGrid.onSelectionChanged(function (event) {
-                context.refreshActionState();
-            });
-            this.workunitsGrid.onContentChanged(function (object, removedFrom, insertedInto) {
                 context.refreshActionState();
             });
             this.workunitsGrid.startup();
@@ -653,6 +659,7 @@ define([
                         closable: true,
                         delayWidget: "LFDetailsWidget",
                         _hpccParams: {
+                            ClusterName: params.ClusterName,
                             Name: params.Name
                         }
                     });
