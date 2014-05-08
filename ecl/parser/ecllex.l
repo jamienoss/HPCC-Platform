@@ -235,6 +235,9 @@ xpathseq      ([^}\r\n])+
 
 %x COMMENT
 %x SLCOMMENT
+%x BEGINCPPDEF
+%x MACRODEF
+%x HASHIF
 
 %%
 
@@ -243,6 +246,15 @@ xpathseq      ([^}\r\n])+
 <COMMENT>[^*\n]+         { updatepos; }
 <COMMENT>\n              { resetpos; }
 <COMMENT>"*"             { updatepos; }
+
+BEGINC++                 { updatepos; BEGIN(CPP); setlex(BEGINCPP); return BEGINCPP; }
+<BEGINCPPDEF>[^endc++]   { updatepos; setlex(CPP); return CPP; }
+<BEGINCPPDEF>endc\+\+    { updatepos; BEGIN(0); setlex(ENDCPP); return ENDCPP; }
+
+MACRO                    { BEGIN(MACRODEF); setlex(MACRO); return MACRO; }
+<MACRODEF>[^endmacro]    { stelex(TOKENSTREAM); return TOKENSTREAM; }
+<MACRODEF>endmacro       { BEGIN(0); setlex(ENDMACRO); return ENDMACRO; } 
+
 
 \n                       { resetpos; }
 {blank}+                 { updatepos; }
@@ -263,7 +275,6 @@ FUNCTION                 { setLex(FUNCTION); return FUNCTION; }
 FUNCTIONMACRO            { setLex(FUNCTIONMACRO); return FUNCTIONMACRO; }
 IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
-MACRO                    { setLex(MACRO); return MACRO; }
 MODULE                   { setLex(MODULE); return MODULE; }
 NOT                      { setLex(NOT); return NOT; }
 OR                       { setLex(OR); return OR; }

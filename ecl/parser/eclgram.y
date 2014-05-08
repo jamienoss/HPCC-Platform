@@ -55,12 +55,15 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     AS
     AND
     ASSIGN ":="
+    BEGINCPP
     BOOLEAN_CONST
+    CPP
     DECIMAL_CONST
     DIR
     DIV "Division of integers as reals"
     DOTDOT ".."
     END
+    ENDCPP
     ENDMACRO
     EQ "="
     FLOAT_CONST
@@ -135,7 +138,7 @@ nested_line_of_code
 
 un-nested_line_of_code
    : function_definition            { }
-   | parse_support                 { }
+   | parse_support                  { }
    ;
 
 line_of_code
@@ -145,8 +148,9 @@ line_of_code
     ;
 
 nested_eclQuery
-    : nested_eclQuery ';' nested_line_of_code     { }
-    | nested_line_of_code                  { }
+    : nested_eclQuery ';' nested_line_of_code
+                                    { }
+    | nested_line_of_code           { }
     ;
 
 
@@ -172,7 +176,12 @@ all_record_options
     ;
 
 assignment
-    : compound_id ASSIGN rhs                { }
+    : compound_id ASSIGN rhs        { }
+    ;
+
+begincpp
+    : compund_id ASSIGN BEGINCPP CPP ENDCPP
+                                    { }
     ;
 
 compound_id
@@ -241,22 +250,17 @@ function_definition
     ;
 
 function_def
-    : compound_id ASSIGN FUNCTION def_body RETURN ID ';' END
-                                    { }
-    ;
-
-macro_def
-    : compound_id ASSIGN MACRO def_body ENDMACRO
+    : compound_id ASSIGN FUNCTION def_body RETURN expr ';' END
                                     { }
     ;
 
 functionmacro_def
-    : compound_id ASSIGN FUNCTIONMACRO def_body RETURN ID ';' ENDMACRO
+    : compound_id ASSIGN FUNCTIONMACRO def_body RETURN expr ';' ENDMACRO
                                     { }
     ;
 
 def_body
-    : nested_eclQuery                      { }
+    : nested_eclQuery ';'             { }
     ;
 
 expr_list
@@ -348,29 +352,29 @@ parameters
     : parameters ',' parameter      { }
     | parameter                     { }
     ;
-    
+
 paren_encaps_expr_expr
     : paren_encaps_expr_expr '(' expr ')'
                                     { }
     | '(' expr ')'                  { }
     ;
-    
+
 parse_support
     : PATTERN ID ASSIGN pattern     { }
     | TOKEN ID ASSIGN pattern       { }
     | RULE parse_support_rule_option ID ASSIGN pattern
                                     { }
     ;
-    
+
 parse_support_rule_option
     : /*EMPTY*/                     { }
     ;
-    
+
 pattern
     : pattern pattern_definitions   { }
     | pattern_definitions           { }
     ;
-    
+
 pattern_definitions
     : PARSE_ID                      { }
     | function                      { }
