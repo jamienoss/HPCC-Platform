@@ -247,13 +247,7 @@ xpathseq      ([^}\r\n])+
 <COMMENT>\n              { resetpos; }
 <COMMENT>"*"             { updatepos; }
 
-BEGINC++                 { updatepos; BEGIN(CPP); setlex(BEGINCPP); return BEGINCPP; }
-<BEGINCPPDEF>[^endc++]   { updatepos; setlex(CPP); return CPP; }
-<BEGINCPPDEF>endc\+\+    { updatepos; BEGIN(0); setlex(ENDCPP); return ENDCPP; }
 
-MACRO                    { BEGIN(MACRODEF); setlex(MACRO); return MACRO; }
-<MACRODEF>[^endmacro]    { stelex(TOKENSTREAM); return TOKENSTREAM; }
-<MACRODEF>endmacro       { BEGIN(0); setlex(ENDMACRO); return ENDMACRO; } 
 
 
 \n                       { resetpos; }
@@ -276,14 +270,15 @@ FUNCTIONMACRO            { setLex(FUNCTIONMACRO); return FUNCTIONMACRO; }
 IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
 MODULE                   { setLex(MODULE); return MODULE; }
-NOT                      { setLex(NOT); return NOT; }
 OR                       { setLex(OR); return OR; }
 PATTERN                  { setLex(PATTERN); return PATTERN; }
 RECORD                   { setLex(RECORD); return RECORD; }
 RETURN                   { setLex(RETURN); return RETURN; }
 RULE                     { setLex(RULE); return RULE; }
 SERVICE                  { setLex(SERVICE); return SERVICE; }
+STORED                   { setLex(STORED); return STORED; }
 TOKEN                    { setLex(TOKEN); return TOKEN; }
+TRANSFORM                { setLex(TRANSFORM); return TRANSFORM; }
 TRUE                     { setBool; return BOOLEAN_CONST; }
 TYPE                     { setLex; return TYPE; }
 ".."                     { setLex; return DOTDOT; }
@@ -336,3 +331,13 @@ ${digit}+                { setId; return PARSE_ID; }
 int yyerror(const char *msg) {
     fprintf(stderr,"Error:%s\n",msg); return 0;
 }
+
+/*
+BEGINC++                 { updatepos; BEGIN(CPP); setlex(BEGINCPP); return BEGINCPP; }
+<BEGINCPPDEF>[^endc++]   { updatepos; setlex(CPP); return CPP; }
+<BEGINCPPDEF>endc\+\+    { updatepos; BEGIN(0); setlex(ENDCPP); return ENDCPP; }
+
+MACRO                    { BEGIN(MACRODEF); setlex(MACRO); return MACRO; }
+<MACRODEF>[^endmacro]    { stelex(TOKENSTREAM); return TOKENSTREAM; }
+<MACRODEF>endmacro       { BEGIN(0); setlex(ENDMACRO); return ENDMACRO; } 
+*/

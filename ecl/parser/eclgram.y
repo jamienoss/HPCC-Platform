@@ -91,7 +91,9 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     RULE
     SERVICE
     STRING_CONST
+    STORED
     TOKEN
+    TRANSFORM
     TYPE
     XOR
 
@@ -177,10 +179,12 @@ all_record_options
 
 assignment
     : compound_id ASSIGN rhs        { }
+    | compound_id ASSIGN expr ':' STORED '(' parameters ')'
+                                    { }
     ;
 
 begincpp
-    : compund_id ASSIGN BEGINCPP CPP ENDCPP
+    : compound_id ASSIGN BEGINCPP CPP ENDCPP
                                     { }
     ;
 
@@ -198,37 +202,19 @@ constant
     | INTEGER_CONST                 { }
     ;
 
-low_prec_op
-    : '+'                           { }
-    | '-'                           { }
-    | LT                            { }
-    | GT                            { }
-    | GE                            { }
-    | LE                            { }
-    | EQ                            { }
-    | NE                            { }
-    | '?'                           { }
+def_body
+    : nested_eclQuery ';'             { }
     ;
 
-high_prec_op
-    : '/'                           { }
-    | DIV                           { }
-    | '%'                           { }
-    | '*'                           { }
-    | NOT                           { }
-    | AND                           { }
-    | OR                            { }
-    | XOR                           { }
-    ;
 
 expr
     : expr low_prec_op term         { }
     | term                          { }
     ;
 
-term
-    : term high_prec_op factor      { }
-    | factor                        { }
+expr_list
+    : expr_list ',' expr            { }
+    | expr                          { }
     ;
 
 factor
@@ -241,31 +227,7 @@ factor
     | record_definition             { }
     | module_definition             { }
     | service_definition            { }
-    ;
-
-function_definition
-    : function_def                  { }
-    | functionmacro_def             { }
-    | macro_def                     { }
-    ;
-
-function_def
-    : compound_id ASSIGN FUNCTION def_body RETURN expr ';' END
-                                    { }
-    ;
-
-functionmacro_def
-    : compound_id ASSIGN FUNCTIONMACRO def_body RETURN expr ';' ENDMACRO
-                                    { }
-    ;
-
-def_body
-    : nested_eclQuery ';'             { }
-    ;
-
-expr_list
-    : expr_list ',' expr            { }
-    | expr                          { }
+    | transform                     { }
     ;
 
 field
@@ -273,7 +235,6 @@ field
     | expr '{' parameters '}'       { }
     | assignment                    { }
     | ifblock                       { }
-    | { }
     ;
 
 fields
@@ -287,11 +248,40 @@ function
     | ID '[' index_range ']'        { } // perhaps move this
     ;
 
+function_definition
+    : function_def                  { }
+    | functionmacro_def             { }
+    //| macro_def                     { }
+    | begincpp                      { }
+    ;
+
+function_def
+    : compound_id ASSIGN FUNCTION def_body RETURN expr ';' END
+                                    { }
+    ;
+
+functionmacro_def
+    : compound_id ASSIGN FUNCTIONMACRO def_body RETURN expr ';' ENDMACRO
+                                    { }
+    ;
+
 identifier
     : identifier '.' identifier     { }
+    //| '(' identifier ')'            { }
     | function                      { }
     | ID                            %prec LOWEST_PRECEDENCE    // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
+    ;
+
+high_prec_op
+    : '/'                           { }
+    | DIV                           { }
+    | '%'                           { }
+    | '*'                           { }
+    | NOT                           { }
+    | AND                           { }
+    | OR                            { }
+    | XOR                           { }
     ;
 
 ifblock
@@ -320,6 +310,18 @@ lhs
     : compound_id                   { }
     ;
 */
+
+low_prec_op
+    : '+'                           { }
+    | '-'                           { }
+    | LT                            { }
+    | GT                            { }
+    | GE                            { }
+    | LE                            { }
+    | EQ                            { }
+    | NE                            { }
+    | '?'                           { }
+    ;
 
 module_definition
     : MODULE all_record_options fields END
@@ -354,9 +356,10 @@ parameters
     ;
 
 paren_encaps_expr_expr
-    : paren_encaps_expr_expr '(' expr ')'
-                                    { }
+    : paren_encaps_expr_expr  '(' expr ')'  { }
+   // : '(' expr ')'   factor 
     | '(' expr ')'                  { }
+    | '(' '>' expr '<' ')'          { }
     ;
 
 parse_support
@@ -377,8 +380,15 @@ pattern
 
 pattern_definitions
     : PARSE_ID                      { }
-    | function                      { }
+   // | function                      { }
+    | PATTERN '(' expr ')'          { }
     | ID                            { }
+    | STRING_CONST                  { }
+    | '*'                           { }
+    | '+'                           { }
+    | OR                            { }
+    | '?'                           { }
+    | '(' pattern ')'               { }
     ;
 
 range_op
@@ -436,8 +446,29 @@ service_definition
     ;
 
 service_default_keywords
-    : ':' service_keywords          { }//';' not present in current grammar
+    : ':' service_keywords          { }// trailing ';' not present in current grammar
     | /*EMPTY*/                     { }
+    ;
+
+term
+    : term high_prec_op factor      { }
+    | factor                        { }
+    ;
+
+transform
+    : TRANSFORM '(' transform_result ',' transform_parameters ')'
+    | compound_id ASSIGN TRANSFORM def_body END
+                                    { }
+    ;
+
+transform_parameters
+    : transform_parameters parameter ';'
+                                    { }
+    | parameter ';'                 { }
+    ;
+
+transform_result
+    : parameter                     { }
     ;
 
 type
