@@ -42,7 +42,9 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token);
 
 int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parser)
 {
-    parser->reportError(ERR_EXPECTED, msg, parser->queryLexer().sourcePath->str(), token.pos.lineno, token.pos.column, token.pos.position);
+    char full_msg[128];
+    strcpy(full_msg,msg);
+    parser->reportError(ERR_EXPECTED, strcat(full_msg,"jamies"), parser->queryLexer().sourcePath->str(), token.pos.lineno, token.pos.column, token.pos.position);
     return 0;
 }
 
@@ -171,12 +173,6 @@ nested_eclQuery
 //
 // ID(3), ID[3] - if you are allowed expr expr then it is ambiguous
 
-all_record_options
-    : record_options                %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
-                                    { }
-    | '(' expr ')' record_options  %prec LOWEST_PRECEDENCE { }//Could add '(' to list and "( )" as the parent node.
-    ;
-
 assignment
     : compound_id ASSIGN rhs        { }
     | compound_id ASSIGN expr ':' STORED '(' parameters ')'
@@ -235,6 +231,7 @@ field
     | expr '{' parameters '}'       { }
     | assignment                    { }
     | ifblock                       { }
+    | /*EMPTY*/                     { }
     ;
 
 fields
@@ -265,14 +262,6 @@ functionmacro_def
                                     { }
     ;
 
-identifier
-    : identifier '.' identifier     { }
-    //| '(' identifier ')'            { }
-    | function                      { }
-    | ID                            %prec LOWEST_PRECEDENCE    // Ensure that '(' gets shifted instead of causing a s/r error
-                                    { }
-    ;
-
 high_prec_op
     : '/'                           { }
     | DIV                           { }
@@ -282,6 +271,14 @@ high_prec_op
     | AND                           { }
     | OR                            { }
     | XOR                           { }
+    ;
+
+identifier
+    : identifier '.' identifier     { }
+   // | '(' identifier ')'            { }
+    | function                      { }
+    | ID                            %prec LOWEST_PRECEDENCE    // Ensure that '(' gets shifted instead of causing a s/r error
+                                    { }
     ;
 
 ifblock
@@ -324,7 +321,7 @@ low_prec_op
     ;
 
 module_definition
-    : MODULE all_record_options fields END
+    : MODULE record_options_all fields END
                                     { }
     ;
 
@@ -382,7 +379,8 @@ pattern_definitions
     : PARSE_ID                      { }
    // | function                      { }
     | PATTERN '(' expr ')'          { }
-    | ID                            { }
+  //  | ID                            { }
+    | identifier
     | STRING_CONST                  { }
     | '*'                           { }
     | '+'                           { }
@@ -396,9 +394,9 @@ range_op
     ;
 
 record_definition
-    : RECORD all_record_options fields END
+    : RECORD record_options_all fields END
                                     { }
-    | '{' all_record_options fields '}'
+    | '{' record_options_all fields '}'
                                     { }
     ;
 
@@ -406,6 +404,12 @@ record_options
     : record_options ',' identifier { }
     | /*EMPTY*/                     %prec LOWEST_PRECEDENCE
                                     { }
+    ;
+
+record_options_all
+    : record_options                %prec LOWEST_PRECEDENCE     // Ensure that '(' gets shifted instead of causing a s/r error
+                                    { }
+    | '(' expr ')' record_options  %prec LOWEST_PRECEDENCE { }//Could add '(' to list and "( )" as the parent node.
     ;
 
 rhs
@@ -456,19 +460,29 @@ term
     ;
 
 transform
-    : TRANSFORM '(' transform_result ',' transform_parameters ')'
+    : TRANSFORM '(' transform_result ',' transform_parameters opt_semi ')'
     | compound_id ASSIGN TRANSFORM def_body END
                                     { }
     ;
 
+trans_parameter
+    : expr                          { }
+    | assignment                    { }
+    ;
+
+opt_semi
+    : ';' { }
+    | { }
+    ;
+
 transform_parameters
-    : transform_parameters parameter ';'
+    : transform_parameters ';' trans_parameter 
                                     { }
-    | parameter ';'                 { }
+    | trans_parameter                  { }
     ;
 
 transform_result
-    : parameter                     { }
+    : trans_parameter                     { }
     ;
 
 type
