@@ -35,10 +35,14 @@
 #include <cstring>
 
 class ParserData;
+const unsigned int MAX_STRING_LENGTH = 2046;
+char buffer[MAX_STRING_LENGTH];
 
 #define YYSTYPE ParserData
 
 #define YY_DECL extern int ecl2yylex(YYSTYPE * yylval_param, EclParser * parser, yyscan_t yyscanner)
+
+const bool printing = 1;
 
   //--------------------------------------------------------------------------------
 static unsigned hex2digit(char c)
@@ -73,7 +77,7 @@ static void hex2str(char * target, const char * digits, unsigned len)
   //--------------------------------------------------------------------------------
 static inline void setInteger(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, __int64 _value, unsigned size, bool isSigned)
 {
-    //std::cout << tokenText << "\n";
+    if(printing)std::cout << tokenText << "\n";
 
     yylval->kind = INTEGER_CONST;
     //yylval->value = createIntValue(_value, size, isSigned);
@@ -84,7 +88,7 @@ static inline void setInteger(YYSTYPE * yylval, char * tokenText, unsigned txtLe
   //--------------------------------------------------------------------------------
 static inline void setReal(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << tokenText << "\n";
+    if(printing)std::cout << tokenText << "\n";
 
     yylval->kind = FLOAT_CONST;
     //yylval->value = createRealValue(atof(tokenText), 8);
@@ -95,7 +99,7 @@ static inline void setReal(YYSTYPE * yylval, char * tokenText, unsigned txtLen, 
   //--------------------------------------------------------------------------------
 static inline void setDecimal(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer, EclParser * parser)
 {
-    //std::cout << tokenText << "\n";
+    if(printing)std::cout << tokenText << "\n";
 
     yylval->kind = DECIMAL_CONST;
     const char * dot = strchr(tokenText, '.');
@@ -143,7 +147,10 @@ static inline void setDecimal(YYSTYPE * yylval, char * tokenText, unsigned txtLe
   //--------------------------------------------------------------------------------
 static inline void setString(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << tokenText << "\n";
+    if(txtLen > MAX_STRING_LENGTH -1)
+        throwUnexpected();
+
+    if(printing)std::cout << tokenText << "\n";
 
     yylval->kind = STRING_CONST;
     //yylval->value = createStringValue(tokenText, 32); //Might need to be UTF8
@@ -154,7 +161,7 @@ static inline void setString(YYSTYPE * yylval, char * tokenText, unsigned txtLen
   //--------------------------------------------------------------------------------
 static inline void setBool(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << tokenText << "\n";
+    if(printing)std::cout << tokenText << "\n";
 
     yylval->kind = BOOLEAN_CONST;
     //yylval->value = createBoolValue(tokenText);
@@ -165,7 +172,7 @@ static inline void setBool(YYSTYPE * yylval, char * tokenText, unsigned txtLen, 
   //--------------------------------------------------------------------------------
 static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << (char)tokenKind << "\n";
+    if(printing)std::cout << (char)tokenKind << "\n";
 
     yylval->kind = tokenKind;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -174,7 +181,7 @@ static inline void setLex(YYSTYPE * yylval, unsigned tokenKind, unsigned txtLen,
   //--------------------------------------------------------------------------------
 static inline void setId(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
 {
-    //std::cout << tokenText << "\n";
+    if(printing)std::cout << tokenText << "\n";
 
     yylval->kind = ID;
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
@@ -204,7 +211,7 @@ static char foldMinus(char * & tokenText, unsigned txtLen)
 #define setInt setInteger(yylval, yytext, yyleng, yylineno, parser->queryLexer(), str2int64(yyleng, yytext, 10), 8, false)
 #define setReal setReal(yylval, yytext, yyleng, yylineno, parser->queryLexer())
 #define setDecimal setDecimal(yylval, yytext, yyleng, yylineno, parser->queryLexer(), parser)
-#define setString setString(yylval, yytext, yyleng, yylineno, parser->queryLexer())
+//#define setstring setString(yylval, yytext, yyleng, yylineno, parser->queryLexer())
 #define setBool setBool(yylval, yytext, yyleng, yylineno, parser->queryLexer())
 #define setLex(x) setLex(yylval, x, yyleng, yylineno, parser->queryLexer())
 #define setId setId(yylval, yytext, yyleng, yylineno, parser->queryLexer())
@@ -212,6 +219,8 @@ static char foldMinus(char * & tokenText, unsigned txtLen)
 #define resetpos parser->queryLexer().resetPos()
 
 #define yyterminate() setLex(_EOF_);return _EOF_
+
+
 
 %}
 
@@ -238,7 +247,7 @@ xpathseq      ([^}\r\n])+
 %x BEGINCPPDEF
 %x MACRODEF
 %x HASHIF
-
+%x STRING
 %%
 
 "/*"                     { updatepos; BEGIN(COMMENT); }
@@ -302,7 +311,19 @@ TYPE                     { setLex; return TYPE; }
                           setReal; return FLOAT_CONST; }
 {digit}*\.?{digit}+(d|D) { setDecimal; return DECIMAL_CONST; }
 
-\'[^\n]*\'               { setString; return STRING_CONST; }
+'                        {  buffer[0] = '\0'; BEGIN(STRING); }
+<STRING>(\\)'            {  strcat(buffer, "'"); }
+<STRING>[^'\\\n]*        {  strcat(buffer, yytext); }
+<STRING>(\\)             {  strcat(buffer, "\\"); }
+<STRING>'                {
+                           setString(yylval, buffer, strlen(buffer), yylineno, parser->queryLexer());
+                           BEGIN(0); return STRING_CONST;
+                         }
+
+
+
+
+
 
 "#"?{letter}{alphanum}*  { setId; return ID; }
 ${digit}+                { setId; return PARSE_ID; }

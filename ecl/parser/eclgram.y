@@ -187,6 +187,8 @@ begincpp
 compound_id
     : compound_id identifier        { }
     | identifier                    { }
+    | '(' expr ')'                  { }
+    | '(' '>' expr '<' ')'          { }
     ;
 
 //GH: No need to distinguish these
@@ -214,8 +216,8 @@ expr_list
     ;
 
 factor
-    : paren_encaps_expr_expr        { }
-    | '+' factor                    { }
+   // : paren_encaps_expr_expr        { }
+    : '+' factor                    { }
     | '-' factor                    { }
     | constant                      { }
     | set                           { }
@@ -241,8 +243,14 @@ fields
     ;
 
 function
-    : ID '(' parameters ')'         { }
+    : ID '(' parameters ')'  opt_set       { }
     | ID '[' index_range ']'        { } // perhaps move this
+    ;
+
+opt_set
+    : '[' index_range ']'            { }
+    | /*EMPTY*/ %prec LOWEST_PRECEDENCE
+                                     { }
     ;
 
 function_definition
@@ -279,7 +287,13 @@ identifier
     | function                      { }
     | ID                            %prec LOWEST_PRECEDENCE    // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
+   // | '(' ID ')' function set {}
+  //  | reserved_words                { }
     ;
+
+//reserved_words
+ //   : RECORD    %prec LOWEST_PRECEDENCE                    { }
+  //  ;
 
 ifblock
     : IFBLOCK '(' expr ')' fields END
@@ -300,7 +314,8 @@ index_range
     : expr range_op expr            { }
     | expr range_op                 { }
     | range_op expr                 { }
-    | expr                          { }
+    //| expr                          { }
+    | parameters                    { }
     ;
 /*
 lhs
@@ -352,12 +367,12 @@ parameters
     | parameter                     { }
     ;
 
-paren_encaps_expr_expr
-    : paren_encaps_expr_expr  '(' expr ')'  { }
-   // : '(' expr ')'   factor 
-    | '(' expr ')'                  { }
-    | '(' '>' expr '<' ')'          { }
-    ;
+//paren_encaps_expr_expr
+//    : paren_encaps_expr_expr  '(' expr ')'  { }
+//   // : '(' expr ')'   factor 
+//    | '(' expr ')'                  { }
+//    | '(' '>' expr '<' ')'          { }
+//    ;
 
 parse_support
     : PATTERN ID ASSIGN pattern     { }
@@ -377,17 +392,25 @@ pattern
 
 pattern_definitions
     : PARSE_ID                      { }
-   // | function                      { }
     | PATTERN '(' expr ')'          { }
-  //  | ID                            { }
-    | identifier
+    | identifier                    { }
+    //| ID     %prec LOWEST_PRECEDENCE                       { }
+ //   | pat_id { }
+ //   | ID '(' pattern ')' {}
+ // | ID '(' parameters ')' {}
     | STRING_CONST                  { }
     | '*'                           { }
     | '+'                           { }
     | OR                            { }
     | '?'                           { }
     | '(' pattern ')'               { }
+    | '[' pattern ']'               { }
     ;
+
+//pat_id
+ //   : pat_id '.' ID { }
+ //   | ID %prec LOWEST_PRECEDENCE { }
+ //   ;
 
 range_op
     : DOTDOT                        { }
@@ -418,9 +441,9 @@ rhs
     ;
 
 set
-    : '[' expr_list ']'             { }
+    : '[' expr_list ']'             { } //Use parameters instead of expr_list??? 
     | '[' ']'                       { }
-    ;
+   ;
 
 service_attribute
     : compound_id ':' service_keywords
@@ -471,18 +494,18 @@ trans_parameter
     ;
 
 opt_semi
-    : ';' { }
-    | { }
+    : ';'                           { }
+    | /* EMPTY*/                    { }
     ;
 
 transform_parameters
     : transform_parameters ';' trans_parameter 
                                     { }
-    | trans_parameter                  { }
+    | trans_parameter               { }
     ;
 
 transform_result
-    : trans_parameter                     { }
+    : trans_parameter               { }
     ;
 
 type
