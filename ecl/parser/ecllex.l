@@ -156,7 +156,7 @@ static inline void setString(YYSTYPE * yylval, char * tokenText, unsigned txtLen
     //yylval->value = createStringValue(tokenText, 32); //Might need to be UTF8
 
     yylval->setEclLocations(lineno, lexer.yyColumn, lexer.yyPosition, lexer.sourcePath);
-    lexer.updatePos(txtLen);
+    lexer.updatePos(txtLen+2);
 }
   //--------------------------------------------------------------------------------
 static inline void setBool(YYSTYPE * yylval, char * tokenText, unsigned txtLen, int lineno, EclLexer & lexer)
@@ -285,6 +285,7 @@ RECORD                   { setLex(RECORD); return RECORD; }
 RETURN                   { setLex(RETURN); return RETURN; }
 RULE                     { setLex(RULE); return RULE; }
 SERVICE                  { setLex(SERVICE); return SERVICE; }
+SORT                     { setLex(SORT); return SORT; }
 STORED                   { setLex(STORED); return STORED; }
 TOKEN                    { setLex(TOKEN); return TOKEN; }
 TRANSFORM                { setLex(TRANSFORM); return TRANSFORM; }

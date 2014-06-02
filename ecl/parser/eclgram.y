@@ -92,6 +92,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     RETURN
     RULE
     SERVICE
+    SORT
     STRING_CONST
     STORED
     TOKEN
@@ -193,6 +194,11 @@ compound_id
 
 //GH: No need to distinguish these
 constant
+    : '(' expr ')' const { }
+    | const { }
+    ;
+
+const
     : BOOLEAN_CONST                 { }
     | STRING_CONST                  { }
     | DECIMAL_CONST                 { }
@@ -243,8 +249,8 @@ fields
     ;
 
 function
-    : ID '(' parameters ')'  opt_set       { }
-    | ID '[' index_range ']'        { } // perhaps move this
+    : id '(' parameters ')'  opt_set       { }
+    | id '[' index_range ']'        { } // perhaps move this
     ;
 
 opt_set
@@ -283,17 +289,29 @@ high_prec_op
 
 identifier
     : identifier '.' identifier     { }
-   // | '(' identifier ')'            { }
     | function                      { }
-    | ID                            %prec LOWEST_PRECEDENCE    // Ensure that '(' gets shifted instead of causing a s/r error
+    | id                            %prec LOWEST_PRECEDENCE    // Ensure that '(' gets shifted instead of causing a s/r error
                                     { }
-   // | '(' ID ')' function set {}
-  //  | reserved_words                { }
     ;
 
-//reserved_words
- //   : RECORD    %prec LOWEST_PRECEDENCE                    { }
-  //  ;
+id
+    : ID {}
+    | reserved_words { }
+    ;
+
+reserved_words
+    : sort                          { }
+    ;
+
+sort
+    : SORT '(' parameters opt_rec ')' { }
+    | SORT %prec LOWEST_PRECEDENCE{ } 
+    ;
+
+opt_rec
+    : /*EMPTY*/ %prec LOWEST_PRECEDENCE{ }
+    | ',' RECORD { }
+    ;
 
 ifblock
     : IFBLOCK '(' expr ')' fields END
@@ -306,7 +324,7 @@ import
 
 import_reference
     : module_list                   { }
-    | module_path AS ID             { }
+    | module_path AS id             { }
     | module_list FROM module_path  { }
     ;
 
@@ -314,7 +332,6 @@ index_range
     : expr range_op expr            { }
     | expr range_op                 { }
     | range_op expr                 { }
-    //| expr                          { }
     | parameters                    { }
     ;
 /*
@@ -353,7 +370,7 @@ module_path
     ;
 
 module_symbol
-    : ID                            { }
+    : id                            { }
     ;
 
 parameter
@@ -375,14 +392,14 @@ parameters
 //    ;
 
 parse_support
-    : PATTERN ID ASSIGN pattern     { }
-    | TOKEN ID ASSIGN pattern       { }
-    | RULE parse_support_rule_option ID ASSIGN pattern
+    : PATTERN id ASSIGN pattern     { }
+    | TOKEN id ASSIGN pattern       { }
+    | RULE parse_support_rule_option id ASSIGN pattern
                                     { }
     ;
 
 parse_support_rule_option
-    : /*EMPTY*/                     { }
+    : /*EMPTY*/   %prec LOWEST_PRECEDENCE                  { }
     ;
 
 pattern
@@ -417,7 +434,7 @@ range_op
     ;
 
 record_definition
-    : RECORD record_options_all fields END
+    : RECORD record_options_all fields END %prec LOWEST_PRECEDENCE
                                     { }
     | '{' record_options_all fields '}'
                                     { }
@@ -457,7 +474,7 @@ service_attributes
     ;
 
 service_keyword
-    : ID EQ expr                    { }
+    : id EQ expr                    { }
     | identifier                    { }
     ;
 
