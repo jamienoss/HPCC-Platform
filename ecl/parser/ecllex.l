@@ -278,15 +278,15 @@ FUNCTION                 { setLex(FUNCTION); return FUNCTION; }
 FUNCTIONMACRO            { setLex(FUNCTIONMACRO); return FUNCTIONMACRO; }
 IFBLOCK                  { setLex(IFBLOCK); return IFBLOCK; }
 IMPORT                   { setLex(IMPORT); return IMPORT; }
+IN                       { setLex(IN); return IN; }
 MODULE                   { setLex(MODULE); return MODULE; }
+NOT                       { setLex(NOT); return NOT; }
 OR                       { setLex(OR); return OR; }
 PATTERN                  { setLex(PATTERN); return PATTERN; }
 RECORD                   { setLex(RECORD); return RECORD; }
 RETURN                   { setLex(RETURN); return RETURN; }
 RULE                     { setLex(RULE); return RULE; }
 SERVICE                  { setLex(SERVICE); return SERVICE; }
-SORT                     { setLex(SORT); return SORT; }
-STORED                   { setLex(STORED); return STORED; }
 TOKEN                    { setLex(TOKEN); return TOKEN; }
 TRANSFORM                { setLex(TRANSFORM); return TRANSFORM; }
 TRUE                     { setBool; return BOOLEAN_CONST; }
@@ -312,6 +312,7 @@ TYPE                     { setLex; return TYPE; }
                           setReal; return FLOAT_CONST; }
 {digit}*\.?{digit}+(d|D) { setDecimal; return DECIMAL_CONST; }
 
+D'                        {  buffer[0] = '\0'; BEGIN(STRING); }//@GH this is a rough temporary 
 '                        {  buffer[0] = '\0'; BEGIN(STRING); }
 <STRING>(\\)'            {  strcat(buffer, "'"); }
 <STRING>[^'\\\n]*        {  strcat(buffer, yytext); }
@@ -319,7 +320,7 @@ TYPE                     { setLex; return TYPE; }
 <STRING>'                {
                            setString(yylval, buffer, strlen(buffer), yylineno, parser->queryLexer());
                            BEGIN(0); return STRING_CONST;
-                         }
+                         } //thin about col update
 
 
 
@@ -335,6 +336,7 @@ ${digit}+                { setId; return PARSE_ID; }
 "<>"                     { setLex(NE); return NE; }
 "~"                      { setLex(NOT); return NOT; }
 "="                      { setLex(EQ); return EQ; }
+"=>"                     { setLex(RESULTS_IN); return RESULTS_IN; }
 "<="                     { setLex(LE); return LE; }
 ">="                     { setLex(GE); return GE; }//x.<y>=n should be interpreted as x.<y> = n rather than x.<y >= n (NEEDS FIXING)
 "<"                      { setLex(LT); return LT; }

@@ -77,6 +77,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     ID
     IFBLOCK
     IMPORT
+    IN
     INTEGER_CONST
     LE "<="
     LT "<"
@@ -89,12 +90,11 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
     PATTERN
     REAL
     RECORD
+    RESULTS_IN
     RETURN
     RULE
     SERVICE
-    SORT
     STRING_CONST
-    STORED
     TOKEN
     TRANSFORM
     TYPE
@@ -114,6 +114,7 @@ int syntaxerror(const char *msg, short yystate, YYSTYPE token, EclParser * parse
 %left OR
 %left AND
 %left NOT
+%left IN
 %left '*' '/'
 
 %left '('
@@ -176,7 +177,7 @@ nested_eclQuery
 
 assignment
     : compound_id ASSIGN rhs        { }
-    | compound_id ASSIGN expr ':' STORED '(' parameters ')'
+    | compound_id ASSIGN expr ':' function
                                     { }
     ;
 
@@ -187,17 +188,18 @@ begincpp
 
 compound_id
     : compound_id identifier        { }
+    | compound_id ':' identifier    { }
     | identifier                    { }
-    | '(' expr ')'                  { }
-    | '(' '>' expr '<' ')'          { }
+   // | '(' expr ')'                  { }
+   // | '(' '>' expr '<' ')'          { }
     ;
 
-//GH: No need to distinguish these
 constant
     : '(' expr ')' const { }
     | const { }
     ;
 
+//GH: No need to distinguish these
 const
     : BOOLEAN_CONST                 { }
     | STRING_CONST                  { }
@@ -222,8 +224,8 @@ expr_list
     ;
 
 factor
-   // : paren_encaps_expr_expr        { }
-    : '+' factor                    { }
+    : paren_encaps_expr_expr        { }
+    | '+' factor                    { }
     | '-' factor                    { }
     | constant                      { }
     | set                           { }
@@ -232,6 +234,9 @@ factor
     | module_definition             { }
     | service_definition            { }
     | transform                     { }
+    | paren_encaps_expr_expr compound_id { }
+    | RETURN identifier             { }
+    | RETURN MODULE %prec LOWEST_PRECEDENCE { }
     ;
 
 field
@@ -249,7 +254,7 @@ fields
     ;
 
 function
-    : id '(' parameters ')'  opt_set       { }
+    : id '(' parameters opt_rec ')'  opt_set       { }
     | id '[' index_range ']'        { } // perhaps move this
     ;
 
@@ -281,10 +286,12 @@ high_prec_op
     | DIV                           { }
     | '%'                           { }
     | '*'                           { }
-    | NOT                           { }
+    | NOT %prec HIGHEST_PRECEDENCE  { }
     | AND                           { }
     | OR                            { }
     | XOR                           { }
+    | NOT IN                        { }
+    | IN                            { }
     ;
 
 identifier
@@ -296,17 +303,19 @@ identifier
 
 id
     : ID {}
-    | reserved_words { }
+    | reserved_words   { }
     ;
 
 reserved_words
-    : sort                          { }
+   // : sort                          { }
+  //  | TRANSFORM %prec LOWEST_PRECEDENCE { }
+    : NOT %prec LOWEST_PRECEDENCE   { }
     ;
 
-sort
-    : SORT '(' parameters opt_rec ')' { }
-    | SORT %prec LOWEST_PRECEDENCE{ } 
-    ;
+//sort
+//    : SORT '(' parameters opt_rec ')' { }
+//    | SORT %prec LOWEST_PRECEDENCE{ } 
+//    ;
 
 opt_rec
     : /*EMPTY*/ %prec LOWEST_PRECEDENCE{ }
@@ -350,6 +359,9 @@ low_prec_op
     | EQ                            { }
     | NE                            { }
     | '?'                           { }
+    | RESULTS_IN                    { }
+  //  | NOT IN                        { }
+  //  | IN                            { }
     ;
 
 module_definition
@@ -384,12 +396,12 @@ parameters
     | parameter                     { }
     ;
 
-//paren_encaps_expr_expr
-//    : paren_encaps_expr_expr  '(' expr ')'  { }
+paren_encaps_expr_expr
+    : paren_encaps_expr_expr  '(' expr ')'  { }
 //   // : '(' expr ')'   factor 
-//    | '(' expr ')'                  { }
-//    | '(' '>' expr '<' ')'          { }
-//    ;
+    | '(' expr ')'                  { }
+    | '(' '>' expr '<' ')'          { }
+    ;
 
 parse_support
     : PATTERN id ASSIGN pattern     { }
@@ -434,7 +446,7 @@ range_op
     ;
 
 record_definition
-    : RECORD record_options_all fields END %prec LOWEST_PRECEDENCE
+    : RECORD record_options_all fields END
                                     { }
     | '{' record_options_all fields '}'
                                     { }
@@ -460,7 +472,7 @@ rhs
 set
     : '[' expr_list ']'             { } //Use parameters instead of expr_list??? 
     | '[' ']'                       { }
-   ;
+    ;
 
 service_attribute
     : compound_id ':' service_keywords
@@ -489,10 +501,12 @@ service_definition
                                     { }
     ;
 
+//************************************************************************
 service_default_keywords
-    : ':' service_keywords          { }// trailing ';' not present in current grammar
-    | /*EMPTY*/                     { }
+    : ':' service_keywords         { }// trailing ';' not present in current grammar
+    | /*EMPTY*/   %prec LOWEST_PRECEDENCE                 { }
     ;
+//************************************************************************
 
 term
     : term high_prec_op factor      { }
@@ -512,7 +526,7 @@ trans_parameter
 
 opt_semi
     : ';'                           { }
-    | /* EMPTY*/                    { }
+    | /* EMPTY*/  %prec LOWEST_PRECEDENCE                  { }
     ;
 
 transform_parameters
@@ -522,7 +536,8 @@ transform_parameters
     ;
 
 transform_result
-    : trans_parameter               { }
+    : transform_result ',' trans_parameter { }
+    | trans_parameter               { }
     ;
 
 type
