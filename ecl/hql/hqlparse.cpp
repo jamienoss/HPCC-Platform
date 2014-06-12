@@ -2057,16 +2057,17 @@ void HqlLex::loadXML(const YYSTYPE & errpos, const char *name, const char * chil
         return;
     }
 
-    //if (inmacro)
-    //    inmacro->loadXML(errpos, name);
+    if (inmacro)
+    {
+        inmacro->loadXML(errpos, name);
+        return;
+    }
 
     // MORE - give an error if an XML scope is active...
     ::Release(xmlScope);
     try
     {
         xmlScope = ::loadXML(name);
-        if (inmacro)
-                inmacro->loadXML(errpos, name);
     }
     catch (IException* e)
     {
