@@ -702,7 +702,7 @@ void HqlLex::doIf(YYSTYPE & returnToken, bool isElseIf)
             ;
     }
     curParam.append(')');
-    Owned<IValue> value = parseConstExpression(returnToken, curParam, queryTopXmlScope(),line,col);
+    Owned<IValue> value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(),line,col);
     if (value && !value->getBoolValue())
     {
         setHashEndFlags(0);
@@ -852,7 +852,7 @@ void HqlLex::doExpand(YYSTYPE & returnToken)
             ;
     }
     curParam.append(')');
-    Owned<IValue> value = parseConstExpression(returnToken, curParam, queryTopXmlScope(),startLine-1,startCol);
+    Owned<IValue> value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(),startLine-1,startCol);
     if (value)
     {
         StringBuffer buf;
@@ -897,7 +897,7 @@ void HqlLex::doSet(YYSTYPE & returnToken, bool append)
             ;
     }
     curParam.append(')');
-    IValue *value = parseConstExpression(returnToken, curParam, queryTopXmlScope(),startLine-1,startCol);
+    IValue *value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(),startLine-1,startCol);
     if (value)
     {
         StringBuffer buf;
@@ -924,7 +924,7 @@ void HqlLex::doLine(YYSTYPE & returnToken)
     bool moreParams = getParameter(curParam, forwhat.str(), &line, &col);
     curParam.append(')');
 
-    IValue *value = parseConstExpression(returnToken, curParam, queryTopXmlScope(),line,col);
+    IValue *value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(),line,col);
     if (value && value->getTypeCode()==type_int)
     {
         returnToken.pos.lineno = yyLineNo = (int)value->getIntValue();
@@ -944,7 +944,7 @@ void HqlLex::doLine(YYSTYPE & returnToken)
                 ;
         }
         curParam.append(')');
-        IValue *value = parseConstExpression(returnToken, curParam, queryTopXmlScope(),startLine-1,startCol);
+        IValue *value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(),startLine-1,startCol);
         if (value && value->getTypeCode()==type_string)
         {
             StringBuffer buf;
@@ -980,7 +980,7 @@ void HqlLex::doError(YYSTYPE & returnToken, bool isError)
     }
     curParam.append(')');
     StringBuffer buf;
-    OwnedIValue value = parseConstExpression(returnToken, curParam, queryTopXmlScope(),startLine-1,startCol);
+    OwnedIValue value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(),startLine-1,startCol);
     if (value)
     {
         value->getStringValue(buf);
@@ -1057,7 +1057,7 @@ void HqlLex::doExport(YYSTYPE & returnToken, bool toXml)
     StringBuffer buf;
     toXML(data, buf, 0);
     if (toXml)
-        ensureTopXmlScope(returnToken)->loadXML(buf.str(), exportname->getAtomNamePtr());
+        ensureTopXmlScope()->loadXML(buf.str(), exportname->getAtomNamePtr());
     else
         setXmlSymbol(returnToken, exportname->getAtomNamePtr(), buf.str(), false);
     data->Release();
@@ -1086,7 +1086,7 @@ void HqlLex::doTrace(YYSTYPE & returnToken)
             ;
     }
     curParam.append(')');
-    Owned<IValue> value = parseConstExpression(returnToken, curParam, queryTopXmlScope(),startLine-1,startCol);
+    Owned<IValue> value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(),startLine-1,startCol);
     if (value)
     {
         StringBuffer buf;
@@ -1219,7 +1219,7 @@ void HqlLex::doLoop(YYSTYPE & returnToken)
     }
 
     ::Release(forLoop);
-    forLoop = new CDummyScopeIterator(ensureTopXmlScope(returnToken));
+    forLoop = new CDummyScopeIterator(ensureTopXmlScope());
     forFilter.clear();
     forBody.setown(createFileContentsFromText(forBodyText, sourcePath));
     loopTimes = 0;
@@ -1249,7 +1249,7 @@ void HqlLex::doGetDataType(YYSTYPE & returnToken)
 
 StringBuffer& HqlLex::doGetDataType(StringBuffer & type, const char * text, int lineno, int column)
 {
-    OwnedHqlExpr expr = parseECL(text, queryTopXmlScope(), lineno, column);
+    OwnedHqlExpr expr = parseECL(text, ensureTopXmlScope(), lineno, column);
     if(expr)
     {
         type.append('\'');
@@ -1408,9 +1408,7 @@ void resetLexerUniqueNames() { gUniqueId = 0; }
 
 void HqlLex::declareUniqueName(const char *name, const char * pattern)
 {
-    IXmlScope *top = queryTopXmlScope();
-    if (!top)
-        top = xmlScope = createXMLScope();
+    IXmlScope *top = ensureTopXmlScope();
 
     StringBuffer value;
     if (!top->getValue(name,value))
@@ -1814,7 +1812,7 @@ void HqlLex::doApply(YYSTYPE & returnToken)
             ;
     }
     curParam.append(')');
-    OwnedHqlExpr actions = parseECL(curParam, queryTopXmlScope(), line, col);
+    OwnedHqlExpr actions = parseECL(curParam, ensureTopXmlScope(), line, col);
     if (actions)
     {
         CTemplateContext context(this, yyParser->lookupCtx, xmlScope,line,col);
@@ -1839,7 +1837,7 @@ void HqlLex::doMangle(YYSTYPE & returnToken, bool de)
             ;
     }
     curParam.append(')');
-    IValue *value = parseConstExpression(returnToken, curParam, queryTopXmlScope(), line, col);
+    IValue *value = parseConstExpression(returnToken, curParam, ensureTopXmlScope(), line, col);
     if (value)
     {
         const char *str = value->getStringValue(curParam.clear());
@@ -1980,7 +1978,6 @@ void HqlLex::reportWarning(WarnErrorCategory category, const YYSTYPE & returnTok
 }
 
 //====================================== XML DB =============================================
-
 IXmlScope *HqlLex::queryTopXmlScope()
 {
     IXmlScope *top = NULL;
@@ -1996,17 +1993,18 @@ IXmlScope *HqlLex::queryTopXmlScope()
     return top;
 }
 
-IXmlScope *HqlLex::ensureTopXmlScope(const YYSTYPE & errpos)
+IXmlScope *HqlLex::ensureTopXmlScope()
 {
     IXmlScope *top = queryTopXmlScope();
     if (!top)
     {
-    	reportError(errpos, ERR_XML_NOSCOPE, "No XML scope active");
-
-    	// recovery: create a default XML scope
-    	top = xmlScope = ::loadXML("<xml></xml>");
+    	/*HqlLex * lexer = this;
+    	while(lexer->parentLex)
+    		lexer = lexer->parentLex;
+    	top = lexer->xmlScope = createXMLScope();
+    	*/
+    	top = xmlScope = createXMLScope();
     }
-
     return top;
 }
 
@@ -2015,14 +2013,24 @@ StringBuffer &HqlLex::lookupXmlSymbol(const YYSTYPE & errpos, const char *name, 
     if (*name==0)
         name=NULL;
 
-    IXmlScope *top = ensureTopXmlScope(errpos);
+    IXmlScope *top = ensureTopXmlScope();
     top->getValue(name, ret);
+
+    if(false && ret.length() == 0)
+    {
+    	if(parentLex)
+    	{
+    		if(parentLex->xmlScope)
+    			parentLex->xmlScope->getValue(name, ret);
+    	}
+    }
+
     return ret;
 }
 
 void HqlLex::setXmlSymbol(const YYSTYPE & errpos, const char *name, const char *value, bool append)
 {
-    IXmlScope *top = ensureTopXmlScope(errpos);
+    IXmlScope *top = ensureTopXmlScope();
     bool ok;
     if (append)
         ok = top->appendValue(name, value);
@@ -2039,7 +2047,7 @@ void HqlLex::setXmlSymbol(const YYSTYPE & errpos, const char *name, const char *
 
 void HqlLex::declareXmlSymbol(const YYSTYPE & errpos, const char *name)
 {
-    IXmlScope *top = ensureTopXmlScope(errpos);
+    IXmlScope *top = ensureTopXmlScope();
     if (!top->declareValue(name))
     {
         StringBuffer msg("Symbol has already been declared: ");
@@ -2050,7 +2058,7 @@ void HqlLex::declareXmlSymbol(const YYSTYPE & errpos, const char *name)
 
 IIterator *HqlLex::getSubScopes(const YYSTYPE & errpos, const char *name, bool doAll)
 {
-    IXmlScope *top = ensureTopXmlScope(errpos);
+    IXmlScope *top = ensureTopXmlScope();
     return top->getScopes(name, doAll);
 }
 
