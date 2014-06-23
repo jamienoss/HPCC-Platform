@@ -2016,7 +2016,7 @@ StringBuffer &HqlLex::lookupXmlSymbol(const YYSTYPE & errpos, const char *name, 
     IXmlScope *top = ensureTopXmlScope();
     top->getValue(name, ret);
 
-    if(false && ret.length() == 0)
+    if(true && ret.length() == 0)
     {
     	if(parentLex)
     	{
@@ -2102,7 +2102,7 @@ void HqlLex::loadXML(const YYSTYPE & errpos, const char *name, const char * chil
         }
 
         // recovery: create a default XML scope
-        xmlScope = ::loadXML("<xml></xml>");
+        xmlScope = createXMLScope();
     }
 }
 
