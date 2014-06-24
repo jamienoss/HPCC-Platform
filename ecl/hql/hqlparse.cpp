@@ -2077,7 +2077,7 @@ void HqlLex::loadXML(const YYSTYPE & errpos, const char *name, const char * chil
     }
 
     // MORE - give an error if an XML scope is active...
-    ::Release(xmlScope);
+    //::Release(xmlScope);
     try
     {
         xmlScope = ::loadXML(name);
