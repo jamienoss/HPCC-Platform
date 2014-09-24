@@ -2341,8 +2341,8 @@ void HqlCppTranslator::buildExprAssign(BuildCtx & ctx, const CHqlBoundTarget & t
         doBuildAssignIf(ctx, target, expr);
         break;
     case no_index:
-        doBuildAssignIndex(ctx, target, expr);
-        break;
+    	doBuildAssignIndex(ctx, target, expr);
+    	break;
     case no_in:
     case no_notin:
         {
@@ -7442,8 +7442,12 @@ IHqlExpression * getSimpleListIndex(BuildCtx & ctx, IHqlExpression * expr)
     default:
         return NULL;
     }
+
     OwnedHqlExpr folded = foldHqlExpression(index);
-    __int64 which = folded->queryValue()->getIntValue();
+    if (!folded)
+       	throwUnexpected();
+
+    __int64  which = folded->queryValue()->getIntValue();
     if ((which > 0) && (which <= set->numChildren()))
         return LINK(set->queryChild((unsigned)which-1));
     return createNullExpr(expr);

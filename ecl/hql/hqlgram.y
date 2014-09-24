@@ -5489,7 +5489,7 @@ rangeExpr
                             $$.setExpr(createValue(no_rangecommon, makeNullType(), $1.getExpr()));
                         }
     |                   {
-                            parser->reportError(ERR_SUBSTR_EMPTYRANGE,yylval,"Empty range");
+                            //parser->reportError(ERR_SUBSTR_EMPTYRANGE,yylval,"Empty range");
 
                             // recovering: assume [1..].
                             $$.setExpr(createValue(no_rangefrom, makeNullType(), createConstant(1)));
@@ -5551,7 +5551,30 @@ primexpr1
                             parser->normalizeExpression($1);
                             if ($1.queryExpr()->isList())
                             {
-                                $$.setExpr(parser->createListIndex($1, $3, NULL), $1);
+                                printf("here\n");
+                                switch ($3.queryExpr()->getOperator())
+                                {
+                                case no_range :
+                                {
+                                    IIdAtom * name = createIdAtom("__temp_value__",14);
+                                    ITypeInfo * type = $1.queryExpr()->queryType()->queryChildType();
+                                    OwnedHqlExpr field = createField(name, LINK(type), NULL);
+                                    LinkedHqlExpr record = createRecord(field);
+                                    OwnedHqlExpr ds = createDataset(no_temptable, $1.getExpr(), record);
+                                    
+                                    LinkedHqlExpr from = $3.queryExpr()->queryChild(0);
+                                    LinkedHqlExpr to = $3.queryExpr()->queryChild(1);
+                                    LinkedHqlExpr length = createValue(no_add, LINK(type), createValue(no_sub, LINK(type), to, from), createConstant(type->castFrom(true, (__int64)1)));
+                                    LinkedHqlExpr ds2 = createDataset(no_choosen, LINK(ds), createComma(length, LINK(from)));
+                                    
+                                    $$.setExpr(ds2);
+                                    //$$.setExpr(createValue(no_createset, makeSetType(type), LINK(ds2), field));
+                                    
+                                    break;
+                                }
+                                default :
+                                    $$.setExpr(parser->createListIndex($1, $3, NULL), $1);
+                                }
                             }
                             else
                             {

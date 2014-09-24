@@ -15499,7 +15499,6 @@ ITypeInfo * createRecordType(IHqlExpression * record)
     return makeOriginalModifier(record->getType(), LINK(record)); 
 }
 
-
 ITypeInfo * getSumAggType(ITypeInfo * argType)
 {
     type_t tc = argType->getTypeCode();
