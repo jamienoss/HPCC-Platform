@@ -5558,17 +5558,17 @@ primexpr1
                                 {
                                     IIdAtom * name = createIdAtom("__temp_value__",14);
                                     ITypeInfo * type = $1.queryExpr()->queryType()->queryChildType();
-                                    OwnedHqlExpr field = createField(name, LINK(type), NULL);
-                                    LinkedHqlExpr record = createRecord(field);
-                                    OwnedHqlExpr ds = createDataset(no_temptable, $1.getExpr(), record);
+                                    OwnedHqlExpr field = createField(LINK(name), LINK(type), NULL);
+                                    OwnedHqlExpr record = createRecord(LINK(field));
+                                    OwnedHqlExpr ds = createDataset(no_temptable, $1.getExpr(), LINK(record));
                                     
-                                    LinkedHqlExpr from = $3.queryExpr()->queryChild(0);
-                                    LinkedHqlExpr to = $3.queryExpr()->queryChild(1);
-                                    LinkedHqlExpr length = createValue(no_add, LINK(type), createValue(no_sub, LINK(type), to, from), createConstant(type->castFrom(true, (__int64)1)));
-                                    LinkedHqlExpr ds2 = createDataset(no_choosen, LINK(ds), createComma(length, LINK(from)));
+                                    OwnedHqlExpr from = $3.queryExpr()->queryChild(0);
+                                    OwnedHqlExpr to = $3.queryExpr()->queryChild(1);
+                                    OwnedHqlExpr length = createValue(no_add, LINK(type), createValue(no_sub, LINK(type), LINK(to), LINK(from)), createConstant(type->castFrom(true, (__int64)1)));
+                                    OwnedHqlExpr ds2 = createDataset(no_choosen, LINK(ds), createComma(LINK(length), LINK(from)));
                                     
-                                    $$.setExpr(ds2);
-                                    //$$.setExpr(createValue(no_createset, makeSetType(type), LINK(ds2), field));
+                                    //$$.setExpr(LINK(ds2));
+                                    $$.setExpr(createValue(no_createset, makeSetType(LINK(type)), LINK(ds2), createId(name)));
                                     
                                     break;
                                 }
