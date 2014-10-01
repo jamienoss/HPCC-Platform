@@ -1154,8 +1154,7 @@ void ListSetCursor::gatherSelect(BuildCtx & ctx, IHqlExpression * indexExpr, CHq
     if (index->isConstant())
     {
         OwnedHqlExpr folded = foldHqlExpression(index);
-        //unsigned which = (unsigned)folded->queryValue()->getIntValue()-1;
-        unsigned which = (unsigned)folded->queryChild(0)->queryValue()->getIntValue()-1;
+        unsigned which = (unsigned)folded->queryValue()->getIntValue()-1;
         if (which < expr->numChildren())
             translator.buildExpr(ctx, expr->queryChild(which), value);
         else 

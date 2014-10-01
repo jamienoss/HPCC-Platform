@@ -5435,6 +5435,7 @@ IHqlExpression * HqlGram::createDatasetFromList(attribute & listAttr, attribute 
         }
         return combined.getClear();
     }
+
     ITypeInfo * listType = list->queryType();
     assertex(listType);
     ITypeInfo * childType = listType->queryChildType();
@@ -9925,18 +9926,8 @@ IHqlExpression * HqlGram::createListIndex(attribute & list, attribute & which, I
         reportError(ERR_ELEMENT_NO_TYPE, list, "List element has unknown type");
         childType = defaultIntegralType;
     }
-    switch (which.queryExpr()->getOperator())
-    {
-    case no_comma :
+    if (which.queryExpr()->getOperator() == no_comma)
         reportError(ERR_NO_MULTI_ARRAY, list, "Multi dimension array index is not supported");
-        break;
-    case no_range :
-    case no_rangefrom :
-    case no_rangeto :
-    case no_rangecommon :
-    	//reportError(ERR_NO_MULTI_ARRAY, list, "Array index range is not supported");
-    	break;
-    }
 
     if (childType && isDatasetType(childType))
         return createDataset(no_rowsetindex, expr.getClear(), createComma(which.getExpr(), attr));

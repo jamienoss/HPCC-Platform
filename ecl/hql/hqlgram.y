@@ -5489,9 +5489,7 @@ rangeExpr
                             $$.setExpr(createValue(no_rangecommon, makeNullType(), $1.getExpr()));
                         }
     |                   {
-                            //parser->reportError(ERR_SUBSTR_EMPTYRANGE,yylval,"Empty range");
-
-                            // recovering: assume [1..].
+                            //Assume [1..].
                             $$.setExpr(createValue(no_rangefrom, makeNullType(), createConstant(1)));
                         }
     ;
