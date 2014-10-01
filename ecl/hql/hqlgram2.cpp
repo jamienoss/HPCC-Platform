@@ -299,14 +299,14 @@ IHqlExpression * HqlGram::createSetRange(attribute & set, attribute & range)
 		}
 		case no_rangeto :
 		{
-			IHqlExpression * length = rangeExpr;
-			printf("length: %d\n",rangeExpr->getValue()->getIntValue());
+			IHqlExpression * length = rangeExpr->queryChild(0);
 			ds2 = createDataset(no_choosen, LINK(ds), LINK(length));
 			break;
 		}
 		case no_rangefrom :
+		case no_rangecommon :
 		{
-			IHqlExpression * from = rangeExpr;
+			IHqlExpression * from = rangeExpr->queryChild(0);
 			ds2 = createDataset(no_choosen, LINK(ds), createComma(createConstant(CHOOSEN_ALL_LIMIT), LINK(from)));
 			break;
 		}
