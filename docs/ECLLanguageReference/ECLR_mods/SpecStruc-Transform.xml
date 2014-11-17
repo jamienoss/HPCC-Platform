@@ -259,7 +259,7 @@ assignId2(namesRecord l) := assignId(l, 2);
     <para>Example:</para>
 
     <programlisting>namesIdRecord assignId(namesRecord L) := TRANSFORM
-  SELF := L; //more like-named fields across
+  SELF := LEFT; //more like-named fields across
   SELF := []; //clear all other fields
 END;
 
