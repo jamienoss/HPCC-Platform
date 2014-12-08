@@ -78,11 +78,12 @@ class Connection : public CInterface
 {
 public :
     Connection(ICodeContext * ctx, const char * _options, const char * pswd, unsigned __int64 _timeout);
-    Connection(ICodeContext * ctx, RedisServer * _server);
+    Connection(ICodeContext * ctx, RedisServer * _server,  const char * pswd, unsigned __int64 _timeout);
 
-    bool isSameConnection(ICodeContext * ctx, unsigned hash) const;
     const char * ip() const { return server->getIp(); }
     int port() const { return server->getPort(); }
+    unsigned __int64 getTimeout() const { return timeout; }
+    bool isSameConnection(ICodeContext * ctx, unsigned hash) const;
 
 protected :
     virtual void assertOnError(const redisReply * reply, const char * _msg) { }
@@ -104,9 +105,9 @@ protected :
 class Reply : public CInterface
 {
 public :
-    inline Reply() { reply = NULL; };
-    inline Reply(void * _reply) { reply = (redisReply*)_reply; }
-    inline Reply(redisReply * _reply) { reply = _reply; }
+    inline Reply() : reply(NULL) { };
+    inline Reply(void * _reply) : reply((redisReply*)_reply) { }
+    inline Reply(redisReply * _reply) : reply(_reply) { }
     inline ~Reply()
     {
         if (reply)
@@ -115,6 +116,12 @@ public :
 
     static Reply * createReply(void * _reply) { return new Reply(_reply); }
     inline const redisReply * query() const { return reply; }
+    void setClear(redisReply * _reply)
+    {
+        if (reply)
+            freeReplyObject(reply);
+        reply = _reply;
+    }
 
 private :
     redisReply * reply;

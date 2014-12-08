@@ -24,8 +24,8 @@ sync.FlushDB(server, /*database*/, password);
 sync.SetBoolean('b', TRUE, server, /*database*/, /*expire*/, password);
 sync.GetBoolean('b', server, /*database*/, password);
 
-IMPORT redisSync FROM lib_redis;
-myRedis := redisSync(server, password);
+IMPORT redisServer FROM lib_redis;
+myRedis := redisServer(server, password);
 
 REAL pi := 3.14159265359;
 myRedis.SetReal('pi', pi);
@@ -39,7 +39,7 @@ INTEGER i := 123456789;
 myRedis.SetInteger('i', i);
 myRedis.GetInteger('i');
 
-myRedis2 := redisSync('--SERVER=127.0.0.1:6380', 'youarefoobared');
+myRedis2 := redisServer('--SERVER=127.0.0.1:6380', 'youarefoobared');
 
 myRedis2.SetReal('pi', pi2, 1);
 myRedis2.GetReal('pi', 1);
