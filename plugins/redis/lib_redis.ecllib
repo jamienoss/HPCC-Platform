@@ -44,7 +44,29 @@ EXPORT sync := SERVICE : plugin('redis'), namespace('RedisPlugin')
   INTEGER DBSize(CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='RDBSize';
 END;
 
-EXPORT RedisSync    (CONST VARSTRING options, CONST VARSTRING password = '', unsigned timeout = 1000000) := MODULE
+lockingInternal := SERVICE : plugin('redis'), namespace('RedisPlugin')
+  UNICODE  SetUnicode( CONST VARSTRING key, CONST UNICODE value, CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetUChar';
+  STRING   SetString(  CONST VARSTRING key, CONST STRING value,  CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetStr';
+  UTF8     SetUtf8(    CONST VARSTRING key, CONST UTF8 value,    CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetUtf8';
+  BOOLEAN  SetBoolean( CONST VARSTRING key, BOOLEAN value,       CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetBool';
+  REAL     SetReal(    CONST VARSTRING key, REAL value,          CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetReal';
+  INTEGER  SetInteger( CONST VARSTRING key, INTEGER value,       CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetInt';
+  UNSIGNED SetUnsigned(CONST VARSTRING key, UNSIGNED value,      CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetUInt';
+  DATA     SetData(    CONST VARSTRING key, CONST DATA value,    CONST VARSTRING options, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRSetData';
+
+  INTEGER8   GetInteger(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetInt8';
+  UNSIGNED8 GetUnsigned(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetUint8';
+  STRING      GetString(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetStr';
+  UNICODE    GetUnicode(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetUChar';
+  UTF8          GetUtf8(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetUtf8';
+  BOOLEAN    GetBoolean(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetBool';
+  REAL          GetReal(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetDouble';
+  DATA          GetData(CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRGetData';
+
+  BOOLEAN MissThenLock (CONST VARSTRING key, CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '', unsigned timeout = 1000000) : cpp,once,context,entrypoint='AsyncRMissThenLock';
+END;
+
+EXPORT RedisServer    (CONST VARSTRING options, CONST VARSTRING password = '', unsigned timeout = 1000000) := MODULE
   EXPORT  SetUnicode(CONST VARSTRING key, CONST UNICODE value,  UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetUnicode (key, value, options, database, expire, password, timeout);
   EXPORT   SetString(CONST VARSTRING key, CONST STRING value,   UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetString  (key, value, options, database, expire, password, timeout);
   EXPORT     SetUtf8(CONST VARSTRING key, CONST UTF8 value,     UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetUtf8    (key, value, options, database, expire, password, timeout);
@@ -70,4 +92,46 @@ EXPORT RedisSync    (CONST VARSTRING options, CONST VARSTRING password = '', uns
   EXPORT Persist(CONST VARSTRING key, UNSIGNED database = 0) := sync.Persist(key, options, database, password, timeout);
   EXPORT Expire(CONST VARSTRING key, UNSIGNED4 expire, UNSIGNED database = 0)  := sync.Expire(key, options, expire, database, password, timeout);
   EXPORT DBSize(UNSIGNED database = 0) := sync.DBSize(options, database, password, timeout);
+
+  //locking
+  EXPORT locking := MODULE
+    EXPORT  SetUnicode(CONST VARSTRING key, CONST UNICODE value,  UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetUnicode (key, value, options, database, expire, password, timeout);
+    EXPORT   SetString(CONST VARSTRING key, CONST STRING value,   UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetString  (key, value, options, database, expire, password, timeout);
+    EXPORT     SetUtf8(CONST VARSTRING key, CONST UTF8 value,     UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetUtf8    (key, value, options, database, expire, password, timeout);
+    EXPORT  SetBoolean(CONST VARSTRING key, CONST BOOLEAN value,  UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetBoolean (key, value, options, database, expire, password, timeout);
+    EXPORT     SetReal(CONST VARSTRING key, CONST REAL value,     UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetReal    (key, value, options, database, expire, password, timeout);
+    EXPORT  SetInteger(CONST VARSTRING key, CONST INTEGER value,  UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetInteger (key, value, options, database, expire, password, timeout);
+    EXPORT SetUnsigned(CONST VARSTRING key, CONST UNSIGNED value, UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetUnsigned(key, value, options, database, expire, password, timeout);
+    EXPORT     SetData(CONST VARSTRING key, CONST DATA value,     UNSIGNED database = 0, UNSIGNED4 expire = 0) := lockingInternal.SetData    (key, value, options, database, expire, password, timeout);
+
+    EXPORT  GetUnicode(CONST VARSTRING key, UNSIGNED database = 0) :=  lockingInternal.GetUnicode(key, options, database, password, timeout);
+    EXPORT   GetString(CONST VARSTRING key, UNSIGNED database = 0) :=   lockingInternal.GetString(key, options, database, password, timeout);
+    EXPORT     GetUtf8(CONST VARSTRING key, UNSIGNED database = 0) :=     lockingInternal.GetUtf8(key, options, database, password, timeout);
+    EXPORT  GetBoolean(CONST VARSTRING key, UNSIGNED database = 0) :=  lockingInternal.GetBoolean(key, options, database, password, timeout);
+    EXPORT     GetReal(CONST VARSTRING key, UNSIGNED database = 0) :=     lockingInternal.GetReal(key, options, database, password, timeout);
+    EXPORT  GetInteger(CONST VARSTRING key, UNSIGNED database = 0) :=  lockingInternal.GetInteger(key, options, database, password, timeout);
+    EXPORT GetUnsigned(CONST VARSTRING key, UNSIGNED database = 0) := lockingInternal.GetUnsigned(key, options, database, password, timeout);
+    EXPORT     GetData(CONST VARSTRING key, UNSIGNED database = 0) :=     lockingInternal.GetData(key, options, database, password, timeout);
+
+    EXPORT Exists(CONST VARSTRING key, UNSIGNED database = 0) := lockingInternal.MissTHenLock(key, options, database, password, timeout);
+
+
+/*
+    EXPORT GetString(key, evalFunc, database, expire) := FUNCTIONMACRO
+        IF (lockingInternal.MissThenLock(key, options, database, password, timeout),
+            lockingInternal.SetString(key, evalFunc, options, database, expire, password, timeout),
+            lockingInternal.GetString(key, options, database, password, timeout)
+        );
+    ENDMACRO;
+*/
+   END;
 END;
+
+
+
+
+
+
+
+
+

@@ -30,9 +30,11 @@ if (USE_REDIS)
     set (    SRCS
              redisplugin.hpp
              redissync.hpp
+             redisasync.hpp
 
              redisplugin.cpp
              redissync.cpp
+             redisasync.cpp
         )
 
     include_directories (
@@ -41,12 +43,14 @@ if (USE_REDIS)
              ./../../rtl/include
              ./../../common/deftype
              ./../../system/jlib
-             ${LIBHIREDIS_INCLUDE_DIR}
+             ${LIBEV_INCLUDE_DIR}
+             ${LIBHIREDIS_INCLUDE_DIRS}
         )
 
     ADD_DEFINITIONS( -D_USRDLL -DECL_REDIS_EXPORTS)
 
     HPCC_ADD_LIBRARY( redis SHARED ${SRCS} )
+
     if (${CMAKE_VERSION} VERSION_LESS "2.8.9")
       message("WARNING: Cannot set NO_SONAME. shlibdeps will give warnings when package is installed")
     elseif(NOT APPLE)
@@ -58,6 +62,7 @@ if (USE_REDIS)
     target_link_libraries ( redis
         eclrtl
         jlib
+        ${LIBEV_LIBRARY}
         ${LIBHIREDIS_LIBRARY}
         )
   endif()

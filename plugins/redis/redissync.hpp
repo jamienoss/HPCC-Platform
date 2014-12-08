@@ -26,7 +26,7 @@ class SyncConnection : public Connection
 {
 public :
     SyncConnection(ICodeContext * ctx, const char * options, unsigned __int64 database, const char * pswd, unsigned __int64 _timeout);
-    SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 database, const char * pswd);
+    //SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 database, const char * pswd);
     ~SyncConnection()
     {
         if (context)

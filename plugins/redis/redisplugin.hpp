@@ -78,11 +78,12 @@ class Connection : public CInterface
 {
 public :
     Connection(ICodeContext * ctx, const char * _options, const char * pswd, unsigned __int64 _timeout);
-    Connection(ICodeContext * ctx, RedisServer * _server);
+    Connection(ICodeContext * ctx, RedisServer * _server,  const char * pswd, unsigned __int64 _timeout);
 
-    bool isSameConnection(ICodeContext * ctx, unsigned hash) const;
     const char * ip() const { return server->getIp(); }
     int port() const { return server->getPort(); }
+    unsigned __int64 getTimeout() const { return timeout; }
+    bool isSameConnection(ICodeContext * ctx, unsigned hash) const;
 
 protected :
     virtual void assertOnError(const redisReply * reply, const char * _msg) { }

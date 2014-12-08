@@ -14,31 +14,12 @@
 #    limitations under the License.
 ################################################################################
 
-# - Try to find the libhiredislibrary
+# - Try to find the libev library
 # Once done this will define
 #
-#  LIBHEDIS_FOUND - system has the libhiredis library
-#  LIBHIREDIS_INCLUDE_DIR - the libhiredis include directory(s)
-#  LIBHIREDIS_LIBRARY - The library needed to use hiredis
-
-IF (NOT LIBREDIS_FOUND)
-  IF (WIN32)
-    SET (libhiredis "libhiredis")
-  ELSE()
-    SET (libhiredis "hiredis")
-  ENDIF()
-
-  FIND_PATH(LIBHIREDIS_INCLUDE_DIR hiredis/hiredis.h PATHS /usr/include /usr/share/include /usr/local/include PATH_SUFFIXES hiredis)
-  FIND_LIBRARY(LIBHIREDIS_LIBRARY NAMES ${libhiredis} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)
-
-  include(FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(redis DEFAULT_MSG
-    LIBHIREDIS_LIBRARY
-    LIBHIREDIS_INCLUDE_DIR
-  )
-
-  MARK_AS_ADVANCED(LIBHIREDIS_INCLUDE_DIR LIBHIREDIS_LIBRARY)
-ENDIF()
+#  LIBEV_FOUND - system has the libev library
+#  LIBEV_INCLUDE_DIR - the libev include directory(s)
+#  LIBEV_LIBRARY - The library needed to use libev
 
 IF (NOT LIBEV_FOUND)
   IF (WIN32)
@@ -58,3 +39,4 @@ IF (NOT LIBEV_FOUND)
 
   MARK_AS_ADVANCED(LIBEV_INCLUDE_DIR LIBEV_LIBRARY)
 ENDIF()
+

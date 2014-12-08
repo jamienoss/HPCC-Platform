@@ -55,11 +55,11 @@ SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options, unsign
 {
     connect(ctx, _database, pswd);
 }
-SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * pswd)
+/*SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * pswd)
   : Connection(ctx, _server)
 {
     connect(ctx, _database, pswd);
-}
+}*/
 void SyncConnection::connect(ICodeContext * ctx, unsigned __int64 _database, const char * pswd)
 {
     struct timeval to = { timeout/1000000, timeout%1000000 };
@@ -168,7 +168,7 @@ void SyncConnection::assertConnection()
 {
     if (!context)
         rtlFail(0, "Redis Plugin: 'redisConnect' failed - no error available.");
-    else if (context->err)//This check requires that context->err be reset after a non terminating error was encountered. However, the nature of context->err implies a runtime exception.
+    else if (context->err)
     {
         VStringBuffer msg("Redis Plugin: Connection failed - %s for %s:%u", context->errstr, ip(), port());
         rtlFail(0, msg.str());
