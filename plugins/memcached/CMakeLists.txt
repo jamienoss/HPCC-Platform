@@ -37,7 +37,6 @@ if (USE_MEMCACHED)
              ./../../rtl/eclrtl
              ./../../rtl/include
              ./../../common/deftype
-             ./../../common/workunit
              ./../../system/jlib
              ${LIBMEMCACHED_INCLUDE_DIR}
         )
@@ -57,7 +56,6 @@ if (USE_MEMCACHED)
     target_link_libraries ( memcached
         eclrtl
         jlib
-        workunit
         ${LIBMEMCACHED_LIBRARIES}
         )
   endif()
