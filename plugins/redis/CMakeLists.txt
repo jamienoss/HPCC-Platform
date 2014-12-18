@@ -33,7 +33,6 @@ if (USE_REDIS)
 
              redisplugin.cpp
              redissync.cpp
-
         )
 
     include_directories (

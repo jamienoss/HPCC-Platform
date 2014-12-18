@@ -66,5 +66,14 @@ export async := SERVICE : plugin('redis')
   Clear(CONST VARSTRING options) : cpp,action,context,namespace='Async',entrypoint='RClear';
 END;
 
-//export hiredis := SERVICE : plugin('redis')
-//END;
+reply := RECORD
+  INTEGER type;
+  INTEGER int;
+  INTEGER len;
+  VARSTRING str;
+  VARSTRING padding;
+END;
+
+export hiredis := SERVICE : plugin('redis')
+  DATASET(reply) RedisCmd(CONST VARSTRING options, CONST VARSTRING cmd) : cpp,action,context,namespace='hiredis',entrypoint='RCmdStr';
+END;

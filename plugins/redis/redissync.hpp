@@ -48,6 +48,8 @@ extern "C++"
     ECL_REDIS_API void             ECL_REDIS_CALL RDel  (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
     ECL_REDIS_API void             ECL_REDIS_CALL RPersist  (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
     ECL_REDIS_API void             ECL_REDIS_CALL RExpire  (ICodeContext * _ctx, const char * options, const char * key, unsigned expire, const char * partitionKey);
+
+    ECL_REDIS_API void ECL_REDIS_CALL RCmdStr(ICodeContext * _ctx, size32_t & returnLength, void * & value, const char * options, const char * key);
 }
 
 #endif

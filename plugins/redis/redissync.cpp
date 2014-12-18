@@ -362,4 +362,13 @@ bool Connection::exist(ICodeContext * ctx, const char * key, const char * partit
         return true;
     }
 }
+
+ECL_REDIS_API void ECL_REDIS_CALL RCmdStr(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, const char * options, const char * cmd)
+{
+    OwnedConnection master = createConnection(ctx, options);
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "GET %s", key));
+
+    RGetVoidPtrLenPair(ctx, options, partitionKey, key, _returnLength, returnValue, RedisPlugin::ECL_DATA);
+    returnLength = static_cast<size32_t>(_returnLength);
+}
 }//close namespace
