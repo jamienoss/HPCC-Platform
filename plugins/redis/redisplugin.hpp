@@ -90,7 +90,6 @@ protected :
     void invokePoolSecurity(ICodeContext * ctx);
     void invokeConnectionSecurity(ICodeContext * ctx);
     void setPoolSettings();
-    void parseOptions(const char * _options, StringAttr &  _master, unsigned & _port) const;
 
 protected :
     StringAttr options;
@@ -120,6 +119,8 @@ private :
 };
 Reply * createReply(void * _reply);
 #define OwnedReply Owned<RedisPlugin::Reply>
+
+void parseOptions(const char * options, StringAttr & master, unsigned & port);
 
 }//close namespace
 

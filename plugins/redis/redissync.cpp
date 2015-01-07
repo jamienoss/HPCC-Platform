@@ -23,37 +23,6 @@
 namespace Sync {
 static CriticalSection crit;
 
-class Connection : public RedisPlugin::Connection
-{
-public :
-    Connection(ICodeContext * ctx, const char * _options);
-    ~Connection()
-    {
-        if (connection)
-            redisFree(connection);
-    }
-
-    //set
-    template <class type> void set(ICodeContext * ctx, const char * partitionKey, const char * key, type value, unsigned expire, RedisPlugin::eclDataType eclType);
-    template <class type> void set(ICodeContext * ctx, const char * partitionKey, const char * key, size32_t valueLength, const type * value, unsigned expire, RedisPlugin::eclDataType eclType);
-    //get
-    template <class type> void get(ICodeContext * ctx, const char * partitionKey, const char * key, type & value, RedisPlugin::eclDataType eclType);
-    template <class type> void get(ICodeContext * ctx, const char * partitionKey, const char * key, size_t & valueLength, type * & value, RedisPlugin::eclDataType eclType);
-    void getVoidPtrLenPair(ICodeContext * ctx, const char * partitionKey, const char * key, size_t & valueLength, void * & value, RedisPlugin::eclDataType eclType);
-    bool exist(ICodeContext * ctx, const char * key, const char * partitionKey);
-    void del(ICodeContext * ctx, const char * key, const char * partitionKey);
-    void persist(ICodeContext * ctx, const char * key, const char * partitionKey);
-    void expire(ICodeContext * ctx, const char * key, const char * partitionKey, unsigned _expire);
-    virtual void clear(ICodeContext * ctx, unsigned when);
-
-protected :
-    virtual void assertOnError(const redisReply * reply, const char * _msg);
-    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg);
-    virtual void assertConnection();
-
-private :
-    redisContext * connection;
-};
 typedef Owned<Connection> OwnedConnection;
 static OwnedConnection cachedConnection;
 
@@ -205,7 +174,6 @@ ECL_REDIS_API void ECL_REDIS_CALL RExpire(ICodeContext * ctx, const char * optio
     OwnedConnection master = createConnection(ctx, options);
     master->expire(ctx, key, partitionKey, _expire*RedisPlugin::unitExpire);
 }
-
 //-----------------------------------SET------------------------------------------
 //NOTE: These were all overloaded by 'value' type, however; this caused problems since ecl implicitly casts and doesn't type check.
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, const char * partitionKey, unsigned expire /* = 0 (ECL default)*/)

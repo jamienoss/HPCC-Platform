@@ -15,6 +15,7 @@
     limitations under the License.
 ############################################################################## */
 
+
 export sync := SERVICE : plugin('redis')
   SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
   SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
@@ -33,6 +34,11 @@ export sync := SERVICE : plugin('redis')
   BOOLEAN GetBoolean(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetBool';
   REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetDouble';
   DATA GetData(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetData';
+
+  //STRING pubSub(CONST VARSTRING options, CONST VARSTRING key,  callbackMac func, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetStr';
+
+  BOOLEAN MissAndLock(VARSTRING keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
+  VARSTRING GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,action,context,namespace='Lock',entrypoint='RGetLockObject';
 
   BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RExist';
   //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RKeyType'; //NOTE: calls get

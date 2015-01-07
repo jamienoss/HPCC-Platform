@@ -119,7 +119,7 @@ Connection * createConnection(ICodeContext * ctx, const char * options)
 
 ECL_REDIS_API void setPluginContext(IPluginContext * ctx) { RedisPlugin::parentCtx = ctx; }
 
-void RedisPlugin::Connection::parseOptions(const char * _options, StringAttr & _master, unsigned & _port) const
+void RedisPlugin::parseOptions(const char * _options, StringAttr & master, unsigned & port)
 {
     StringArray optionStrings;
     optionStrings.appendList(_options, " ");
@@ -133,13 +133,13 @@ void RedisPlugin::Connection::parseOptions(const char * _options, StringAttr & _
             splitPort.appendList(opt, ":");
             if (splitPort.ordinality()==2)
             {
-                _master.set(splitPort.item(0));
-                _port = atoi(splitPort.item(1));
+                master.set(splitPort.item(0));
+                port = atoi(splitPort.item(1));
             }
             else
             {
-                _master.set("localhost");//MORE: May need to explicitly be 127.0.0.1
-                _port = 6379;
+                master.set("localhost");//MORE: May need to explicitly be 127.0.0.1
+                port = 6379;
             }
          }
         else
@@ -155,7 +155,7 @@ RedisPlugin::Connection::Connection(ICodeContext * ctx, const char * _options)
     alreadyInitialized = false;
     options.set(_options);
     typeMismatchCount = 0;
-    parseOptions(_options, master, port);
+    RedisPlugin::parseOptions(_options, master, port);
 
     /*if (!alreadyInitialized)
     {
@@ -172,7 +172,7 @@ bool RedisPlugin::Connection::isSameConnection(const char * _options) const
 
     StringAttr newMaster;
     unsigned newPort = 0;
-    parseOptions(_options, newMaster, newPort);
+    RedisPlugin::parseOptions(_options, newMaster, newPort);
 
     return stricmp(master.get(), newMaster.get()) == 0 && port == newPort;
 }

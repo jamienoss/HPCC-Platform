@@ -20,6 +20,41 @@
 
 #include "redisplugin.hpp"
 
+namespace Sync
+{
+class Connection : public RedisPlugin::Connection
+{
+public :
+    Connection(ICodeContext * ctx, const char * _options);
+    ~Connection()
+    {
+        if (connection)
+            redisFree(connection);
+    }
+
+    //set
+    template <class type> void set(ICodeContext * ctx, const char * partitionKey, const char * key, type value, unsigned expire, RedisPlugin::eclDataType eclType);
+    template <class type> void set(ICodeContext * ctx, const char * partitionKey, const char * key, size32_t valueLength, const type * value, unsigned expire, RedisPlugin::eclDataType eclType);
+    //get
+    template <class type> void get(ICodeContext * ctx, const char * partitionKey, const char * key, type & value, RedisPlugin::eclDataType eclType);
+    template <class type> void get(ICodeContext * ctx, const char * partitionKey, const char * key, size_t & valueLength, type * & value, RedisPlugin::eclDataType eclType);
+    void getVoidPtrLenPair(ICodeContext * ctx, const char * partitionKey, const char * key, size_t & valueLength, void * & value, RedisPlugin::eclDataType eclType);
+    bool exist(ICodeContext * ctx, const char * key, const char * partitionKey);
+    void persist(ICodeContext * ctx, const char * key, const char * partitionKey);
+    void expire(ICodeContext * ctx, const char * key, const char * partitionKey, unsigned _expire);
+    virtual void del(ICodeContext * ctx, const char * key, const char * partitionKey);
+    virtual void clear(ICodeContext * ctx, unsigned when);
+
+protected :
+    virtual void assertOnError(const redisReply * reply, const char * _msg);
+    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg);
+    virtual void assertConnection();
+
+private :
+    redisContext * connection;
+};
+}//clsoe namespace
+
 extern "C++"
 {
     //--------------------------SET----------------------------------------
