@@ -53,7 +53,7 @@ protected :
 private :
     redisContext * connection;
 };
-}//clsoe namespace
+}//close namespace
 
 extern "C++"
 {

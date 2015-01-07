@@ -35,21 +35,6 @@ export sync := SERVICE : plugin('redis')
   REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetDouble';
   DATA GetData(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetData';
 
-  //STRING pubSub(CONST VARSTRING options, CONST VARSTRING key,  callbackMac func, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetStr';
-  //------------------------------------------------------------------------------------------------------------------------------------------------------------
-  BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
-  UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,once,context,namespace='Lock',entrypoint='RGetLockObject';
-  //------------------------------------------------------------------------------------------------------------------------------------------------------------
-  INTEGER8 GetLockedInteger(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedInt8';
-  UNSIGNED8 GetLockedUnsigned(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUint8';
-  STRING GetLockedString(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedStr';
-  UNICODE GetLockedUnicode(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUChar';
-  UTF8 GetLockedUtf8(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUtf8';
-  BOOLEAN GetLockedBoolean(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedBool';
-  REAL GetLockedReal(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedDouble';
-  DATA GetLockedData(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedData';
-  //------------------------------------------------------------------------------------------------------------------------------------------------------------
-
   BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RExist';
   //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RKeyType'; //NOTE: calls get
   Clear(CONST VARSTRING options) : cpp,action,context,namespace='Sync',entrypoint='RClear';
@@ -80,6 +65,23 @@ export async := SERVICE : plugin('redis')
   BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RExist';
   //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RKeyType'; //NOTE: calls get
   Clear(CONST VARSTRING options) : cpp,action,context,namespace='Async',entrypoint='RClear';
+END;
+
+export locking := SERVICE : plugin('redis')
+ //STRING pubSub(CONST VARSTRING options, CONST VARSTRING key,  callbackMac func, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetStr';
+  //------------------------------------------------------------------------------------------------------------------------------------------------------------
+  BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
+  UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,once,context,namespace='Lock',entrypoint='RGetLockObject';
+  //------------------------------------------------------------------------------------------------------------------------------------------------------------
+  INTEGER8 GetLockedInteger(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedInt8';
+  UNSIGNED8 GetLockedUnsigned(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUint8';
+  STRING GetLockedString(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedStr';
+  UNICODE GetLockedUnicode(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUChar';
+  UTF8 GetLockedUtf8(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUtf8';
+  BOOLEAN GetLockedBoolean(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedBool';
+  REAL GetLockedReal(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedDouble';
+  DATA GetLockedData(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedData';
+  //------------------------------------------------------------------------------------------------------------------------------------------------------------
 END;
 
 reply := RECORD
