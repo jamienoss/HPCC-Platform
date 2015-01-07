@@ -24,6 +24,17 @@ extern "C++"
 {
     ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key);
     ECL_REDIS_API bool ECL_REDIS_CALL RMissAndLock(ICodeContext * _ctx, unsigned __int64 keyPtr);
+
+    //--------------------------GET----------------------------------------
+    ECL_REDIS_API bool             ECL_REDIS_CALL RGetLockedBool  (ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetLockedInt8  (ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockedUint8 (ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API double           ECL_REDIS_CALL RGetLockedDouble(ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetLockedUtf8  (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetLockedStr   (ICodeContext * _ctx, size32_t & valueLength, UChar * & returnValue, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetLockedUChar (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetLockedData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, unsigned __int64);
+
 }
 
 #endif

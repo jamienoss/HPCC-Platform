@@ -57,6 +57,11 @@ public :
             redisFree(connection);
     }
 
+    //get
+    template <class type> void getLocked(ICodeContext * ctx, KeyLock * keyPtr, type & value, RedisPlugin::eclDataType eclType);
+    template <class type> void getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & valueLength, type * & value, RedisPlugin::eclDataType eclType);
+    void getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyPtr, size_t & valueLength, void * & value, RedisPlugin::eclDataType eclType);
+
     bool missAndLock(ICodeContext * ctx, const KeyLock * key);
 
 private :
@@ -148,5 +153,112 @@ ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx,
     keyPtr.set(new KeyLock(options, key, lockId.str()));
     return reinterpret_cast<unsigned long long>(keyPtr.get());
 }
+//----------------------------------GET----------------------------------------
+template<class type> void Connection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, type & returnValue, RedisPlugin::eclDataType eclType)
+{
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
+
+    StringBuffer keyMsg = getFailMsg;
+    assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
+
+    size_t returnSize = reply->query()->len;//*sizeof(type);
+    if (sizeof(type)!=returnSize)
+    {
+        VStringBuffer msg("RedisPlugin: ERROR - Requested type of different size (%uB) from that stored (%uB).", (unsigned)sizeof(type), (unsigned)returnSize);
+
+        rtlFail(0, msg.str());
+    }
+    memcpy(&returnValue, reply->query()->str, returnSize);
+}
+template<class type> void Connection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
+{
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
+
+    StringBuffer keyMsg = getFailMsg;
+    assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
+
+    returnLength = reply->query()->len;
+    size_t returnSize = returnLength*sizeof(type);
+
+    returnValue = reinterpret_cast<type*>(cpy(reply->query()->str, returnSize));
+}
+void Connection::getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, void * & returnValue, RedisPlugin::eclDataType eclType)
+{
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
+    StringBuffer keyMsg = getFailMsg;
+    assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
+
+    returnLength = reply->query()->len;
+    returnValue = reinterpret_cast<void*>(cpy(reply->query()->str, reply->query()->len*sizeof(char)));
+}
+//-------------------------------------------GET-----------------------------------------
+template<class type> void RGetLocked(ICodeContext * ctx, unsigned __int64 _keyPtr, type & returnValue, RedisPlugin::eclDataType eclType)
+{
+    const KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
+    OwnedConnection master = createConnection(ctx, keyPtr->getOptions());
+    master->getLocked(ctx, keyPtr, returnValue, eclType);
+}
+template<class type> void RGetLocked(ICodeContext * ctx, unsigned __int64 _keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
+{
+    const KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
+    OwnedConnection master = createConnection(ctx, keyPtr->getOptions());
+    master->getLocked(ctx, keyPtr, returnLength, returnValue, eclType);
+}
+void RGetLockedVoidPtrLenPair(ICodeContext * ctx, unsigned __int64 _keyPtr, size_t & returnLength, void * & returnValue, RedisPlugin::eclDataType eclType)
+{
+    const KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
+    OwnedConnection master = createConnection(ctx, keyPtr->getOptions());
+    master->getLockedVoidPtrLenPair(ctx, keyPtr, returnLength, returnValue, eclType);
+}
+//-------------------------------------GET----------------------------------------
+ECL_REDIS_API bool ECL_REDIS_CALL RGetLockedBool(ICodeContext * ctx, unsigned __int64 keyPtr)
+{
+    bool value;
+    RGetLocked(ctx, keyPtr, value, RedisPlugin::ECL_BOOLEAN);
+    return value;
+}
+ECL_REDIS_API double ECL_REDIS_CALL RGetLockedDouble(ICodeContext * ctx, unsigned __int64 keyPtr)
+{
+    double value;
+    RGetLocked(ctx, keyPtr, value, RedisPlugin::ECL_REAL);
+    return value;
+}
+ECL_REDIS_API signed __int64 ECL_REDIS_CALL RGetLockedInt8(ICodeContext * ctx, unsigned __int64 keyPtr)
+{
+    signed __int64 value;
+    RGetLocked(ctx, keyPtr, value, RedisPlugin::ECL_INTEGER);
+    return value;
+}
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockedUint8(ICodeContext * ctx, unsigned __int64 keyPtr)
+{
+    unsigned __int64 value;
+    RGetLocked(ctx, keyPtr, value, RedisPlugin::ECL_UNSIGNED);
+    return value;
+}
+ECL_REDIS_API void ECL_REDIS_CALL RGetLockedStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, unsigned __int64 keyPtr)
+{
+    size_t _returnLength;
+    RGetLocked(ctx, keyPtr, _returnLength, returnValue, RedisPlugin::ECL_STRING);
+    returnLength = static_cast<size32_t>(_returnLength);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RGetLockedUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  unsigned __int64 keyPtr)
+{
+    size_t _returnSize;
+    RGetLocked(ctx, keyPtr, _returnSize, returnValue, RedisPlugin::ECL_UNICODE);
+    returnLength = static_cast<size32_t>(_returnSize/sizeof(UChar));
+}
+ECL_REDIS_API void ECL_REDIS_CALL RGetLockedUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, unsigned __int64 keyPtr)
+{
+    size_t returnSize;
+    RGetLocked(ctx, keyPtr, returnSize, returnValue, RedisPlugin::ECL_UTF8);
+    returnLength = static_cast<size32_t>(rtlUtf8Length(returnSize, returnValue));
+}
+ECL_REDIS_API void ECL_REDIS_CALL RGetLockedData(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, unsigned __int64 keyPtr)
+{
+    size_t _returnLength;
+    RGetLockedVoidPtrLenPair(ctx, keyPtr, _returnLength, returnValue, RedisPlugin::ECL_DATA);
+    returnLength = static_cast<size32_t>(_returnLength);
+}
+
 
 }//close namespace
