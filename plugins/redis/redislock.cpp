@@ -92,7 +92,7 @@ KeyLock::KeyLock(const char * _options, const char * _key, const char * _lockId)
 {
     options.setown(_options);
     key.set(_key);
-    lockId.setown(_lockId);
+    lockId.set(_lockId);
     RedisPlugin::parseOptions(_options, master, port);
 }
 KeyLock::~KeyLock()
@@ -112,22 +112,23 @@ KeyLock::~KeyLock()
 
 bool Connection::missAndLock(ICodeContext * ctx, const KeyLock * keyPtr)
 {
+    //NOTE: at present other calls to SET will ignore lock and overwrite value.
     StringBuffer cmd("SET %b %b NX EX ");
     cmd.append(Lock::lockExpire);
+
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, cmd.str(), keyPtr->getKey(), strlen(keyPtr->getKey())*sizeof(char), keyPtr->getLockId(), strlen(keyPtr->getLockId())*sizeof(char)));
     //assertOnError(reply->query(), msg);
     const redisReply * actReply = reply->query();
     if (!actReply)
         return false;
-    else if (actReply->type == REDIS_REPLY_STATUS && strcmp(actReply->str, "OK"))
+    else if (actReply->type == REDIS_REPLY_STATUS && strcmp(actReply->str, "OK")==0)
         return true;
 
     return false;
 }
 
-ECL_REDIS_API bool ECL_REDIS_CALL RMissAndLock(ICodeContext * ctx, char * _keyPtr)
+ECL_REDIS_API bool ECL_REDIS_CALL RMissAndLock(ICodeContext * ctx, unsigned __int64 _keyPtr)
 {
-	printf("inhere\n");
     const KeyLock * keyPtr = reinterpret_cast<const KeyLock*>(_keyPtr);
     if (!keyPtr)
     {
@@ -137,15 +138,15 @@ ECL_REDIS_API bool ECL_REDIS_CALL RMissAndLock(ICodeContext * ctx, char * _keyPt
     return master->missAndLock(ctx, keyPtr);
 }
 
-ECL_REDIS_API char * ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key)
 {
     Owned<KeyLock> keyPtr;
     StringBuffer lockId;
     lockId.set(Lock::REDIS_LOCK_PREFIX);
-    lockId.append("iviyfau8sifsdiuf");
+    lockId.append(key).append("iviyfau8sifsdiuf");
 
-    keyPtr.setown(new KeyLock(options, key, lockId.str()));
-    return reinterpret_cast<char*>(keyPtr.get());
+    keyPtr.set(new KeyLock(options, key, lockId.str()));
+    return reinterpret_cast<unsigned long long>(keyPtr.get());
 }
 
 }//close namespace

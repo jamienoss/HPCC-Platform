@@ -22,8 +22,8 @@
 
 extern "C++"
 {
-    ECL_REDIS_API char * ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key);
-    ECL_REDIS_API bool ECL_REDIS_CALL RMissAndLock(ICodeContext * _ctx, char * keyPtr);
+    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key);
+    ECL_REDIS_API bool ECL_REDIS_CALL RMissAndLock(ICodeContext * _ctx, unsigned __int64 keyPtr);
 }
 
 #endif

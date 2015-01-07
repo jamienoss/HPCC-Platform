@@ -37,8 +37,8 @@ export sync := SERVICE : plugin('redis')
 
   //STRING pubSub(CONST VARSTRING options, CONST VARSTRING key,  callbackMac func, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetStr';
 
-  BOOLEAN MissAndLock(VARSTRING keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
-  VARSTRING GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,action,context,namespace='Lock',entrypoint='RGetLockObject';
+  BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
+  UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,once,context,namespace='Lock',entrypoint='RGetLockObject';
 
   BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RExist';
   //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RKeyType'; //NOTE: calls get
