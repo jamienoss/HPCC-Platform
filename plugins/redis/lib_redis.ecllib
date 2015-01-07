@@ -71,8 +71,9 @@ export locking := SERVICE : plugin('redis')
  //STRING pubSub(CONST VARSTRING options, CONST VARSTRING key,  callbackMac func, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetStr';
   //------------------------------------------------------------------------------------------------------------------------------------------------------------
   BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
-  UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,once,context,namespace='Lock',entrypoint='RGetLockObject';
-  pub(const varstring options, const varstring msg): cpp,once,context,namespace='Lock',entrypoint='RPub';
+  //must be pure for callbacks to work
+  UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,pure,context,namespace='Lock',entrypoint='RGetLockObject';
+  pub(const varstring options, const varstring channel, const varstring msg): cpp,pure,context,namespace='Lock',entrypoint='RPub';
   //------------------------------------------------------------------------------------------------------------------------------------------------------------
   INTEGER8 GetLockedInteger(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedInt8';
   UNSIGNED8 GetLockedUnsigned(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUint8';

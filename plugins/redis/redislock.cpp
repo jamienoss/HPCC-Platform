@@ -60,7 +60,7 @@ public :
             redisFree(connection);
     }
 
-    void pub(ICodeContext * ctx, const char * msg);
+    void pub(ICodeContext * ctx, const char * channel, const char * msg);
     bool missAndLock(ICodeContext * ctx, const KeyLock * key);
 
 private :
@@ -207,14 +207,16 @@ ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx,
 
 void callback(redisAsyncContext * connection, void * reply, void * privdata)
 {
-	redisReply *r = (redisReply*)reply;
-	    if (reply == NULL) return;
+    //redisReply *r = (redisReply*)reply;
 
-	    if (r->type == REDIS_REPLY_ARRAY) {
-	        for (int j = 0; j < r->elements; j++) {
-	            printf("%u) %s\n", j, r->element[j]->str);
-	        }
-	    }
+    printf("callback yes!!!!\n");
+    /*if (reply == NULL) return;
+
+    if (r->type == REDIS_REPLY_ARRAY) {
+        for (int j = 0; j < r->elements; j++) {
+            printf("%u) %s\n", j, r->element[j]->str);
+        }
+    }*/
 }
 //----------------------------------GET----------------------------------------
 template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, type & returnValue, RedisPlugin::eclDataType eclType)
@@ -244,6 +246,14 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
 }
 template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
+	const char * key = keyPtr->getKey();
+
+	    //Do we double check 1st that the key is locked? NAH!
+	    signal(SIGPIPE, SIG_IGN);
+	    struct event_base *base = event_base_new();
+	    redisLibeventAttach(connection, base);
+	    assertIOError(redisAsyncCommand(connection, callback, NULL, "SUBSCRIBE %b", key, strlen(key)*sizeof(char)), "subscription error");
+	    event_base_dispatch(base);
     /*const char * key = keyPtr->getKey();
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
 
@@ -337,14 +347,14 @@ ECL_REDIS_API void ECL_REDIS_CALL RGetLockedData(ICodeContext * ctx, size32_t & 
     returnLength = static_cast<size32_t>(_returnLength);
 }
 
-ECL_REDIS_API void ECL_REDIS_CALL RPub(ICodeContext * ctx, const char * options, const char * msg)
+ECL_REDIS_API void ECL_REDIS_CALL RPub(ICodeContext * ctx, const char * options, const char * channel, const char * msg)
 {
     OwnedSyncConnection master = createSyncConnection(ctx, options);
-    master->pub(ctx, msg);
+    master->pub(ctx, channel, msg);
 }
-void SyncConnection::pub(ICodeContext * ctx, const char * msg)
+void SyncConnection::pub(ICodeContext * ctx, const char * channel, const char * msg)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "PUBLISH %b", msg, strlen(msg)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "PUBLISH %b %s", channel, strlen(channel)*sizeof(char), msg));
 
 }
 }//close namespace

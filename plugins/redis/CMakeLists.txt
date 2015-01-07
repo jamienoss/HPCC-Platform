@@ -61,7 +61,7 @@ if (USE_REDIS)
     target_link_libraries ( redis
         eclrtl
         jlib
-        ${LIBHIREDIS_LIBRARY}
+        ${LIBHIREDIS_LIBRARIES}
         )
   endif()
 endif()
