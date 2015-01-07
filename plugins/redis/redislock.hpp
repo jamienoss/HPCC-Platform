@@ -35,6 +35,9 @@ extern "C++"
     ECL_REDIS_API void             ECL_REDIS_CALL RGetLockedUChar (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, unsigned __int64);
     ECL_REDIS_API void             ECL_REDIS_CALL RGetLockedData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, unsigned __int64);
 
+
+    ECL_REDIS_API void             ECL_REDIS_CALL RPub  (ICodeContext * _ctx, const char * options, const char * msg);
+
 }
 
 #endif
