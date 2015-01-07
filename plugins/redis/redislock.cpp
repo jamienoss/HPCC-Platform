@@ -156,6 +156,7 @@ ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx,
 //----------------------------------GET----------------------------------------
 template<class type> void Connection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, type & returnValue, RedisPlugin::eclDataType eclType)
 {
+    const char * key = keyPtr->getKey();
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
 
     StringBuffer keyMsg = getFailMsg;
@@ -172,6 +173,7 @@ template<class type> void Connection::getLocked(ICodeContext * ctx, KeyLock * ke
 }
 template<class type> void Connection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
+    const char * key = keyPtr->getKey();
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
 
     StringBuffer keyMsg = getFailMsg;
@@ -184,6 +186,7 @@ template<class type> void Connection::getLocked(ICodeContext * ctx, KeyLock * ke
 }
 void Connection::getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, void * & returnValue, RedisPlugin::eclDataType eclType)
 {
+    const char * key = keyPtr->getKey();
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
@@ -194,19 +197,19 @@ void Connection::getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyPtr, s
 //-------------------------------------------GET-----------------------------------------
 template<class type> void RGetLocked(ICodeContext * ctx, unsigned __int64 _keyPtr, type & returnValue, RedisPlugin::eclDataType eclType)
 {
-    const KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
+    KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
     OwnedConnection master = createConnection(ctx, keyPtr->getOptions());
     master->getLocked(ctx, keyPtr, returnValue, eclType);
 }
 template<class type> void RGetLocked(ICodeContext * ctx, unsigned __int64 _keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
-    const KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
+    KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
     OwnedConnection master = createConnection(ctx, keyPtr->getOptions());
     master->getLocked(ctx, keyPtr, returnLength, returnValue, eclType);
 }
 void RGetLockedVoidPtrLenPair(ICodeContext * ctx, unsigned __int64 _keyPtr, size_t & returnLength, void * & returnValue, RedisPlugin::eclDataType eclType)
 {
-    const KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
+    KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
     OwnedConnection master = createConnection(ctx, keyPtr->getOptions());
     master->getLockedVoidPtrLenPair(ctx, keyPtr, returnLength, returnValue, eclType);
 }
