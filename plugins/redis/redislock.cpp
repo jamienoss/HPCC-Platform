@@ -45,8 +45,9 @@ public :
     inline const char * getOptions() const { return options.str(); }
     inline const char * getLockId()  const { return lockId.str(); }
 
-    inline void wait() { if (!sem.wait(WAIT_TIMEOUT)) rtlFail(0, "Redis Plugin: callback timeout"); }
-    inline void notify() { sem.signal(); }
+    inline void waitTO() { sem.wait(WAIT_TIMEOUT); }
+    inline void waitFailOnTO() { if (!sem.wait(WAIT_TIMEOUT)) rtlFail(0, "Redis Plugin: callback timeout"); }
+    inline void notify() { sem.signal(); sem.reinit(); }
 
 private :
     StringAttr options; //shouldn't be need, tidy isSameConnection to pass 'master' & 'port'
@@ -265,18 +266,13 @@ void assertCallbackError(const redisReply * reply, const char * _msg)
         rtlFail(0, msg.str());
     }
 }
-void callback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
+void subCallback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
 {
-    printf("in callback!!!!\n");
-
-    if (!_reply)
+    if (_reply == NULL)
         return;
 
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(reply, "callback fail");
-
-    if (_keyPtr)
-        ((KeyLock*)_keyPtr)->notify();
 
 
     if (reply->type == REDIS_REPLY_ARRAY) {
@@ -284,7 +280,11 @@ void callback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
             printf("%u) %s\n", j, reply->element[j]->str);
         }
     }
-    printf("reply: %s\n", reply->str);
+    //StringAttr replyStr;
+    //replyStr.set(reply->str);
+    //printf("reply: %s\n", replyStr.str());
+    if (_keyPtr)
+        ((KeyLock*)_keyPtr)->notify();
 }
 
 //----------------------------------GET----------------------------------------
@@ -315,10 +315,13 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
 {
     const char * key = keyPtr->getKey();
 
-    assertBufferWriteError(redisAsyncCommand(connection, callback, (void*)keyPtr, "SUBSCRIBE %b", key, strlen(key)), "subscription error");
+    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", key, strlen(key)), "subscription error");
     flush();
+    redisAsyncHandleRead(connection);
     printf("waiting...\n");
-    keyPtr->wait();
+    keyPtr->waitTO();
+    printf("waiting...\n");
+    redisAsyncHandleRead(connection);
     printf("Done\n");
     //need to unsub
 
