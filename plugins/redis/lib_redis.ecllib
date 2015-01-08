@@ -73,7 +73,7 @@ export locking := SERVICE : plugin('redis')
   BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
   //must be pure for callbacks to work
   UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,pure,context,namespace='Lock',entrypoint='RGetLockObject';
-  pub(const varstring options, const varstring channel, const varstring msg): cpp,pure,context,namespace='Lock',entrypoint='RPub';
+  pub(unsigned8 keyPtr, const varstring msg): cpp,pure,context,namespace='Lock',entrypoint='RPub';
   //------------------------------------------------------------------------------------------------------------------------------------------------------------
   INTEGER8 GetLockedInteger(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedInt8';
   UNSIGNED8 GetLockedUnsigned(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUint8';

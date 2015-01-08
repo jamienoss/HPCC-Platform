@@ -119,7 +119,7 @@ Connection * createConnection(ICodeContext * ctx, const char * options)
 
 ECL_REDIS_API void setPluginContext(IPluginContext * ctx) { RedisPlugin::parentCtx = ctx; }
 
-void RedisPlugin::parseOptions(const char * _options, StringAttr & master, unsigned & port)
+void RedisPlugin::parseOptions(const char * _options, StringAttr & master, int & port)
 {
     StringArray optionStrings;
     optionStrings.appendList(_options, " ");
@@ -171,7 +171,7 @@ bool RedisPlugin::Connection::isSameConnection(const char * _options) const
         return false;
 
     StringAttr newMaster;
-    unsigned newPort = 0;
+    int newPort = 0;
     RedisPlugin::parseOptions(_options, newMaster, newPort);
 
     return stricmp(master.get(), newMaster.get()) == 0 && port == newPort;

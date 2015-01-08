@@ -28,8 +28,9 @@ static OwnedConnection cachedConnection;
 
 Connection::Connection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options)
 {
-   connection = redisConnect(master, port);
+   connection = redisConnectWithTimeout(master.str(), port, RedisPlugin::REDIS_TIMEOUT);
    assertConnection();
+   redisSetTimeout(connection, RedisPlugin::REDIS_TIMEOUT);
 }
 
 Connection * createConnection(ICodeContext * ctx, const char * options)

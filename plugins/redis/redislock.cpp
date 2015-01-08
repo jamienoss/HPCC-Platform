@@ -18,6 +18,7 @@
 #include "platform.h"
 #include "eclrtl.hpp"
 #include "jstring.hpp"
+#include "jsem.hpp"
 #include "redisplugin.hpp"
 #include "redissync.hpp"
 #include "redislock.hpp"
@@ -27,9 +28,11 @@
 namespace Lock
 {
 
+
 static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";// needs to be a large random value uniquely individual per client
 static const unsigned REDIS_LOCK_EXPIRE = 60; //(secs)
 static const unsigned REDIS_MAX_LOCKS = 9999;
+static const unsigned WAIT_TIMEOUT = 10000; //(ms)
 static CriticalSection crit;
 
 class KeyLock : public CInterface
@@ -42,12 +45,16 @@ public :
     inline const char * getOptions() const { return options.str(); }
     inline const char * getLockId()  const { return lockId.str(); }
 
+    inline void wait() { if (!sem.wait(WAIT_TIMEOUT)) rtlFail(0, "Redis Plugin: callback timeout"); }
+    inline void notify() { sem.signal(); }
+
 private :
     StringAttr options; //shouldn't be need, tidy isSameConnection to pass 'master' & 'port'
     StringAttr master;
-    unsigned port;
+    int port;
     StringAttr key;
     StringAttr lockId;
+    Semaphore sem;
 };
 
 class SyncConnection : public Sync::Connection
@@ -60,7 +67,7 @@ public :
             redisFree(connection);
     }
 
-    void pub(ICodeContext * ctx, const char * channel, const char * msg);
+    void pub(ICodeContext * ctx, KeyLock * keyPtr, const char * msg);
     bool missAndLock(ICodeContext * ctx, const KeyLock * key);
 
 private :
@@ -77,15 +84,20 @@ public :
             redisAsyncDisconnect(connection);
     }
 
-    void assertIOError(int reply, const char * _msg);
-
     //get
     template <class type> void getLocked(ICodeContext * ctx, KeyLock * keyPtr, type & value, RedisPlugin::eclDataType eclType);
     template <class type> void getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & valueLength, type * & value, RedisPlugin::eclDataType eclType);
     void getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyPtr, size_t & valueLength, void * & value, RedisPlugin::eclDataType eclType);
 
 private :
+    void assertOnError(const redisReply * reply, const char * _msg);
+    void assertBufferWriteError(int reply, const char * _msg);
+    virtual void assertConnection();
+    void flush() { redisAsyncHandleWrite(connection); }
+
+private :
     redisAsyncContext * connection;
+    Semaphore conSem;
 };
 
 typedef Owned<SyncConnection> OwnedSyncConnection;
@@ -96,13 +108,38 @@ static OwnedAsyncConnection cachedAsyncConnection;
 
 SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options) : Sync::Connection(ctx, _options)
 {
-   connection = redisConnect(master, port);
+   connection = NULL;
+   connection = redisConnectWithTimeout(master.str(), port, RedisPlugin::REDIS_TIMEOUT);
    assertConnection();
+}
+
+
+void connectCallback(const redisAsyncContext * connection, int status)
+{
+	//((Semaphore*)connection->data)->signal();
+    if (status != REDIS_OK)
+    {
+        VStringBuffer msg("Redis Plugin: async connection fail - %s", connection->errstr);
+        //printf("%s retrying...\n", msg.str());
+        rtlFail(0, msg.str());
+    }
 }
 AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options)
 {
-   connection = redisAsyncConnect(master, port);
+   connection = NULL;
+   connection = redisAsyncConnect(master.str(), port);
    assertConnection();
+   assertBufferWriteError(redisAsyncSetConnectCallback(connection, connectCallback), "set connectCallback");
+}
+void AsyncConnection::assertConnection()
+{
+    if (!connection)
+        rtlFail(0, "Redis Plugin: async context mem alloc fail.");
+    //connection->data = (void*)&conSem;
+    //assertBufferWriteError(redisAsyncSetConnectCallback(connection, connectCallback), "set connectCallback");
+    //conSem.wait(10000);
+    //assertBufferWriteError(redisAsyncSetConnectCallback(connection, connectCallback), "set connectCallback");
+
 }
 SyncConnection * createSyncConnection(ICodeContext * ctx, const char * options)//could be collapsed with interface to Connection
 {
@@ -143,24 +180,25 @@ KeyLock::KeyLock(const char * _options, const char * _key, const char * _lockId)
 }
 KeyLock::~KeyLock()
 {
-    redisContext * connection = redisConnect(master, port);
+    redisContext * connection = redisConnectWithTimeout(master, port, RedisPlugin::REDIS_TIMEOUT);
     StringAttr lockIdFound;
     CriticalBlock block(crit);
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key.str(), strlen(key.str())*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key.str(), strlen(key.str())));
     lockIdFound.setown(reply->query()->str);
 
     if (strcmp(lockId, lockIdFound) == 0)
-        OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "DEL %b", key.str(), strlen(key.str())*sizeof(char)));
+        OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "DEL %b", key.str(), strlen(key.str())));
 
     if (connection)
         redisFree(connection);
+    sem.signal();// could be implicit in ~Semaphore()
 }
 //-----------------------------------------------------------------------------
-void AsyncConnection::assertIOError(int reply, const char * _msg)
+void AsyncConnection::assertBufferWriteError(int reply, const char * _msg)
 {
     if (reply == REDIS_ERR)
     {
-        VStringBuffer msg("Redis Plugin: Async IO ERROR with - %s", _msg);
+        VStringBuffer msg("Redis Plugin: error failed to write '%s' to async io buffer", _msg);
         rtlFail(0, msg.str());
     }
 }
@@ -170,7 +208,7 @@ bool SyncConnection::missAndLock(ICodeContext * ctx, const KeyLock * keyPtr)
     StringBuffer cmd("SET %b %b NX EX ");
     cmd.append(Lock::REDIS_LOCK_EXPIRE);
 
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, cmd.str(), keyPtr->getKey(), strlen(keyPtr->getKey())*sizeof(char), keyPtr->getLockId(), strlen(keyPtr->getLockId())*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, cmd.str(), keyPtr->getKey(), strlen(keyPtr->getKey()), keyPtr->getLockId(), strlen(keyPtr->getLockId())));
     //assertOnError(reply->query(), msg);
     const redisReply * actReply = reply->query();
 
@@ -204,31 +242,60 @@ ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx,
     keyPtr.set(new KeyLock(options, key, lockId.str()));
     return reinterpret_cast<unsigned long long>(keyPtr.get());
 }
-
-void callback(redisAsyncContext * connection, void * reply, void * privdata)
+void AsyncConnection::assertOnError(const redisReply * reply, const char * _msg)
 {
-    //redisReply *r = (redisReply*)reply;
-
-    printf("callback yes!!!!\n");
-    /*if (reply == NULL) return;
-
-    if (r->type == REDIS_REPLY_ARRAY) {
-        for (int j = 0; j < r->elements; j++) {
-            printf("%u) %s\n", j, r->element[j]->str);
-        }
-    }*/
+    if (!reply)
+    {
+        assertConnection();
+        //There should always be a connection error
+        VStringBuffer msg("Redis Plugin: %s%s", _msg, "no 'reply' nor connection error");
+        rtlFail(0, msg.str());
+    }
+    else if (reply->type == REDIS_REPLY_ERROR)
+    {
+        VStringBuffer msg("Redis Plugin: %s%s", _msg, reply->str);
+        rtlFail(0, msg.str());
+    }
 }
+void assertCallbackError(const redisReply * reply, const char * _msg)
+{
+    if (reply->type == REDIS_REPLY_ERROR)
+    {
+        VStringBuffer msg("Redis Plugin: %s%s", _msg, reply->str);
+        rtlFail(0, msg.str());
+    }
+}
+void callback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
+{
+    printf("in callback!!!!\n");
+
+    if (!_reply)
+        return;
+
+    redisReply * reply = (redisReply*)_reply;
+    assertCallbackError(reply, "callback fail");
+
+    if (_keyPtr)
+        ((KeyLock*)_keyPtr)->notify();
+
+
+    if (reply->type == REDIS_REPLY_ARRAY) {
+        for (int j = 0; j < reply->elements; j++) {
+            printf("%u) %s\n", j, reply->element[j]->str);
+        }
+    }
+    printf("reply: %s\n", reply->str);
+}
+
 //----------------------------------GET----------------------------------------
 template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, type & returnValue, RedisPlugin::eclDataType eclType)
 {
+	//assert keyPtr;
     const char * key = keyPtr->getKey();
-
     //Do we double check 1st that the key is locked? NAH!
-    signal(SIGPIPE, SIG_IGN);
-    struct event_base *base = event_base_new();
-    redisLibeventAttach(connection, base);
-    assertIOError(redisAsyncCommand(connection, callback, NULL, "SUBSCRIBE %b", key, strlen(key)*sizeof(char)), "subscription error");
-    event_base_dispatch(base);
+    //assertBufferWriteError(redisAsyncCommand(connection, callback, (void*)keyPtr, "SUBSCRIBE %b", key, strlen(key)), "subscribe error");
+    //what if notify happens before wait?
+    //keyPtr->wait();
 
     /*
     StringBuffer keyMsg = getFailMsg;
@@ -246,16 +313,17 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
 }
 template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
-	const char * key = keyPtr->getKey();
+    const char * key = keyPtr->getKey();
 
-	    //Do we double check 1st that the key is locked? NAH!
-	    signal(SIGPIPE, SIG_IGN);
-	    struct event_base *base = event_base_new();
-	    redisLibeventAttach(connection, base);
-	    assertIOError(redisAsyncCommand(connection, callback, NULL, "SUBSCRIBE %b", key, strlen(key)*sizeof(char)), "subscription error");
-	    event_base_dispatch(base);
-    /*const char * key = keyPtr->getKey();
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
+    assertBufferWriteError(redisAsyncCommand(connection, callback, (void*)keyPtr, "SUBSCRIBE %b", key, strlen(key)), "subscription error");
+    flush();
+    printf("waiting...\n");
+    keyPtr->wait();
+    printf("Done\n");
+    //need to unsub
+
+    /*
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)));
 
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
@@ -270,7 +338,7 @@ void AsyncConnection::getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyP
 {
     /*
 	const char * key = keyPtr->getKey();
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)));
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
 
@@ -282,19 +350,19 @@ void AsyncConnection::getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyP
 template<class type> void RGetLocked(ICodeContext * ctx, unsigned __int64 _keyPtr, type & returnValue, RedisPlugin::eclDataType eclType)
 {
     KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
-    OwnedAsyncConnection master = createAsyncConnection(ctx, keyPtr->getOptions());
+    OwnedAsyncConnection master = new AsyncConnection(ctx, keyPtr->getOptions());//createAsyncConnection(ctx, keyPtr->getOptions());
     master->getLocked(ctx, keyPtr, returnValue, eclType);
 }
 template<class type> void RGetLocked(ICodeContext * ctx, unsigned __int64 _keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
     KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
-    OwnedAsyncConnection master = createAsyncConnection(ctx, keyPtr->getOptions());
+    OwnedAsyncConnection master = new AsyncConnection(ctx, keyPtr->getOptions());//createAsyncConnection(ctx, keyPtr->getOptions());
     master->getLocked(ctx, keyPtr, returnLength, returnValue, eclType);
 }
 void RGetLockedVoidPtrLenPair(ICodeContext * ctx, unsigned __int64 _keyPtr, size_t & returnLength, void * & returnValue, RedisPlugin::eclDataType eclType)
 {
     KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
-    OwnedAsyncConnection master = createAsyncConnection(ctx, keyPtr->getOptions());
+    OwnedAsyncConnection master = new AsyncConnection(ctx, keyPtr->getOptions());//createAsyncConnection(ctx, keyPtr->getOptions());
     master->getLockedVoidPtrLenPair(ctx, keyPtr, returnLength, returnValue, eclType);
 }
 //-------------------------------------GET----------------------------------------
@@ -347,14 +415,16 @@ ECL_REDIS_API void ECL_REDIS_CALL RGetLockedData(ICodeContext * ctx, size32_t & 
     returnLength = static_cast<size32_t>(_returnLength);
 }
 
-ECL_REDIS_API void ECL_REDIS_CALL RPub(ICodeContext * ctx, const char * options, const char * channel, const char * msg)
+ECL_REDIS_API void ECL_REDIS_CALL RPub(ICodeContext * ctx, unsigned __int64 _keyPtr, const char * msg)
 {
-    OwnedSyncConnection master = createSyncConnection(ctx, options);
-    master->pub(ctx, channel, msg);
+	KeyLock * keyPtr = reinterpret_cast<KeyLock*>(_keyPtr);
+    OwnedSyncConnection master = createSyncConnection(ctx, keyPtr->getOptions());
+    master->pub(ctx, keyPtr, msg);
 }
-void SyncConnection::pub(ICodeContext * ctx, const char * channel, const char * msg)
+void SyncConnection::pub(ICodeContext * ctx, KeyLock * keyPtr, const char * msg)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "PUBLISH %b %s", channel, strlen(channel)*sizeof(char), msg));
+	const char * channel = keyPtr->getKey();
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "PUBLISH %b %s", channel, strlen(channel), msg));
 
 }
 }//close namespace

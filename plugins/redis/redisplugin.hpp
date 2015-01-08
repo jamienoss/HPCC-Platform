@@ -45,6 +45,7 @@ class StringBuffer;
 
 namespace RedisPlugin {
 
+static const struct timeval REDIS_TIMEOUT = { 1, 500000 }; // { sec, ms } => 1.5 seconds
 static const unsigned unitExpire = 86400;//1 day (secs)
 #define MAX_TYPEMISMATCHCOUNT 10;
 
@@ -94,7 +95,7 @@ protected :
 protected :
     StringAttr options;
     StringAttr master;
-    unsigned port;
+    int port;
     bool alreadyInitialized;
     unsigned typeMismatchCount;
 };
@@ -120,7 +121,7 @@ private :
 Reply * createReply(void * _reply);
 #define OwnedReply Owned<RedisPlugin::Reply>
 
-void parseOptions(const char * options, StringAttr & master, unsigned & port);
+void parseOptions(const char * options, StringAttr & master, int & port);
 
 }//close namespace
 
