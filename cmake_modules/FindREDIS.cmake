@@ -33,7 +33,7 @@ IF (NOT LIBREDIS_FOUND)
   ENDIF()
 
   FIND_PATH(LIBHIREDIS_INCLUDE_DIR hiredis/hiredis.h PATHS /usr/include /usr/share/include /usr/local/include PATH_SUFFIXES hiredis)
-  FIND_PATH(LIBHIREDIS_ADAPTERS_INCLUDE_DIR hiredis/adapters/libev.h PATHS /usr/include /usr/share/include /usr/local/include PATH_SUFFIXES hiredis/adapters)
+  FIND_PATH(LIBHIREDIS_ADAPTERS_INCLUDE_DIR hiredis/adapters/ae.h PATHS /usr/include /usr/share/include /usr/local/include PATH_SUFFIXES hiredis/adapters)
   FIND_LIBRARY(LIBHIREDIS_LIBRARY NAMES ${libhiredis} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)
   FIND_LIBRARY(LIBEV_LIBRARY NAMES ${libev} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)
   FIND_LIBRARY(LIBEVENT_LIBRARY NAMES ${libevent} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)

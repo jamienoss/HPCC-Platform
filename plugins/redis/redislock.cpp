@@ -22,8 +22,12 @@
 #include "redisplugin.hpp"
 #include "redissync.hpp"
 #include "redislock.hpp"
-#include <hiredis/async.h>
-#include <hiredis/adapters/libevent.h>
+
+//#include <signal.h>
+//#include "hiredis/hiredis.h"
+#include "hiredis/async.h"
+//#undef loop
+//#include "hiredis/adapters/ae.h"
 
 namespace Lock
 {
@@ -268,6 +272,7 @@ void assertCallbackError(const redisReply * reply, const char * _msg)
 }
 void subCallback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
 {
+	printf("in callback\n");
     if (_reply == NULL)
         return;
 
@@ -313,16 +318,24 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
 }
 template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
-    const char * key = keyPtr->getKey();
-
-    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", key, strlen(key)), "subscription error");
+    const char * channel = keyPtr->getLockId();
+/*
+    signal(SIGPIPE, SIG_IGN);
+    aeEventLoop * loop =  aeCreateEventLoop(64);
+    redisAeAttach(loop, connection);
+    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
+    aeMain(loop);
+    printf("now waiting...\n");
+    keyPtr->waitTO();
+    printf("Done\n");
+*/
+    channel = "str";
+    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
     flush();
-    redisAsyncHandleRead(connection);
     printf("waiting...\n");
     keyPtr->waitTO();
-    printf("waiting...\n");
-    redisAsyncHandleRead(connection);
     printf("Done\n");
+    //redisAsyncHandleRead(connection);
     //need to unsub
 
     /*

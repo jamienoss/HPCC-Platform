@@ -33,7 +33,7 @@
 #include "hqlplugins.hpp"
 #include "eclhelper.hpp"
 #include "jexcept.hpp"
-#include <hiredis/hiredis.h>
+#include "hiredis/hiredis.h"
 
 extern "C"
 {
