@@ -50,7 +50,7 @@ protected :
     virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg);
     virtual void assertConnection();
 
-private :
+protected :
     redisContext * connection;
 };
 }//close namespace

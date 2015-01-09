@@ -28,6 +28,106 @@
 #include "hiredis/async.h"
 //#undef loop
 //#include "hiredis/adapters/ae.h"
+#include "hiredis/adapters/libevent.h"
+
+namespace Async
+{
+class events
+{
+public :
+	events();
+	events(redisAsyncContext * _c);
+	inline bool ready() const { return !(we || re || c == NULL); }
+	bool we;
+	bool re;
+	redisAsyncContext * c;
+};
+events::events() { we = false; re = false; c = NULL; }
+events::events(redisAsyncContext * _c) {  we = false; re = false; c = _c; }
+
+class Connection : public RedisPlugin::Connection
+{
+public :
+    Connection(ICodeContext * ctx, const char * _options)
+        : RedisPlugin::Connection(ctx, _options), ev() { };
+    ~Connection()
+    {
+        if (connection)
+            redisAsyncDisconnect(connection);
+    }
+
+
+    void initIOCallbacks();
+
+protected :
+    redisAsyncContext * connection;
+    events ev;
+
+};
+
+
+void addRead(void * privdata)
+{
+    if (privdata == NULL)
+         return;
+    events  * ev = (events*)privdata;
+    if (ev->re)
+        return;
+    printf("reading...\n");
+    ev->re = true;
+    redisAsyncHandleRead((redisAsyncContext*)privdata);
+}
+void delRead(void * privdata)
+{
+	 if (privdata == NULL)
+	         return;
+    events * ev = (events*)privdata;
+    if (!ev->re)
+        return;
+    printf("done reading\n");
+    ev->re = false;
+}
+void addWrite(void * privdata)
+{
+    if (privdata == NULL)
+        return;
+
+    events  * ev = (events*)privdata;
+    if (ev->we)
+        return;
+    printf("writing...\n");
+    ev->we = true;
+    redisAsyncHandleWrite(ev->c);
+}
+void delWrite(void * privdata)
+{
+	 if (privdata == NULL)
+	         return;
+    events * ev = (events*)privdata;
+    if (!ev->we)
+        return;
+    printf("done writing\n");
+    ev->we = false;
+}
+void cleanup(void * privdata) { printf("cleaning up\n");((events*)privdata)->re = false;((events*)privdata)->we = false; }
+
+void Connection::initIOCallbacks()
+{
+    if (connection)
+    {
+        connection->ev.addRead = addRead;
+        connection->ev.delRead = delRead;
+        connection->ev.addWrite = addWrite;
+        connection->ev.delWrite = delWrite;
+        connection->ev.cleanup = cleanup;
+        ev.c = connection;
+        connection->ev.data = &ev;
+    }
+}
+
+}//close Async namespace
+
+
 
 namespace Lock
 {
@@ -66,28 +166,15 @@ class SyncConnection : public Sync::Connection
 {
 public :
     SyncConnection(ICodeContext * ctx, const char * _options);
-    ~SyncConnection()
-    {
-        if (connection)
-            redisFree(connection);
-    }
 
     void pub(ICodeContext * ctx, KeyLock * keyPtr, const char * msg);
     bool missAndLock(ICodeContext * ctx, const KeyLock * key);
-
-private :
-    redisContext * connection;
 };
 
-class AsyncConnection : public RedisPlugin::Connection //there is no Async::Connection yet.
+class AsyncConnection : public Async::Connection
 {
 public :
     AsyncConnection(ICodeContext * ctx, const char * _options);
-    ~AsyncConnection()
-    {
-        if (connection)
-            redisAsyncDisconnect(connection);
-    }
 
     //get
     template <class type> void getLocked(ICodeContext * ctx, KeyLock * keyPtr, type & value, RedisPlugin::eclDataType eclType);
@@ -95,13 +182,12 @@ public :
     void getLockedVoidPtrLenPair(ICodeContext * ctx, KeyLock * keyPtr, size_t & valueLength, void * & value, RedisPlugin::eclDataType eclType);
 
 private :
-    void assertOnError(const redisReply * reply, const char * _msg);
-    void assertBufferWriteError(int reply, const char * _msg);
+    virtual void assertOnError(const redisReply * reply, const char * _msg);
     virtual void assertConnection();
+    void assertBufferWriteError(int reply, const char * _msg);
     void flush() { redisAsyncHandleWrite(connection); }
 
 private :
-    redisAsyncContext * connection;
     Semaphore conSem;
 };
 
@@ -129,12 +215,13 @@ void connectCallback(const redisAsyncContext * connection, int status)
         rtlFail(0, msg.str());
     }
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options) : Async::Connection(ctx, _options)
 {
    connection = NULL;
    connection = redisAsyncConnect(master.str(), port);
    assertConnection();
-   assertBufferWriteError(redisAsyncSetConnectCallback(connection, connectCallback), "set connectCallback");
+   initIOCallbacks();
+   //assertBufferWriteError(redisAsyncSetConnectCallback(connection, connectCallback), "set connectCallback");
 }
 void AsyncConnection::assertConnection()
 {
@@ -273,6 +360,8 @@ void assertCallbackError(const redisReply * reply, const char * _msg)
 void subCallback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
 {
 	printf("in callback\n");
+	  if (_keyPtr)
+	        ((KeyLock*)_keyPtr)->notify();
     if (_reply == NULL)
         return;
 
@@ -288,8 +377,8 @@ void subCallback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
     //StringAttr replyStr;
     //replyStr.set(reply->str);
     //printf("reply: %s\n", replyStr.str());
-    if (_keyPtr)
-        ((KeyLock*)_keyPtr)->notify();
+    //if (_keyPtr)
+      //  ((KeyLock*)_keyPtr)->notify();
 }
 
 //----------------------------------GET----------------------------------------
@@ -330,13 +419,29 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
     printf("Done\n");
 */
     channel = "str";
+    printf("setting cmd...\n");
     assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
+    printf("waiting...\n");
+    keyPtr->waitTO();
+/*
     flush();
+    //redisAsyncHandleRead(connection);
     printf("waiting...\n");
     keyPtr->waitTO();
     printf("Done\n");
     //redisAsyncHandleRead(connection);
     //need to unsub
+*/
+/*    signal(SIGPIPE, SIG_IGN);
+    struct event_base *base = event_base_new();
+    redisLibeventAttach(connection, base);
+    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
+    flush();
+    event_base_dispatch(base);
+    //printf("waiting...\n");
+    keyPtr->waitTO();
+*/
+
 
     /*
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)));
