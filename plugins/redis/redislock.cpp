@@ -65,7 +65,6 @@ protected :
 
 };
 
-
 void addRead(void * privdata)
 {
     if (privdata == NULL)
@@ -75,12 +74,15 @@ void addRead(void * privdata)
         return;
     printf("reading...\n");
     ev->re = true;
-    redisAsyncHandleRead((redisAsyncContext*)privdata);
+    Semaphore sem;
+    sem.wait(1);
+    redisAsyncHandleRead(ev->c);
+
 }
 void delRead(void * privdata)
 {
-	 if (privdata == NULL)
-	         return;
+    if (privdata == NULL)
+        return;
     events * ev = (events*)privdata;
     if (!ev->re)
         return;
@@ -101,15 +103,23 @@ void addWrite(void * privdata)
 }
 void delWrite(void * privdata)
 {
-	 if (privdata == NULL)
-	         return;
+    if (privdata == NULL)
+        return;
     events * ev = (events*)privdata;
     if (!ev->we)
         return;
     printf("done writing\n");
     ev->we = false;
 }
-void cleanup(void * privdata) { printf("cleaning up\n");((events*)privdata)->re = false;((events*)privdata)->we = false; }
+void cleanup(void * privdata)
+{
+    if (privdata == NULL)
+        return;
+    printf("cleaning up\n");
+    events * ev = (events*)privdata;
+    ev->re = false;
+    ev->we = false;
+}
 
 void Connection::initIOCallbacks()
 {
@@ -127,11 +137,8 @@ void Connection::initIOCallbacks()
 
 }//close Async namespace
 
-
-
 namespace Lock
 {
-
 
 static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";// needs to be a large random value uniquely individual per client
 static const unsigned REDIS_LOCK_EXPIRE = 60; //(secs)
@@ -420,7 +427,7 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
 */
     channel = "str";
     printf("setting cmd...\n");
-    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
+    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)*sizeof(char)), "subscription error");
     printf("waiting...\n");
     keyPtr->waitTO();
 /*
