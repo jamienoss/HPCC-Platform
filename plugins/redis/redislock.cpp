@@ -19,6 +19,7 @@
 #include "eclrtl.hpp"
 #include "jstring.hpp"
 #include "jsem.hpp"
+#include "jsocket.hpp"
 #include "redisplugin.hpp"
 #include "redissync.hpp"
 #include "redislock.hpp"
@@ -32,15 +33,17 @@
 
 namespace Async
 {
-class events
+class events : public CInterface
 {
 public :
-	events();
-	events(redisAsyncContext * _c);
-	inline bool ready() const { return !(we || re || c == NULL); }
-	bool we;
-	bool re;
-	redisAsyncContext * c;
+    events();
+    events(redisAsyncContext * _c);
+
+
+public :
+    bool we;
+    bool re;
+    redisAsyncContext * c;
 };
 events::events() { we = false; re = false; c = NULL; }
 events::events(redisAsyncContext * _c) {  we = false; re = false; c = _c; }
@@ -55,7 +58,6 @@ public :
         if (connection)
             redisAsyncDisconnect(connection);
     }
-
 
     void initIOCallbacks();
 
@@ -74,13 +76,16 @@ void addRead(void * privdata)
         return;
     printf("reading...\n");
     ev->re = true;
-    Semaphore sem;
-    sem.wait(1);
-    redisAsyncHandleRead(ev->c);
 
+    ISocket * soc = ISocket::attach(ev->c->c.fd);
+    if (soc->wait_read(30000) == 1);
+     redisAsyncHandleRead(ev->c);
+    if (soc->wait_read(30000) == 1);
+          redisAsyncHandleRead(ev->c);
 }
 void delRead(void * privdata)
-{
+{    printf("done reading\n");
+
     if (privdata == NULL)
         return;
     events * ev = (events*)privdata;
