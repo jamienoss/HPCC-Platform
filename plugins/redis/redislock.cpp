@@ -420,39 +420,16 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
 template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
     const char * channel = keyPtr->getLockId();
-/*
-    signal(SIGPIPE, SIG_IGN);
-    aeEventLoop * loop =  aeCreateEventLoop(64);
-    redisAeAttach(loop, connection);
-    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
-    aeMain(loop);
-    printf("now waiting...\n");
-    keyPtr->waitTO();
-    printf("Done\n");
-*/
+
+
     channel = "str";
+
     printf("setting cmd...\n");
     assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)*sizeof(char)), "subscription error");
     printf("waiting...\n");
     keyPtr->waitTO();
-/*
-    flush();
-    //redisAsyncHandleRead(connection);
-    printf("waiting...\n");
-    keyPtr->waitTO();
-    printf("Done\n");
-    //redisAsyncHandleRead(connection);
-    //need to unsub
-*/
-/*    signal(SIGPIPE, SIG_IGN);
-    struct event_base *base = event_base_new();
-    redisLibeventAttach(connection, base);
-    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
-    flush();
-    event_base_dispatch(base);
-    //printf("waiting...\n");
-    keyPtr->waitTO();
-*/
+
+
 
 
     /*

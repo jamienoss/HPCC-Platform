@@ -28,7 +28,7 @@ static OwnedConnection cachedConnection;
 
 Connection::Connection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options)
 {
-   connection = redisConnectWithTimeout(master.str(), port, RedisPlugin::REDIS_TIMEOUT);
+   connection = redisConnect(master.str(), port);//redisConnectWithTimeout(master.str(), port, RedisPlugin::REDIS_TIMEOUT);
    assertConnection();
    redisSetTimeout(connection, RedisPlugin::REDIS_TIMEOUT);
 }
@@ -73,6 +73,7 @@ void Connection::assertOnError(const redisReply * reply, const char * _msg)
         VStringBuffer msg("Redis Plugin: %s%s", _msg, "no 'reply' nor connection error");
         rtlFail(0, msg.str());
     }
+
     else if (reply->type == REDIS_REPLY_ERROR)
     {
         VStringBuffer msg("Redis Plugin: %s%s", _msg, reply->str);
@@ -301,6 +302,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * parti
 template<class type> void Connection::get(ICodeContext * ctx, const char * partitionKey, const char * key, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, getCmd, key, strlen(key)*sizeof(char)));
+    ifLockedSub(ctx, key, reply->query());
 
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
@@ -319,6 +321,39 @@ void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * partitionKey
     returnLength = reply->query()->len;
     returnValue = reinterpret_cast<void*>(cpy(reply->query()->str, reply->query()->len*sizeof(char)));
 }
+
+bool Connection::ifLockedSub(ICodeContext * ctx, const char * key, const redisReply * replyorig)
+{
+	printf("in here\n");
+    const char * value = replyorig->str;
+    if (strncmp(value, "redis_ecl_lock", 14) == 0)
+    {
+    	void * reply = redisCommand(connection, "SUBSCRIBE str");//%b", value, strlen(value)*sizeof(char)));
+        freeReplyObject(reply);
+
+
+        while(redisGetReply(connection,&reply) == REDIS_OK)
+        {
+        	printf("in loop\n");
+        redisReply * _reply = (redisReply*)reply;
+        if (_reply->type == REDIS_REPLY_ARRAY) {
+               for (int j = 0; j < _reply->elements; j++) {
+                   printf("%u) %s\n", j, _reply->element[j]->str);
+               }
+           }
+        freeReplyObject(reply);
+        }
+               //ISocket * soc = ISocket::attach(connection.fd);
+        //    if (soc->wait_read(30000) == 1);
+
+        printf("connection err: %s\n", getErrStr());
+
+        return true;
+    }
+    return false;
+}
+
+
 bool Connection::exist(ICodeContext * ctx, const char * key, const char * partitionKey)
 {
     OwnedReply reply = RedisPlugin::createReply(redisCommand(connection, "GET %s", key));

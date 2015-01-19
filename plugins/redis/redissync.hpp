@@ -45,10 +45,13 @@ public :
     virtual void del(ICodeContext * ctx, const char * key, const char * partitionKey);
     virtual void clear(ICodeContext * ctx, unsigned when);
 
+    bool ifLockedSub(ICodeContext * ctx, const char * key, const redisReply * reply);
+
 protected :
     virtual void assertOnError(const redisReply * reply, const char * _msg);
     virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg);
     virtual void assertConnection();
+    const char * getErrStr() { return connection->errstr; }
 
 protected :
     redisContext * connection;
