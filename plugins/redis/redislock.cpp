@@ -14,6 +14,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 ############################################################################## */
+#include "hiredis/adapters/libev.h"
 
 #include "platform.h"
 #include "eclrtl.hpp"
@@ -24,12 +25,7 @@
 #include "redissync.hpp"
 #include "redislock.hpp"
 
-//#include <signal.h>
-//#include "hiredis/hiredis.h"
 #include "hiredis/async.h"
-//#undef loop
-//#include "hiredis/adapters/ae.h"
-#include "hiredis/adapters/libevent.h"
 
 namespace Async
 {
@@ -232,7 +228,7 @@ AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options) : As
    connection = NULL;
    connection = redisAsyncConnect(master.str(), port);
    assertConnection();
-   initIOCallbacks();
+   //initIOCallbacks();
    //assertBufferWriteError(redisAsyncSetConnectCallback(connection, connectCallback), "set connectCallback");
 }
 void AsyncConnection::assertConnection()
@@ -371,26 +367,29 @@ void assertCallbackError(const redisReply * reply, const char * _msg)
 }
 void subCallback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
 {
-	printf("in callback\n");
-	  if (_keyPtr)
-	        ((KeyLock*)_keyPtr)->notify();
     if (_reply == NULL)
         return;
 
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(reply, "callback fail");
 
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    const char * channel = "str";//keyPtr->getLockId();
+    if (reply->type == REDIS_REPLY_ARRAY && strcmp("message", reply->element[0]->str) == 0 && strcmp(reply->element[1]->str, channel) ==0)
+    {
+    	printf("message: %s\n", reply->element[1]->str);
+        //redisAsyncCommand(connection, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
 
-    if (reply->type == REDIS_REPLY_ARRAY) {
+        //OwnedReply reply = RedisPlugin::createReply(redisCommand(&(connection->c), "UNSUBSCRIBE %b", channel, strlen(channel)));
+        redisAsyncDisconnect(connection);
+    }
+
+    /*if (reply->type == REDIS_REPLY_ARRAY) {
         for (int j = 0; j < reply->elements; j++) {
             printf("%u) %s\n", j, reply->element[j]->str);
         }
-    }
-    //StringAttr replyStr;
-    //replyStr.set(reply->str);
-    //printf("reply: %s\n", replyStr.str());
-    //if (_keyPtr)
-      //  ((KeyLock*)_keyPtr)->notify();
+    }*/
+
 }
 
 //----------------------------------GET----------------------------------------
@@ -419,40 +418,17 @@ template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock
 }
 template<class type> void AsyncConnection::getLocked(ICodeContext * ctx, KeyLock * keyPtr, size_t & returnLength, type * & returnValue, RedisPlugin::eclDataType eclType)
 {
-    const char * channel = keyPtr->getLockId();
-/*
-    signal(SIGPIPE, SIG_IGN);
-    aeEventLoop * loop =  aeCreateEventLoop(64);
-    redisAeAttach(loop, connection);
-    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
-    aeMain(loop);
-    printf("now waiting...\n");
-    keyPtr->waitTO();
-    printf("Done\n");
-*/
-    channel = "str";
-    printf("setting cmd...\n");
+    const char * channel = "str";//keyPtr->getLockId();
+
+    redisLibevAttach(EV_DEFAULT_ connection);
     assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)*sizeof(char)), "subscription error");
-    printf("waiting...\n");
-    keyPtr->waitTO();
-/*
-    flush();
-    //redisAsyncHandleRead(connection);
-    printf("waiting...\n");
-    keyPtr->waitTO();
-    printf("Done\n");
-    //redisAsyncHandleRead(connection);
-    //need to unsub
-*/
-/*    signal(SIGPIPE, SIG_IGN);
-    struct event_base *base = event_base_new();
-    redisLibeventAttach(connection, base);
-    assertBufferWriteError(redisAsyncCommand(connection, subCallback, (void*)keyPtr, "SUBSCRIBE %b", channel, strlen(channel)), "subscription error");
-    flush();
-    event_base_dispatch(base);
-    //printf("waiting...\n");
-    keyPtr->waitTO();
-*/
+    ev_loop(EV_DEFAULT_ 0);
+printf("loop exited\n");
+connection = NULL;
+
+returnLength = 3;
+size_t returnSize = returnLength*sizeof(type);
+	returnValue = reinterpret_cast<type*>(cpy("str", returnSize));
 
 
     /*
