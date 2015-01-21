@@ -68,32 +68,17 @@ export async := SERVICE : plugin('redis')
 END;
 
 export locking := SERVICE : plugin('redis')
- //STRING pubSub(CONST VARSTRING options, CONST VARSTRING key,  callbackMac func, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetStr';
-  //------------------------------------------------------------------------------------------------------------------------------------------------------------
   BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
   //must be pure for callbacks to work
   UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,pure,context,namespace='Lock',entrypoint='RGetLockObject';
+  
+  INTEGER8 GetInteger(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetInt8';
+  UNSIGNED8 GetUnsigned(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetUint8';
+  STRING GetString(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetStr';
+  UNICODE GetUnicode(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetUChar';
+  UTF8 GetUtf8(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetUtf8';
+  BOOLEAN GetBoolean(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetBool';
+  REAL GetReal(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetDouble';
+  DATA GetData(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetData';
   pub(unsigned8 keyPtr, const varstring msg): cpp,pure,context,namespace='Lock',entrypoint='RPub';
-  //------------------------------------------------------------------------------------------------------------------------------------------------------------
-  INTEGER8 GetLockedInteger(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedInt8';
-  UNSIGNED8 GetLockedUnsigned(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUint8';
-  STRING GetLockedString(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedStr';
-  UNICODE GetLockedUnicode(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUChar';
-  UTF8 GetLockedUtf8(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedUtf8';
-  BOOLEAN GetLockedBoolean(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedBool';
-  REAL GetLockedReal(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedDouble';
-  DATA GetLockedData(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RGetLockedData';
-  //------------------------------------------------------------------------------------------------------------------------------------------------------------
-END;
-
-reply := RECORD
-  INTEGER type;
-  INTEGER int;
-  INTEGER len;
-  VARSTRING str;
-  VARSTRING padding;
-END;
-
-export hiredis := SERVICE : plugin('redis')
-  DATASET(reply) RedisCmd(CONST VARSTRING options, CONST VARSTRING cmd) : cpp,action,context,namespace='hiredis',entrypoint='RCmdStr';
 END;
