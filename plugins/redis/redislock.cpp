@@ -150,6 +150,10 @@ void Connection::assertConnection()
 {
     if (!connection)
         rtlFail(0, "Redis Plugin: async context mem alloc fail.");
+
+    //need to assert async connection
+
+
     //connection->data = (void*)&conSem;
     //assertBufferWriteError(redisAsyncSetConnectCallback(connection, connectCallback), "set connectCallback");
     //conSem.wait(10000);
