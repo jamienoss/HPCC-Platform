@@ -237,32 +237,6 @@ void assertCallbackError(const redisReply * reply, const char * _msg)
         rtlFail(0, msg.str());
     }
 }
-void subCallback(redisAsyncContext * connection, void * _reply, void * _keyPtr)
-{
-    if (_reply == NULL)
-        return;
-
-    redisReply * reply = (redisReply*)_reply;
-    assertCallbackError(reply, "callback fail");
-
-    Lock::KeyLock * keyPtr = (Lock::KeyLock*)_keyPtr;
-    const char * channel = "str";//keyPtr->getLockId();
-    if (reply->type == REDIS_REPLY_ARRAY && strcmp("message", reply->element[0]->str) == 0 && strcmp(reply->element[1]->str, channel) == 0 )
-    {
-    	printf("message: %s\n", reply->element[2]->str);
-        //redisAsyncCommand(connection, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
-    	redisLibevDelRead((void*)connection->ev.data);
-        //OwnedReply reply = RedisPlugin::createReply(redisCommand(&(connection->c), "UNSUBSCRIBE %b", channel, strlen(channel)));
-        //redisAsyncDisconnect(connection);
-    }
-
-    /*if (reply->type == REDIS_REPLY_ARRAY) {
-        for (int j = 0; j < reply->elements; j++) {
-            printf("%u) %s\n", j, reply->element[j]->str);
-        }
-    }*/
-
-}
 void subCB(redisAsyncContext * connection, void * _reply, void * privdata)
 {
     if (_reply == NULL)
@@ -271,14 +245,20 @@ void subCB(redisAsyncContext * connection, void * _reply, void * privdata)
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(reply, "callback fail");
 
-    if (reply->type == REDIS_REPLY_ARRAY && strcmp("message", reply->element[0]->str))// == 0 && strcmp(reply->element[1]->str, channel) == 0 )
+    if (reply->type == REDIS_REPLY_ARRAY && strcmp("message", reply->element[0]->str) == 0 )// && strcmp(reply->element[1]->str, channel) == 0 )
     {
         ((StringAttr*)privdata)->set(reply->element[2]->str);
         redisLibevDelRead((void*)connection->ev.data);
     }
 
 }
+void unsubCB(redisAsyncContext * connection, void * _reply, void * privdata)
+{
+    redisReply * reply = (redisReply*)_reply;
+    assertCallbackError(reply, "get callback fail");
 
+    redisLibevDelRead((void*)connection->ev.data);
+}
 void getCB(redisAsyncContext * connection, void * _reply, void * privdata)
 {
     redisReply * reply = (redisReply*)_reply;
@@ -287,7 +267,13 @@ void getCB(redisAsyncContext * connection, void * _reply, void * privdata)
     ((StringAttr*)privdata)->set(reply->str);
     redisLibevDelRead((void*)connection->ev.data);
 }
+void pubCB(redisAsyncContext * connection, void * _reply, void * privdata)
+{
+    redisReply * reply = (redisReply*)_reply;
+    assertCallbackError(reply, "get callback fail");
 
+    redisLibevDelRead((void*)connection->ev.data);
+}
 //----------------------------------GET----------------------------------------
 template<class type> void Connection::get(ICodeContext * ctx, const char * key, type & returnValue, Lock::KeyLock * keyPtr, const char * newValue)
 {
@@ -313,8 +299,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
 }
 void Connection::subscribe(const char * channel, StringAttr & value)
 {
-    assertRedisErr(redisLibevAttach(EV_DEFAULT_ connection), "failure to attach to libev");
-    assertRedisErr(redisAsyncCommand(connection, subCB, (void*)&value, "subscribe %b", channel, strlen(channel)), "buffer write error");
+    assertRedisErr(redisAsyncCommand(connection, subCB, (void*)&value, "SUBSCRIBE %b", channel, strlen(channel)), "buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 }
 
@@ -354,31 +339,50 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
 {
     StringAttr _returnValue;
     assertRedisErr(redisLibevAttach(EV_DEFAULT_ connection), "failure to attach to libev");
-    assertRedisErr(redisAsyncCommand(connection, getCB, (void*)&_returnValue, "get %b", key, strlen(key)), "buffer write error");
+    assertRedisErr(redisAsyncCommand(connection, getCB, (void*)&_returnValue, "GET %b", key, strlen(key)), "buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 
-    bool raceWinner = false;
+    if  (strcmp(newValue, "\0") != 0 )
+    {
+        if (strncmp(_returnValue.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )//double check key is locked
+        {
+            StringAttr channel(_returnValue);
+            assertRedisErr(redisAsyncCommand(connection, NULL, NULL, "SET %b %b", key, strlen(key), newValue, strlen(newValue)), "buffer write error");
+            assertRedisErr(redisAsyncCommand(connection, pubCB, NULL, "PUBLISH %b %b", channel.str(), channel.length(), newValue, strlen(newValue)), "buffer write error");
+            ev_loop(EV_DEFAULT_ 0);
+        }
+        returnLength = strlen(newValue);
+        size_t returnSize = returnLength*sizeof(type);
+        returnValue = reinterpret_cast<type*>(cpy(newValue, returnSize));
+        return;
+    }
+
     if (_returnValue.isEmpty())
     {
         if (!keyPtr)
         {
-            returnLength = 1;
+            returnLength = 0;
             size_t returnSize = returnLength*sizeof(type);
-            returnValue = reinterpret_cast<type*>(cpy("a", returnSize));
+            returnValue = reinterpret_cast<type*>(cpy("", returnSize));
             return;
         }
         else
         {
             if (lock(key, keyPtr))
             {
-                returnLength = 1;
+            	printf("locked\n");
+                returnLength = 0;
                 size_t returnSize = returnLength*sizeof(type);
-                returnValue = reinterpret_cast<type*>(cpy("a", returnSize));
+                returnValue = reinterpret_cast<type*>(cpy("", returnSize));
                 return;
             }
             else
             {
-                subscribe(keyPtr->getChannel(), _returnValue);
+            	printf("sub A\n");
+                const char * channel = keyPtr->getChannel();
+                subscribe(channel, _returnValue);
+                assertRedisErr(redisAsyncCommand(connection, unsubCB, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "buffer write error");
+                ev_loop(EV_DEFAULT_ 0);
             }
         }
     }
@@ -386,8 +390,12 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
     {
         if (strncmp(_returnValue.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
         {
+        	printf("sub B\n");
+
             StringAttr channel(_returnValue);
             subscribe(channel.str(), _returnValue);
+            assertRedisErr(redisAsyncCommand(connection, unsubCB, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "buffer write error");
+            ev_loop(EV_DEFAULT_ 0);
         }
         else
         {
@@ -397,9 +405,11 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
             return;
         }
     }
-    returnLength = 3;
+
+    //Fall through from a subscription
+    returnLength = _returnValue.length();
     size_t returnSize = returnLength*sizeof(type);
-    returnValue = reinterpret_cast<type*>(cpy("foo", returnSize));
+    returnValue = reinterpret_cast<type*>(cpy(_returnValue.str(), returnSize));
 }
 void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnLength, void * & returnValue, Lock::KeyLock * keyPtr, const char * newValue)
 {

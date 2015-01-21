@@ -17,68 +17,66 @@
 
 
 export sync := SERVICE : plugin('redis')
-  SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
-  SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
-  SetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST UTF8 value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSetUtf8';
-  SetBoolean(CONST VARSTRING options, CONST VARSTRING key, BOOLEAN value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
-  SetReal(CONST VARSTRING options, CONST VARSTRING key, REAL value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
-  SetInteger(CONST VARSTRING options, CONST VARSTRING key, INTEGER value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
-  SetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED value,CONST VARSTRING partitionKey = '',  UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSet';
-  SetData(CONST VARSTRING options, CONST VARSTRING key, CONST DATA value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Sync',entrypoint='RSetData';
+  SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSet';
+  SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSet';
+  SetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST UTF8 value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSetUtf8';
+  SetBoolean(CONST VARSTRING options, CONST VARSTRING key, BOOLEAN value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSet';
+  SetReal(CONST VARSTRING options, CONST VARSTRING key, REAL value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSet';
+  SetInteger(CONST VARSTRING options, CONST VARSTRING key, INTEGER value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSet';
+  SetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED value,CONST VARSTRING partitionKey = '',  UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSet';
+  SetData(CONST VARSTRING options, CONST VARSTRING key, CONST DATA value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Sync',entrypoint='RSetData';
 
-  INTEGER8 GetInteger(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetInt8';
-  UNSIGNED8 GetUnsigned(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetUint8';
-  STRING GetString(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetStr';
-  UNICODE GetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetUChar';
-  UTF8 GetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetUtf8';
-  BOOLEAN GetBoolean(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetBool';
-  REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetDouble';
-  DATA GetData(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RGetData';
+  INTEGER8 GetInteger(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetInt8';
+  UNSIGNED8 GetUnsigned(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetUint8';
+  STRING GetString(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetStr';
+  UNICODE GetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetUChar';
+  UTF8 GetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetUtf8';
+  BOOLEAN GetBoolean(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetBool';
+  REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetDouble';
+  DATA GetData(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RGetData';
 
-  BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RExist';
-  //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RKeyType'; //NOTE: calls get
-  Clear(CONST VARSTRING options) : cpp,action,context,namespace='Sync',entrypoint='RClear';
-  Del(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RDel';
-  Persist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RPersist';
-  Expire(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED4 expire, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Sync',entrypoint='RExpire';
+  BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RExist';
+  //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RKeyType'; //NOTE: calls get
+  Clear(CONST VARSTRING options) : cpp,once,context,namespace='Sync',entrypoint='RClear';
+  Del(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RDel';
+  Persist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RPersist';
+  Expire(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED4 expire, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Sync',entrypoint='RExpire';
 END;
 
 export async := SERVICE : plugin('redis')
-  SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSet';
-  SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSet';
-  SetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST UTF8 value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSetUtf8';
-  SetBoolean(CONST VARSTRING options, CONST VARSTRING key, BOOLEAN value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSet';
-  SetReal(CONST VARSTRING options, CONST VARSTRING key, REAL value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSet';
-  SetInteger(CONST VARSTRING options, CONST VARSTRING key, INTEGER value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSet';
-  SetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED value,CONST VARSTRING partitionKey = '',  UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSet';
-  SetData(CONST VARSTRING options, CONST VARSTRING key, CONST DATA value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,action,context,namespace='Async',entrypoint='RSetData';
+  SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSet';
+  SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSet';
+  SetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST UTF8 value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSetUtf8';
+  SetBoolean(CONST VARSTRING options, CONST VARSTRING key, BOOLEAN value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSet';
+  SetReal(CONST VARSTRING options, CONST VARSTRING key, REAL value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSet';
+  SetInteger(CONST VARSTRING options, CONST VARSTRING key, INTEGER value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSet';
+  SetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED value,CONST VARSTRING partitionKey = '',  UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSet';
+  SetData(CONST VARSTRING options, CONST VARSTRING key, CONST DATA value, CONST VARSTRING partitionKey = '', UNSIGNED4 expire = 0) : cpp,once,context,namespace='Async',entrypoint='RSetData';
 
-  INTEGER8 GetInteger(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetInt8';
-  UNSIGNED8 GetUnsigned(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetUint8';
-  STRING GetString(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetStr';
-  UNICODE GetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetUChar';
-  UTF8 GetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetUtf8';
-  BOOLEAN GetBoolean(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetBool';
-  REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetDouble';
-  DATA GetData(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RGetData';
+  INTEGER8 GetInteger(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetInt8';
+  UNSIGNED8 GetUnsigned(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetUint8';
+  STRING GetString(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetStr';
+  UNICODE GetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetUChar';
+  UTF8 GetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetUtf8';
+  BOOLEAN GetBoolean(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetBool';
+  REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetDouble';
+  DATA GetData(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RGetData';
 
-  BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RExist';
-  //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,action,context,namespace='Async',entrypoint='RKeyType'; //NOTE: calls get
-  Clear(CONST VARSTRING options) : cpp,action,context,namespace='Async',entrypoint='RClear';
+  BOOLEAN Exist(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RExist';
+  //CONST VARSTRING KeyType(CONST VARSTRING options, CONST VARSTRING key, CONST VARSTRING partitionKey = '') : cpp,once,context,namespace='Async',entrypoint='RKeyType'; //NOTE: calls get
+  Clear(CONST VARSTRING options) : cpp,once,context,namespace='Async',entrypoint='RClear';
 END;
 
 export locking := SERVICE : plugin('redis')
-  BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,action,context,namespace='Lock',entrypoint='RMissAndLock';
-  //must be pure for callbacks to work
-  UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,pure,context,namespace='Lock',entrypoint='RGetLockObject';
+  BOOLEAN MissAndLock(UNSIGNED8 keyPtr) : cpp,once,context,namespace='Lock',entrypoint='RMissAndLock';
+  UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key) : cpp,once,context,namespace='Lock',entrypoint='RGetLockObject';
   
-  INTEGER8 GetInteger(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetInt8';
-  UNSIGNED8 GetUnsigned(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetUint8';
-  STRING GetString(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetStr';
-  UNICODE GetUnicode(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetUChar';
-  UTF8 GetUtf8(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetUtf8';
-  BOOLEAN GetBoolean(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetBool';
-  REAL GetReal(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetDouble';
-  DATA GetData(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,action,context,namespace='Lock',entrypoint='RGetData';
-  pub(unsigned8 keyPtr, const varstring msg): cpp,pure,context,namespace='Lock',entrypoint='RPub';
+  INTEGER8 GetInteger(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetInt8';
+  UNSIGNED8 GetUnsigned(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetUint8';
+  STRING GetString(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetStr';
+  UNICODE GetUnicode(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetUChar';
+  UTF8 GetUtf8(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetUtf8';
+  BOOLEAN GetBoolean(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetBool';
+  REAL GetReal(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetDouble';
+  DATA GetData(UNSIGNED8 keyPtr, CONST VARSTRING newValue = '') : cpp,once,context,namespace='Lock',entrypoint='RGetData';
 END;
