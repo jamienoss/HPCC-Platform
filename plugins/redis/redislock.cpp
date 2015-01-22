@@ -346,7 +346,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
     assertRedisErr(redisAsyncCommand(connection, getCB, (void*)&_returnValue, "GET %b", key, strlen(key)), "buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 
-    if  (strcmp(newValue, "\0") != 0 )
+    if  (strlen(newValue) > 0)
     {
         if (strncmp(_returnValue.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )//double check key is locked
         {
@@ -374,7 +374,6 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
         {
             if (lock(key, keyPtr))
             {
-            	printf("locked\n");
                 returnLength = 0;
                 size_t returnSize = returnLength*sizeof(type);
                 returnValue = reinterpret_cast<type*>(cpy("", returnSize));
@@ -385,8 +384,8 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
             	printf("sub A\n");
                 const char * channel = keyPtr->getChannel();
                 subscribe(channel, _returnValue);
-                assertRedisErr(redisAsyncCommand(connection, unsubCB, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "buffer write error");
-                ev_loop(EV_DEFAULT_ 0);
+                //assertRedisErr(redisAsyncCommand(connection, unsubCB, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "buffer write error");
+                //ev_loop(EV_DEFAULT_ 0);
             }
         }
     }
@@ -398,8 +397,8 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
 
             StringAttr channel(_returnValue);
             subscribe(channel.str(), _returnValue);
-            assertRedisErr(redisAsyncCommand(connection, unsubCB, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "buffer write error");
-            ev_loop(EV_DEFAULT_ 0);
+            //assertRedisErr(redisAsyncCommand(connection, unsubCB, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "buffer write error");
+            //ev_loop(EV_DEFAULT_ 0);
         }
         else
         {
