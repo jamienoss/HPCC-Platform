@@ -21,6 +21,7 @@
 #include "jstring.hpp"
 #include "jsem.hpp"
 #include "jsocket.hpp"
+#include "jthread.hpp"
 #include "redisplugin.hpp"
 #include "redissync.hpp"
 #include "redislock.hpp"
@@ -36,28 +37,6 @@ static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";// needs to be a large 
 static const unsigned REDIS_LOCK_EXPIRE = 60; //(secs)
 static const unsigned REDIS_MAX_LOCKS = 9999;
 
-class SubHolder : public CInterface
-{
-public :
-    SubHolder(const char * _channel) { channel.set(_channel); }
-    SubHolder(const char * _channel, redisCallbackFn * _callback) { channel.set(_channel); callback = _callback; }
-
-    inline void setCB(redisCallbackFn * _callback) { callback = _callback; }
-    inline redisCallbackFn * getCB() { return callback; }
-    inline void setChannel(const char * _channel) { channel.set(_channel); }
-    inline const char * getChannel() { return channel.str(); }
-    inline void setMessage(const char * _message) { message.set(_message); }
-    inline const char * getMessage() { return message.str(); }
-    inline void wait(unsigned timeout) { sem.wait(timeout); }
-    inline void signal() { sem.signal(); }
-
-private :
-    Semaphore sem;
-    redisCallbackFn * callback;
-    StringAttr message;
-    StringAttr channel;
-};
-
 class KeyLock : public CInterface
 {
 public :
@@ -69,7 +48,7 @@ public :
     inline const char * getChannel()  const { return channel.str(); }
 
 private :
-    StringAttr options; //shouldn't be need, tidy isSameConnection to pass 'master' & 'port'
+    StringAttr options; //shouldn't be needed, tidy isSameConnection to pass 'master' & 'port'
     StringAttr master;
     int port;
     StringAttr key;
@@ -116,6 +95,8 @@ namespace Async
 {
 static CriticalSection crit;
 static const unsigned REDIS_TIMEOUT = 1000;//ms
+class SubHolder;
+
 class Connection : public RedisPlugin::Connection
 {
 public :
@@ -127,7 +108,7 @@ public :
     template <class type> void get(ICodeContext * ctx, const char * key, size_t & valueLength, type * & value, Lock::KeyLock * keyPtr, const char * newValue);
     void getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & valueLength, void * & value, Lock::KeyLock * keyPtr, const char * newValue);
 
-private :
+protected :
     void createAndAssertConnection();
     virtual void assertOnError(const redisReply * reply, const char * _msg);
     virtual void assertConnection();
@@ -135,14 +116,12 @@ private :
     redisReply * handleLock(const char * key);
     bool lock(const char * key, Lock::KeyLock * keyPtr);
     void subscribe(const char * channel, StringAttr & value);
-    void subscribeNonBlock(Lock::SubHolder * holder);
     void unsubscribe(const char * channel);
 
     //callbacks
     static void assertCallbackError(const redisReply * reply, const char * _msg);
     static void connectCB(const redisAsyncContext *c, int status);
     static void disconnectCB(const redisAsyncContext *c, int status);
-    static void subSemCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void pubCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void setCB(redisAsyncContext * context, void * _reply, void * privdata);
@@ -153,6 +132,84 @@ protected :
     redisAsyncContext * context;
 };
 
+class SubHolder : public Async::Connection
+{
+public :
+    SubHolder(ICodeContext * ctx, const char * options, const char * _channel);
+    SubHolder(ICodeContext * ctx, const char * options, const char * _channel, redisCallbackFn * _callback);
+    ~SubHolder()
+    {
+        unsubscribe();
+    }
+
+    inline void setCB(redisCallbackFn * _callback) { callback = _callback; }
+    inline redisCallbackFn * getCB() { return callback; }
+    inline void setChannel(const char * _channel) { channel.set(_channel); }
+    inline const char * getChannel() { return channel.str(); }
+    inline void setMessage(const char * _message) { message.set(_message); }
+    inline const char * getMessage() { return message.str(); }
+    inline void wait(unsigned timeout) { msgSem.wait(timeout); }
+    inline void signal() { msgSem.signal(); }
+    inline void subActivated() { subActiveSem.signal(); }
+    inline void subActivationWait(unsigned timeout) { subActiveSem.wait(timeout); }
+    void subscribe(struct ev_loop * evLoop);
+    void unsubscribe();
+
+    //callback
+    static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
+
+private :
+    Semaphore msgSem;
+    Semaphore subActiveSem;
+    redisCallbackFn * callback;
+    StringAttr message;
+    StringAttr channel;
+};
+class SubscriptionThread : public CInterface,  implements IThreaded, implements IInterface
+{
+public :
+    IMPLEMENT_IINTERFACE;
+    SubscriptionThread(SubHolder * _holder)
+    {
+        evLoop = ev_loop_new(0);
+        holder.setown(_holder);
+        thread = new CThreaded("SubscriptionThread");
+        IThreaded * pIThreaded = this;
+        thread->init(pIThreaded);
+    }
+    ~SubscriptionThread()
+    {
+        if (evLoop)
+            ev_unloop(evLoop, EVUNLOOP_ALL);
+        holder.clear();
+        bool joinedOk = thread->join();
+        if (thread)
+        {
+            delete thread;
+            thread = NULL;
+        }
+    }
+
+    void main()
+    {
+        holder->subscribe(evLoop);
+    }
+
+private :
+    CThreaded * thread;
+    Owned<SubHolder> holder;
+    struct ev_loop * evLoop;
+};
+SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _channel) : Connection(ctx, options)
+{
+    channel.set(_channel);
+    callback = subCB;
+}
+SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _channel, redisCallbackFn * _callback) : Connection(ctx, options)
+{
+    channel.set(_channel);
+    callback = _callback;
+}
 Connection::Connection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options)
 {
     createAndAssertConnection();
@@ -189,7 +246,7 @@ void Connection::assertConnection()
 }
 void Connection::connectCB(const redisAsyncContext * context, int status)
 {
-    if (status != REDIS_OK && status != 2)
+    if (status != REDIS_OK)//&& status != 2)
     {
         if (context->data)
         {
@@ -259,21 +316,29 @@ void Connection::assertCallbackError(const redisReply * reply, const char * _msg
         rtlFail(0, msg.str());
     }
 }
-void Connection::subSemCB(redisAsyncContext * context, void * _reply, void * privdata)
+void SubHolder::subCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
-    if (_reply == NULL)
+    if (_reply == NULL || privdata == NULL)
         return;
 
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(reply, "callback fail");
 
-    if (reply->type == REDIS_REPLY_ARRAY && strcmp("message", reply->element[0]->str) == 0 )
+    if (reply->type == REDIS_REPLY_ARRAY)
     {
-        Lock::SubHolder * holder = (Lock::SubHolder*)privdata;
-        holder->setMessage(reply->element[2]->str);
-        const char * channel = reply->element[1]->str;
-        redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
-        holder->signal();
+        Async::SubHolder * holder = (Async::SubHolder*)privdata;
+        if (strcmp("subscribe", reply->element[0]->str) == 0 )
+        {
+            holder->subActivated();
+        }
+        else if (strcmp("message", reply->element[0]->str) == 0 )
+        {
+            holder->setMessage(reply->element[2]->str);
+            const char * channel = reply->element[1]->str;
+            redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
+            redisAsyncHandleWrite(context);
+            redisLibevDelRead((void*)context->ev.data);
+        }
     }
 }
 void Connection::subCB(redisAsyncContext * context, void * _reply, void * privdata)
@@ -342,18 +407,25 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
 }
 void Connection::unsubscribe(const char * channel)
 {
-    //assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "UNSUBSCRIBE buffer write error");
+    assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "UNSUBSCRIBE buffer write error");
+    redisAsyncHandleWrite(context);
 }
 void Connection::subscribe(const char * channel, StringAttr & value)
 {
     assertRedisErr(redisAsyncCommand(context, subCB, (void*)&value, "SUBSCRIBE %b", channel, strlen(channel)), "SUBSCRIBE buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 }
-void Connection::subscribeNonBlock(Lock::SubHolder * holder)
+void SubHolder::subscribe(struct ev_loop * evLoop)
 {
-    //'NonBlock' refers to this function, not the redis connection.
-    const char  * channel = holder->getChannel();
-    assertRedisErr(redisAsyncCommand(context, holder->getCB(), (void*)holder, "SUBSCRIBE %b", channel, strlen(channel)), "SUBSCRIBE buffer write error");
+    assertRedisErr(redisLibevAttach(evLoop, context), "failure to attach to libev");
+    assertRedisErr(redisAsyncCommand(context, callback, (void*)this, "SUBSCRIBE %b", channel.str(), channel.length()), "SUBSCRIBE buffer write error");
+    ev_loop(evLoop, 0);
+    msgSem.signal();
+}
+void SubHolder::unsubscribe()
+{
+    assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "UNSUBSCRIBE buffer write error");
+    redisAsyncHandleWrite(context);
 }
 bool Connection::lock(const char * key, Lock::KeyLock * keyPtr)
 {
@@ -388,18 +460,22 @@ bool Connection::lock(const char * key, Lock::KeyLock * keyPtr)
     return false;
 }
 
+
+
+
 template<class type> void Connection::get(ICodeContext * ctx, const char * key, size_t & returnLength, type * & returnValue, Lock::KeyLock * keyPtr, const char * newValue)
 {
     const char * channel = keyPtr->getChannel();
-    Lock::SubHolder holder(channel, subSemCB);
-    subscribeNonBlock(&holder);
+    Owned<SubHolder> holder = new SubHolder(ctx, options.str(), channel);
+    SubscriptionThread subThread(LINK(holder));
+    holder->subActivationWait(REDIS_TIMEOUT);
 
     StringAttr _returnValue;
     assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
     assertRedisErr(redisAsyncCommand(context, getCB, (void*)&_returnValue, "GET %b", key, strlen(key)), "GET buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 
-    //This code block is for when setting the retrieved value on an initial cache miss
+    //(should be in SET)This code block is for when setting the retrieved value on an initial cache miss
     if  (strlen(newValue) > 0)
     {
         if (strncmp(_returnValue.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )//double check key is locked
@@ -409,7 +485,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
             assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel.str(), channel.length(), newValue, strlen(newValue)), "PUBLISH buffer write error");
             ev_loop(EV_DEFAULT_ 0);
         }
-        unsubscribe(channel);
+        holder.clear();
         returnLength = strlen(newValue);
         size_t returnSize = returnLength*sizeof(type);
         returnValue = reinterpret_cast<type*>(cpy(newValue, returnSize));
@@ -423,7 +499,8 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
         if (!keyPtr)
         {
             //Do not lock & subscribe, i.e. a normal call to GET
-            unsubscribe(channel);
+            //subThread.clear();
+            //holder.clear();
             returnLength = 0;
             size_t returnSize = returnLength*sizeof(type);
             returnValue = reinterpret_cast<type*>(cpy("", returnSize));
@@ -433,7 +510,8 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
         {
             if (lock(key, keyPtr))
             {
-                unsubscribe(channel);
+                //subThread.clear();
+                //holder.clear();
                 returnLength = 0;
                 size_t returnSize = returnLength*sizeof(type);
                 returnValue = reinterpret_cast<type*>(cpy("", returnSize));
@@ -441,7 +519,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
             }
             else
             {
-                holder.wait(Lock::REDIS_LOCK_EXPIRE);
+                holder->wait(Lock::REDIS_LOCK_EXPIRE);
             }
         }
     }
@@ -449,12 +527,12 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
     {
         if (strncmp(_returnValue.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
         {
-        	printf("sub B\n");
-            holder.wait(Lock::REDIS_LOCK_EXPIRE);
+            holder->wait(Lock::REDIS_LOCK_EXPIRE);
         }
         else
         {
-            unsubscribe(channel);
+            //subThread.clear();
+            //holder.clear();
             returnLength = _returnValue.length();
             size_t returnSize = returnLength*sizeof(type);
             returnValue = reinterpret_cast<type*>(cpy(_returnValue.str(), returnSize));
