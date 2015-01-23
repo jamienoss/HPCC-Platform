@@ -22,13 +22,12 @@
 #include "jsem.hpp"
 #include "jsocket.hpp"
 #include "jthread.hpp"
+#include "jmutex.hpp"
 #include "redisplugin.hpp"
 #include "redissync.hpp"
 #include "redislock.hpp"
 
 #include "hiredis/async.h"
-
-
 
 namespace Lock
 {
@@ -157,6 +156,7 @@ public :
 
     void stopEvLoop()
     {
+        CriticalBlock block(crit);
         context->ev.delRead((void*)context->ev.data);
         context->ev.delWrite((void*)context->ev.data);
     }
@@ -173,26 +173,20 @@ protected :
 class SubscriptionThread : implements IThreaded, implements IInterface, public SubHolder
 {
 public :
-    SubscriptionThread(ICodeContext * ctx, const char * options, const char * channel) : SubHolder(ctx, options, channel)
+    SubscriptionThread(ICodeContext * ctx, const char * options, const char * channel) : SubHolder(ctx, options, channel), thread("SubscriptionThread", (IThreaded*)this)
     {
         evLoop = NULL;
-        thread = new CThreaded("SubscriptionThread");
-        IThreaded * pIThreaded = this;
-        thread->init(pIThreaded);
+        thread.start();
+        //thread.init(pIThreaded);
         subActivationWait(REDIS_TIMEOUT);
     }
     virtual ~SubscriptionThread()
     {
         stopEvLoop();
-        //holder.wait(REDIS_TIMEOUT);
-        thread->join();
-        if (thread)
-        {
-            delete thread;
-            thread = NULL;
-        }
+        wait(REDIS_TIMEOUT);//give stopEvLoop time to complete
+        thread.stopped.signal();
+        thread.join();
     }
-
 
 private :
     IMPLEMENT_IINTERFACE;
@@ -202,12 +196,10 @@ private :
         evLoop = ev_loop_new(0);
         subscribe(evLoop);
         signal();
-
-        printf("thread ended\n");
     }
 
 private :
-    CThreaded * thread;
+    CThreaded thread;
     struct ev_loop * evLoop;
 };
 SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _channel) : Connection(ctx, options)
