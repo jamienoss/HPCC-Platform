@@ -155,34 +155,37 @@ public :
     void subscribe(struct ev_loop * evLoop);
     void unsubscribe();
 
+    void stopEvLoop()
+    {
+        context->ev.delRead((void*)context->ev.data);
+        context->ev.delWrite((void*)context->ev.data);
+    }
     //callback
     static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
 
-private :
+protected :
     Semaphore msgSem;
     Semaphore subActiveSem;
     redisCallbackFn * callback;
     StringAttr message;
     StringAttr channel;
 };
-class SubscriptionThread : public CInterface,  implements IThreaded, implements IInterface
+class SubscriptionThread : implements IThreaded, implements IInterface, public SubHolder
 {
 public :
-    IMPLEMENT_IINTERFACE;
-    SubscriptionThread(SubHolder * _holder)
+    SubscriptionThread(ICodeContext * ctx, const char * options, const char * channel) : SubHolder(ctx, options, channel)
     {
-        evLoop = ev_loop_new(0);
-        holder.setown(_holder);
+        evLoop = NULL;
         thread = new CThreaded("SubscriptionThread");
         IThreaded * pIThreaded = this;
         thread->init(pIThreaded);
+        subActivationWait(REDIS_TIMEOUT);
     }
-    ~SubscriptionThread()
+    virtual ~SubscriptionThread()
     {
-        if (evLoop)
-            ev_unloop(evLoop, EVUNLOOP_ALL);
-        holder.clear();
-        bool joinedOk = thread->join();
+        stopEvLoop();
+        //holder.wait(REDIS_TIMEOUT);
+        thread->join();
         if (thread)
         {
             delete thread;
@@ -190,14 +193,21 @@ public :
         }
     }
 
+
+private :
+    IMPLEMENT_IINTERFACE;
+
     void main()
     {
-        holder->subscribe(evLoop);
+        evLoop = ev_loop_new(0);
+        subscribe(evLoop);
+        signal();
+
+        printf("thread ended\n");
     }
 
 private :
     CThreaded * thread;
-    Owned<SubHolder> holder;
     struct ev_loop * evLoop;
 };
 SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _channel) : Connection(ctx, options)
@@ -337,7 +347,7 @@ void SubHolder::subCB(redisAsyncContext * context, void * _reply, void * privdat
             const char * channel = reply->element[1]->str;
             redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
             redisAsyncHandleWrite(context);
-            redisLibevDelRead((void*)context->ev.data);
+            context->ev.delRead((void*)context->ev.data);
         }
     }
 }
@@ -420,7 +430,6 @@ void SubHolder::subscribe(struct ev_loop * evLoop)
     assertRedisErr(redisLibevAttach(evLoop, context), "failure to attach to libev");
     assertRedisErr(redisAsyncCommand(context, callback, (void*)this, "SUBSCRIBE %b", channel.str(), channel.length()), "SUBSCRIBE buffer write error");
     ev_loop(evLoop, 0);
-    msgSem.signal();
 }
 void SubHolder::unsubscribe()
 {
@@ -466,9 +475,7 @@ bool Connection::lock(const char * key, Lock::KeyLock * keyPtr)
 template<class type> void Connection::get(ICodeContext * ctx, const char * key, size_t & returnLength, type * & returnValue, Lock::KeyLock * keyPtr, const char * newValue)
 {
     const char * channel = keyPtr->getChannel();
-    Owned<SubHolder> holder = new SubHolder(ctx, options.str(), channel);
-    SubscriptionThread subThread(LINK(holder));
-    holder->subActivationWait(REDIS_TIMEOUT);
+    SubscriptionThread subThread(ctx, options.str(), channel);
 
     StringAttr _returnValue;
     assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
@@ -485,7 +492,6 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
             assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel.str(), channel.length(), newValue, strlen(newValue)), "PUBLISH buffer write error");
             ev_loop(EV_DEFAULT_ 0);
         }
-        holder.clear();
         returnLength = strlen(newValue);
         size_t returnSize = returnLength*sizeof(type);
         returnValue = reinterpret_cast<type*>(cpy(newValue, returnSize));
@@ -499,8 +505,6 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
         if (!keyPtr)
         {
             //Do not lock & subscribe, i.e. a normal call to GET
-            //subThread.clear();
-            //holder.clear();
             returnLength = 0;
             size_t returnSize = returnLength*sizeof(type);
             returnValue = reinterpret_cast<type*>(cpy("", returnSize));
@@ -510,8 +514,6 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
         {
             if (lock(key, keyPtr))
             {
-                //subThread.clear();
-                //holder.clear();
                 returnLength = 0;
                 size_t returnSize = returnLength*sizeof(type);
                 returnValue = reinterpret_cast<type*>(cpy("", returnSize));
@@ -519,7 +521,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
             }
             else
             {
-                holder->wait(Lock::REDIS_LOCK_EXPIRE);
+                subThread.wait(REDIS_TIMEOUT);
             }
         }
     }
@@ -527,12 +529,10 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
     {
         if (strncmp(_returnValue.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
         {
-            holder->wait(Lock::REDIS_LOCK_EXPIRE);
+            subThread.wait(REDIS_TIMEOUT);
         }
         else
         {
-            //subThread.clear();
-            //holder.clear();
             returnLength = _returnValue.length();
             size_t returnSize = returnLength*sizeof(type);
             returnValue = reinterpret_cast<type*>(cpy(_returnValue.str(), returnSize));
