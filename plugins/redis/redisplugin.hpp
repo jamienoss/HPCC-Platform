@@ -85,7 +85,7 @@ protected :
 
     void checkServersUp(ICodeContext * ctx);
     const char * appendIfKeyNotFoundMsg(const redisReply * reply, const char * key, StringBuffer & target) const;
-    void * cpy(const char * src, size_t length);
+    void * cpy(const char * src, size_t size);
     void logServerStats(ICodeContext * ctx);
     void init(ICodeContext * ctx);
     void invokePoolSecurity(ICodeContext * ctx);

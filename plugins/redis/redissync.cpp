@@ -154,12 +154,6 @@ ECL_REDIS_API bool ECL_REDIS_CALL RExist(ICodeContext * ctx, const char * option
     OwnedConnection master = createConnection(ctx, options);
     return master->exist(ctx, key, partitionKey);
 }
-/*ECL_REDIS_API const char * ECL_REDIS_CALL RKeyType(ICodeContext * ctx, const char * options, const char * key, const char * partitionKey)
-{
-    OwnedConnection master = createConnection(ctx, options);
-    const char * keyType = enumToStr(master->getKeyType(key, partitionKey));
-    return keyType;
-}*/
 ECL_REDIS_API void ECL_REDIS_CALL RDel(ICodeContext * ctx, const char * options, const char * key, const char * partitionKey)
 {
     OwnedConnection master = createConnection(ctx, options);
@@ -176,7 +170,6 @@ ECL_REDIS_API void ECL_REDIS_CALL RExpire(ICodeContext * ctx, const char * optio
     master->expire(ctx, key, partitionKey, _expire*RedisPlugin::unitExpire);
 }
 //-----------------------------------SET------------------------------------------
-//NOTE: These were all overloaded by 'value' type, however; this caused problems since ecl implicitly casts and doesn't type check.
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, const char * partitionKey, unsigned expire /* = 0 (ECL default)*/)
 {
     RSet(ctx, options, partitionKey, key, valueLength, value, expire, RedisPlugin::ECL_STRING);

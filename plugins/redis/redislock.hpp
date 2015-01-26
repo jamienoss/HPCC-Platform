@@ -22,23 +22,45 @@
 
 extern "C++"
 {
+    //------------------------ASYNC--GET----------------------------------------
+    ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, const char * options, const char * key);
+    ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, const char * options, const char * key);
+    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetUint8 (ICodeContext * _ctx, const char * options, const char * key);
+    ECL_REDIS_API double           ECL_REDIS_CALL RGetDouble(ICodeContext * _ctx, const char * options, const char * key);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUtf8  (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, const char * options, const char * key);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & valueLength, UChar * & returnValue, const char * options, const char * key);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUChar (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, const char * options, const char * key);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, const char * options, const char * key);
+    //------------------------ASYNC--SET----------------------------------------
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, const char * options, const char * key, bool value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, const char * options, const char * key, signed __int64 value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, const char * options, const char * key, double value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8(ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetData(ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned expire);
+
+
     ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key);
-    ECL_REDIS_API bool ECL_REDIS_CALL RMissAndLock(ICodeContext * _ctx, unsigned __int64 keyPtr);
-
-    //--------------------------GET----------------------------------------
-    ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, unsigned __int64, const char * newValue);
-    ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, unsigned __int64, const char * newValue);
-    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetUint8 (ICodeContext * _ctx, unsigned __int64, const char * newValue);
-    ECL_REDIS_API double           ECL_REDIS_CALL RGetDouble(ICodeContext * _ctx, unsigned __int64, const char * newValue);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetUtf8  (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, unsigned __int64, const char * newValue);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & valueLength, UChar * & returnValue, unsigned __int64, const char * newValue);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetUChar (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, unsigned __int64, const char * newValue);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, unsigned __int64, const char * newValue);
-
-
-    ECL_REDIS_API void             ECL_REDIS_CALL RPub  (ICodeContext * _ctx, unsigned __int64 keyPtr, const char * msg);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & valueLength, UChar * & returnValue, const char * options, const char * key, const char * partitionKey);
-
+    //------------------------LOCKING--GET----------------------------------------
+    ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetUint8 (ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API double           ECL_REDIS_CALL RGetDouble(ICodeContext * _ctx, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUtf8  (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & valueLength, UChar * & returnValue, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUChar (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, unsigned __int64);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, unsigned __int64);
+    //------------------------LOCKING--SET----------------------------------------
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, unsigned __int64, bool value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, unsigned __int64, signed __int64 value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, unsigned __int64, unsigned __int64 value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, unsigned __int64, double value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8(ICodeContext * _ctx, unsigned __int64, size32_t valueLength, const char * value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, unsigned __int64, size32_t valueLength, const char * value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSet    (ICodeContext * _ctx, unsigned __int64, size32_t valueLength, const UChar * value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetData(ICodeContext * _ctx, unsigned __int64, size32_t valueLength, const void * value, unsigned expire);
 }
 
 #endif

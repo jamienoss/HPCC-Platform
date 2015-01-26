@@ -177,10 +177,10 @@ bool RedisPlugin::Connection::isSameConnection(const char * _options) const
     return stricmp(master.get(), newMaster.get()) == 0 && port == newPort;
 }
 
-void * RedisPlugin::Connection::cpy(const char * src, size_t length)
+void * RedisPlugin::Connection::cpy(const char * src, size_t size)
 {
-    void * value = rtlMalloc(length);
-    return memcpy(value, src, length);
+    void * value = rtlMalloc(size);
+    return memcpy(value, src, size);
 }
 
 void RedisPlugin::Connection::checkServersUp(ICodeContext * ctx)
