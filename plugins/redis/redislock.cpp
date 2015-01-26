@@ -74,20 +74,6 @@ KeyLock::~KeyLock()
     if (context)
         redisFree(context);
 }
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key)
-{
-    Owned<KeyLock> keyPtr;
-    StringBuffer lockId;
-    lockId.set(Lock::REDIS_LOCK_PREFIX);
-    lockId.append("_").append(key).append("_");
-    CriticalBlock block(crit);
-    //srand(unsigned int seed);
-    lockId.append(rand()%REDIS_MAX_LOCKS+1);
-
-    keyPtr.set(new Lock::KeyLock(options, key, lockId.str()));
-    return reinterpret_cast<unsigned long long>(keyPtr.get());
-}
-
 }//close Lock Namespace
 
 namespace Async
@@ -106,7 +92,7 @@ public :
             free(value);
     }
 
-    void cpy(size_t _size, const char * _value) { size = _size; value = (char*)rtlMalloc(size); memcpy(value, _value, size); }
+    void cpy(size_t _size, const char * _value) { size = _size; value = (char*)malloc(size); memcpy(value, _value, size); }
     inline size_t getSize() const { return size; }
     inline const char * str() const { return value; }
     char * getStr() { char * tmp = value; value = NULL; size = 0; return tmp; }
@@ -130,6 +116,8 @@ public :
     //set
     template<class type> void set(ICodeContext * ctx, const char * key, type value, unsigned expire, const char * channel);
     template<class type> void set(ICodeContext * ctx, const char * key, size32_t valueLength, const type * value, unsigned expire, const char * channel);
+
+    bool missThenLock(ICodeContext * ctx, Lock::KeyLock * keyPtr);
 
 protected :
     void createAndAssertConnection();
@@ -201,7 +189,7 @@ public :
     SubscriptionThread(ICodeContext * ctx, const char * options, const char * channel) : SubHolder(ctx, options, channel), thread("SubscriptionThread", (IThreaded*)this)
     {
         evLoop = NULL;
-        thread.start();
+        //thread.start();
         //thread.init(pIThreaded);
         subActivationWait(REDIS_TIMEOUT);
     }
@@ -213,9 +201,11 @@ public :
         thread.join();
     }
 
-private :
+    void start() { thread.start(); }
+
     IMPLEMENT_IINTERFACE;
 
+private :
     void main()
     {
         evLoop = ev_loop_new(0);
@@ -224,7 +214,7 @@ private :
     }
 
 private :
-    CThreaded thread;
+    CThreaded  thread;
     struct ev_loop * evLoop;
 };
 SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _channel) : Connection(ctx, options)
@@ -433,6 +423,11 @@ void SubHolder::unsubscribe()
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
 }
+bool Connection::missThenLock(ICodeContext * ctx, Lock::KeyLock * keyPtr)
+{
+    return lock(keyPtr->getKey(), keyPtr->getChannel());
+}
+
 bool Connection::lock(const char * key, const char * channel)
 {
     StringBuffer cmd("SET %b %b NX EX ");
@@ -467,8 +462,12 @@ bool Connection::lock(const char * key, const char * channel)
 void Connection::handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal)
 {
     bool ignoreLock = (channel == NULL);
-    SubscriptionThread subThread(ctx, options.str(), channel);
-//    if (!ignoreLock)
+    Owned<SubscriptionThread> subThread;//ctx, options.str(), channel);
+    if (!ignoreLock)
+    {
+        subThread.set(new SubscriptionThread(ctx, options.str(), channel));
+        subThread->start();
+    }
 
     assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
     assertRedisErr(redisAsyncCommand(context, getCB, (void*)retVal, "GET %b", key, strlen(key)), "GET buffer write error");
@@ -481,20 +480,14 @@ void Connection::handleLockForGet(ICodeContext * ctx, const char * key, const ch
     if (retVal->isEmpty())
     {
         if (lock(key, channel))
-        {
             return;
-        }
         else
-        {
-            subThread.wait(REDIS_TIMEOUT);
-        }
+            subThread->wait(REDIS_TIMEOUT);
     }
     else
     {
         if (strncmp(retVal->str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
-        {
-            subThread.wait(REDIS_TIMEOUT);
-        }
+            subThread->wait(REDIS_TIMEOUT);
         else
             return;
     }
@@ -520,13 +513,10 @@ void Connection::handleLockForSet(ICodeContext * ctx, const char * key, const ch
         assertRedisErr(redisAsyncCommand(context, getCB, (void*)&retVal, cmd2.str(), key, strlen(key), value, size), "SET buffer write error");
         ev_loop(EV_DEFAULT_ 0);
 
-        if (!retVal.isEmpty())
-        {
         if (strncmp(retVal.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
         {
             assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
             ev_loop(EV_DEFAULT_ 0);
-        }
         }
     }
 }
@@ -592,12 +582,13 @@ void Connection::get(ICodeContext * ctx, const char * key, ReturnValue * retVal,
 {
     handleLockForGet(ctx, key, channel, retVal);
 }
-template<class type> void Connection::get(ICodeContext * ctx, const char * key, size_t & returnLength, type * & returnValue, const char * channel)
+template<class type> void Connection::get(ICodeContext * ctx, const char * key, size_t & returnSize, type * & returnValue, const char * channel)
 {
     ReturnValue retVal;
     handleLockForGet(ctx, key, channel, &retVal);
 
-    size_t returnSize = retVal.getSize();
+    returnSize = retVal.getSize();
+    //returnValue = reinterpret_cast<type*>(cpy(retVal.str(), returnSize));
     returnValue = reinterpret_cast<type*>(retVal.getStr());
 }
 void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnSize, void * & returnValue, const char * channel )
@@ -632,8 +623,6 @@ template<class type> void Connection::set(ICodeContext * ctx, const char * key, 
     const char * _value = reinterpret_cast<const char *>(value);//Do this even for char * to prevent compiler complaining
     handleLockForSet(ctx, key, _value, (size_t)valueSize, channel, expire);
 }
-//--------------------------------------------------------------------------------------
-
 //-----------------------------------SET------------------------------------------
 ECL_REDIS_API void ECL_REDIS_CALL RSetStr(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
 {
@@ -724,6 +713,32 @@ ECL_REDIS_API void ECL_REDIS_CALL RGetData(ICodeContext * ctx, size32_t & return
 
 
 namespace Lock {
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key)
+{
+    Owned<KeyLock> keyPtr;
+    StringBuffer lockId;
+    lockId.set(Lock::REDIS_LOCK_PREFIX);
+    lockId.append("_").append(key).append("_");
+    CriticalBlock block(crit);
+    //srand(unsigned int seed);
+    lockId.append(rand()%REDIS_MAX_LOCKS+1);
+
+    keyPtr.set(new Lock::KeyLock(options, key, lockId.str()));
+    return reinterpret_cast<unsigned long long>(keyPtr.get());
+}
+ECL_REDIS_API bool ECL_REDIS_CALL RMissThenLock(ICodeContext * ctx, unsigned __int64 _keyPtr)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    const char * channel = keyPtr->getChannel();
+    if (!keyPtr || strlen(channel) == 0)
+    {
+        VStringBuffer msg("Redis Plugin : ERROR 'Locking.ExistLockSub' called without sufficient LockObject.");
+        rtlFail(0, msg.str());
+    }
+    const char * options = keyPtr->getOptions();
+    Owned<Async::Connection> master = Async::createConnection(ctx, options);
+    return master->missThenLock(ctx, keyPtr);
+}
 //-----------------------------------SET------------------------------------------
 ECL_REDIS_API void ECL_REDIS_CALL RSetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, unsigned __int64 _keyPtr, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
 {

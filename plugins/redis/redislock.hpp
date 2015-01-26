@@ -43,6 +43,7 @@ extern "C++"
 
 
     ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key);
+    ECL_REDIS_API bool ECL_REDIS_CALL RMissThenLock(ICodeContext * ctx, unsigned __int64 keyPtr);
     //------------------------LOCKING--GET----------------------------------------
     ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, unsigned __int64 keyPtr);
     ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, unsigned __int64 keyPtr);
