@@ -17,7 +17,7 @@
 
 IMPORT * FROM lib_redis.sync;
 
-STRING servers := '--SERVER=127.0.0.1:11211';
+STRING servers := '--SERVER=127.0.0.1:6379';
 Clear(servers);
 
 SetBoolean(servers, 'b', TRUE);
@@ -52,8 +52,10 @@ SetData(servers, 'data', mydata);
 GetData(servers,'data');
 
 Exist(servers, 'utf8');
-
+Del(servers, 'utf8');
+Expire(servers, 'str', 1); 
+Persist(servers, 'str');
 //The following test some exceptions
 GetInteger(servers, 'pi');
 Clear(servers);
-Exist(servers, 'utf8');
+NOFOLD(Exist(servers, 'utf8')); 

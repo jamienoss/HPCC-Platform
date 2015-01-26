@@ -68,8 +68,8 @@ void Connection::assertOnError(const redisReply * reply, const char * _msg)
 {
     if (!reply)
     {
+        //There should always be a context error if no reply error
         assertConnection();
-        //There should always be a connection error
         VStringBuffer msg("Redis Plugin: %s%s", _msg, "no 'reply' nor connection error");
         rtlFail(0, msg.str());
     }
@@ -99,17 +99,17 @@ void Connection::clear(ICodeContext * ctx, unsigned when)
 }
 void Connection::del(ICodeContext * ctx, const char * key)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b", key, sizeof(key)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b", key, strlen(key)*sizeof(char)));
     assertOnError(reply->query(), "'Del' request failed - ");
 }
 void Connection::persist(ICodeContext * ctx, const char * key)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "PERSIST %b", key, sizeof(key)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "PERSIST %b", key, strlen(key)*sizeof(char)));
     assertOnError(reply->query(), "'Persist' request failed - ");
 }
 void Connection::expire(ICodeContext * ctx, const char * key, unsigned _expire)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b %u", key, sizeof(key), _expire));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b %u", key, strlen(key)*sizeof(char), _expire));
     assertOnError(reply->query(), "'Expire' request failed - ");
 }
 //-------------------------------------------SET-----------------------------------------
@@ -172,7 +172,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
 
-    size_t returnSize = reply->query()->len;//*sizeof(type);
+    size_t returnSize = reply->query()->len;
     if (sizeof(type)!=returnSize)
     {
         VStringBuffer msg("RedisPlugin: ERROR - Requested type of different size (%uB) from that stored (%uB).", (unsigned)sizeof(type), (unsigned)returnSize);
@@ -205,7 +205,7 @@ void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t 
 
 bool Connection::exist(ICodeContext * ctx, const char * key)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "GET %s", key));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "GET %b", key, strlen(key)*sizeof(char)));
 
     if (reply->query()->type == REDIS_REPLY_NIL)
         return false;
