@@ -673,35 +673,35 @@ template<class type> void Connection::set(ICodeContext * ctx, const char * key, 
 //-----------------------------------SET------------------------------------------
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
 {
-    RSet(ctx, options, key, valueLength, value, expire);
+    Async::RSet(ctx, options, key, valueLength, value, expire);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned expire /* = 0 (ECL default)*/)
 {
-    RSet(ctx, options, key, (valueLength)*sizeof(UChar), value, expire);
+    Async::RSet(ctx, options, key, (valueLength)*sizeof(UChar), value, expire);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, signed __int64 value, unsigned expire /* = 0 (ECL default)*/)
 {
-    RSet(ctx, options, key, value, expire);
+    Async::RSet(ctx, options, key, value, expire);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 value, unsigned expire /* = 0 (ECL default)*/)
 {
-    RSet(ctx, options, key, value, expire);
+    Async::RSet(ctx, options, key, value, expire);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, double value, unsigned expire /* = 0 (ECL default)*/)
 {
-    RSet(ctx, options, key, value, expire);
+    Async::RSet(ctx, options, key, value, expire);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, bool value, unsigned expire)
 {
-    RSet(ctx, options, key, value, expire);
+    Async::RSet(ctx, options, key, value, expire);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSetData(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned expire)
 {
-    RSet(ctx, options, key, valueLength, value, expire);
+    Async::RSet(ctx, options, key, valueLength, value, expire);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
 {
-    RSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, expire);
+    Async::RSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, expire);
 }
 
 }//close Async namespace
