@@ -72,7 +72,6 @@ bool Connection::logErrorOnFail(ICodeContext * ctx, const redisReply * reply, co
     ctx->logString(msg.str());
     return true;
 }
-
 void Connection::assertOnError(const redisReply * reply, const char * _msg)
 {
     if (!reply)
