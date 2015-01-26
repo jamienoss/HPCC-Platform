@@ -96,28 +96,26 @@ static CriticalSection crit;
 static const unsigned REDIS_TIMEOUT = 1000;//ms
 class SubHolder;
 
-class ReturnValue : public CInterface
+class ReturnValue //: public CInterface
 {
 public :
-    ReturnValue() :  size(0), value(NULL) { }
-    ReturnValue(char * _value, int _size) : size(_size) { memcpy(value, _value, size); }
+    ReturnValue() : size(0), value(NULL) { }
     ~ReturnValue()
     {
         if (value)
             free(value);
     }
 
-    void cpy(int _size, const char * _value) { size = _size; memcpy(value, _value, size); }
-    inline int getSize() const { return size; }
+    void cpy(size_t _size, const char * _value) { size = _size; value = (char*)rtlMalloc(size); memcpy(value, _value, size); }
+    inline size_t getSize() const { return size; }
     inline const char * str() const { return value; }
     char * getStr() { char * tmp = value; value = NULL; size = 0; return tmp; }
-    inline bool isEmpty() const { return !value||!*value; }
+    inline bool isEmpty() const { return size == 0; }//!value||!*value; }
 
 private :
-    int size;
+    size_t size;
     char * value;
 };
-
 class Connection : public RedisPlugin::Connection
 {
 public :
@@ -138,8 +136,8 @@ protected :
     virtual void assertOnError(const redisReply * reply, const char * _msg);
     virtual void assertConnection();
     void assertRedisErr(int reply, const char * _msg);
-    void handleLock(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal);
-    void handleLock(ICodeContext * ctx, const char * key, const char * value, size_t size, const char * channel, unsigned expire);
+    void handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal);
+    void handleLockForSet(ICodeContext * ctx, const char * key, const char * value, size_t size, const char * channel, unsigned expire);
     bool lock(const char * key, const char * channel);
     void subscribe(const char * channel, StringAttr & value);
     void unsubscribe(const char * channel);
@@ -391,25 +389,27 @@ void Connection::unsubCB(redisAsyncContext * context, void * _reply, void * priv
 {
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(reply, "get callback fail");
-
     redisLibevDelRead((void*)context->ev.data);
 }
 void Connection::getCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
-    if (!_reply)
-        return;
-
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(reply, "get callback fail");
 
     ReturnValue * retVal = (ReturnValue*)privdata;
-    retVal->cpy(reply->len, reply->str);
+    retVal->cpy((size_t)reply->len, reply->str);
+    redisLibevDelRead((void*)context->ev.data);
+}
+void Connection::setCB(redisAsyncContext * context, void * _reply, void * privdata)
+{
+    redisReply * reply = (redisReply*)_reply;
+    assertCallbackError(reply, "set callback fail");
+    redisLibevDelRead((void*)context->ev.data);
 }
 void Connection::pubCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(reply, "get callback fail");
-
     redisLibevDelRead((void*)context->ev.data);
 }
 void Connection::unsubscribe(const char * channel)
@@ -433,7 +433,38 @@ void SubHolder::unsubscribe()
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
 }
-void Connection::handleLock(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal)
+bool Connection::lock(const char * key, const char * channel)
+{
+    StringBuffer cmd("SET %b %b NX EX ");
+    cmd.append(Lock::REDIS_LOCK_EXPIRE);
+
+    redisContext * c = redisConnect(master, port);
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(c, cmd.str(), key, strlen(key), channel, strlen(channel)));
+    const redisReply * actReply = reply->query();
+
+    if (!actReply)
+    {
+        VStringBuffer msg("Redis Plugin: reply failure when locking key '%s' with error - %s", key, c->errstr);
+        redisFree(c);
+        rtlFail(0, msg.str());
+    }
+    redisFree(c);
+
+    switch(actReply->type)
+    {
+    case REDIS_REPLY_STATUS :
+        return strcmp(actReply->str, "OK") == 0;
+    case REDIS_REPLY_NIL :
+        return false;
+    case REDIS_REPLY_ERROR :
+    {
+        VStringBuffer msg("Redis Plugin: failure to lock key '%s' with error - %s", key, actReply->str);
+        rtlFail(0, msg.str());
+    }
+    }
+    return false;
+}
+void Connection::handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal)
 {
     bool ignoreLock = (channel == NULL);
     SubscriptionThread subThread(ctx, options.str(), channel);
@@ -468,42 +499,45 @@ void Connection::handleLock(ICodeContext * ctx, const char * key, const char * c
             return;
     }
 }
-bool Connection::lock(const char * key, const char * channel)
+void Connection::handleLockForSet(ICodeContext * ctx, const char * key, const char * value, size_t size, const char * channel, unsigned expire)
 {
-    StringBuffer cmd("SET %b %b NX EX ");
-    cmd.append(Lock::REDIS_LOCK_EXPIRE);
-
-    redisContext * c = redisConnect(master, port);
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(c, cmd.str(), key, strlen(key), channel, strlen(channel)));
-    const redisReply * actReply = reply->query();
-
-    if (!actReply)
+    StringBuffer cmd(setCmd);
+    RedisPlugin::appendExpire(cmd, expire);
+    assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
+    if(channel)
     {
-        VStringBuffer msg("Redis Plugin: reply failure when locking key '%s' with error - %s", key, c->errstr);
-        redisFree(c);
-        rtlFail(0, msg.str());
+        assertRedisErr(redisAsyncCommand(context, setCB, NULL, cmd.str(), key, strlen(key), value, size), "SET buffer write error");
+        ev_loop(EV_DEFAULT_ 0);
+        assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
+        ev_loop(EV_DEFAULT_ 0);
     }
-    redisFree(c);
+    else
+    {
+        ReturnValue retVal;
+        StringBuffer cmd2("GETSET %b %b");
+        RedisPlugin::appendExpire(cmd2, expire);
+        //obtain channel
+        assertRedisErr(redisAsyncCommand(context, getCB, (void*)&retVal, cmd2.str(), key, strlen(key), value, size), "SET buffer write error");
+        ev_loop(EV_DEFAULT_ 0);
 
-    switch(actReply->type)
-    {
-    case REDIS_REPLY_STATUS :
-        return strcmp(actReply->str, "OK") == 0;
-    case REDIS_REPLY_NIL :
-        return false;
-    case REDIS_REPLY_ERROR :
-    {
-        VStringBuffer msg("Redis Plugin: failure to lock key '%s' with error - %s", key, actReply->str);
-        rtlFail(0, msg.str());
+        if (!retVal.isEmpty())
+        {
+        if (strncmp(retVal.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
+        {
+            assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
+            ev_loop(EV_DEFAULT_ 0);
+        }
+        }
     }
-    }
-    return false;
 }
+
+
+
+
+
+
+
 //----------------------------------GET----------------------------------------
-void Connection::get(ICodeContext * ctx, const char * key, ReturnValue * retVal, const char * channel )
-{
-    handleLock(ctx, key, channel, retVal);
-}
 /*template<class type> void Connection::get(ICodeContext * ctx, const char * key, type & returnValue, const char * channel )
 {
     ReturnValue retVal;
@@ -521,23 +555,8 @@ void Connection::get(ICodeContext * ctx, const char * key, ReturnValue * retVal,
     memcpy(&returnValue, retVal.str(), returnSize);//one less cpy possible by using retVal.getStr()
 }
 */
-template<class type> void Connection::get(ICodeContext * ctx, const char * key, size_t & returnLength, type * & returnValue, const char * channel)
-{
-    ReturnValue retVal;
-    handleLock(ctx, key, channel, &retVal);
-
-    size_t returnSize = retVal.getSize();
-    returnValue = reinterpret_cast<type*>(retVal.getStr());
-}
-void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnSize, void * & returnValue, const char * channel )
-{
-    ReturnValue retVal;
-    handleLock(ctx, key, channel, &retVal);
-
-    returnSize = retVal.getSize();
-    returnValue = reinterpret_cast<void*>(cpy(retVal.str(), returnSize));
-}
 //-------------------------------------------GET-----------------------------------------
+//---OUTER---
 template<class type> void RGet(ICodeContext * ctx, const char * options, const char * key, type & returnValue, const char * channel = NULL)
 {
     Owned<Async::Connection> master = Async::createConnection(ctx, options);
@@ -568,7 +587,86 @@ void RGetVoidPtrLenPair(ICodeContext * ctx, const char * options, const char * k
     Owned<Async::Connection> master = Async::createConnection(ctx, options);
     master->getVoidPtrLenPair(ctx, key, returnLength, returnValue, channel);
 }
+//---INNER---
+void Connection::get(ICodeContext * ctx, const char * key, ReturnValue * retVal, const char * channel )
+{
+    handleLockForGet(ctx, key, channel, retVal);
+}
+template<class type> void Connection::get(ICodeContext * ctx, const char * key, size_t & returnLength, type * & returnValue, const char * channel)
+{
+    ReturnValue retVal;
+    handleLockForGet(ctx, key, channel, &retVal);
 
+    size_t returnSize = retVal.getSize();
+    returnValue = reinterpret_cast<type*>(retVal.getStr());
+}
+void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnSize, void * & returnValue, const char * channel )
+{
+    ReturnValue retVal;
+    handleLockForGet(ctx, key, channel, &retVal);
+
+    returnSize = retVal.getSize();
+    returnValue = reinterpret_cast<void*>(cpy(retVal.str(), returnSize));
+}
+//-------------------------------------------SET-----------------------------------------
+//---OUTER---
+template<class type> void RSet(ICodeContext * ctx, const char * _options, const char * key, type value, unsigned expire, const char * channel)
+{
+    Owned<Connection> master = Async::createConnection(ctx, _options);
+    master->set(ctx, key, value, expire, channel);
+}
+//Set pointer types
+template<class type> void RSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueLength, const type * value, unsigned expire, const char * channel)
+{
+    Owned<Connection> master = Async::createConnection(ctx, _options);
+    master->set(ctx, key, valueLength, value, expire, channel);
+}
+//---INNER---
+template<class type> void Connection::set(ICodeContext * ctx, const char * key, type value, unsigned expire, const char * channel)
+{
+    const char * _value = reinterpret_cast<const char *>(&value);//Do this even for char * to prevent compiler complaining
+    handleLockForSet(ctx, key, _value, sizeof(type), channel, expire);
+}
+template<class type> void Connection::set(ICodeContext * ctx, const char * key, size32_t valueSize, const type * value, unsigned expire, const char * channel)
+{
+    const char * _value = reinterpret_cast<const char *>(value);//Do this even for char * to prevent compiler complaining
+    handleLockForSet(ctx, key, _value, (size_t)valueSize, channel, expire);
+}
+//--------------------------------------------------------------------------------------
+
+//-----------------------------------SET------------------------------------------
+ECL_REDIS_API void ECL_REDIS_CALL RSetStr(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
+{
+    Async::RSet(ctx, options, key, valueLength*sizeof(char), value, expire, NULL);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetUChar(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned expire /* = 0 (ECL default)*/)
+{
+    Async::RSet(ctx, options, key, (valueLength)*sizeof(UChar), value, expire, NULL);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetInt(ICodeContext * ctx, const char * options, const char * key, signed __int64 value, unsigned expire /* = 0 (ECL default)*/)
+{
+    Async::RSet(ctx, options, key, value, expire, NULL);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetUInt(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 value, unsigned expire /* = 0 (ECL default)*/)
+{
+    Async::RSet(ctx, options, key, value, expire, NULL);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetReal(ICodeContext * ctx, const char * options, const char * key, double value, unsigned expire /* = 0 (ECL default)*/)
+{
+    Async::RSet(ctx, options, key, value, expire, NULL);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetBool(ICodeContext * ctx, const char * options, const char * key, bool value, unsigned expire)
+{
+    Async::RSet(ctx, options, key, value, expire, NULL);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetData(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned expire)
+{
+    Async::RSet(ctx, options, key, valueLength, value, expire, NULL);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
+{
+    Async::RSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, expire, NULL);
+}
 //-------------------------------------GET----------------------------------------
 ECL_REDIS_API bool ECL_REDIS_CALL RGetBool(ICodeContext * ctx, const char * options, const char * key)
 {
@@ -618,92 +716,6 @@ ECL_REDIS_API void ECL_REDIS_CALL RGetData(ICodeContext * ctx, size32_t & return
     Async::RGet(ctx, options, key, _returnLength, returnValue);
     returnLength = static_cast<size32_t>(_returnLength);
 }
-
-//-------------------------------------------SET-----------------------------------------
-template<class type> void RSet(ICodeContext * ctx, const char * _options, const char * key, type value, unsigned expire, const char * channel = NULL)
-{
-    Owned<Connection> master = Async::createConnection(ctx, _options);
-    master->set(ctx, key, value, expire, channel);
-}
-//Set pointer types
-template<class type> void RSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueLength, const type * value, unsigned expire, const char * channel = NULL)
-{
-    Owned<Connection> master = Async::createConnection(ctx, _options);
-    master->set(ctx, key, valueLength, value, expire, channel);
-}
-void Connection::handleLock(ICodeContext * ctx, const char * key, const char * value, size_t size, const char * channel, unsigned expire)
-{
-    StringBuffer cmd(setCmd);
-    RedisPlugin::appendExpire(cmd, expire);
-    assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
-    if(channel)
-    {
-        assertRedisErr(redisAsyncCommand(context, setCB, NULL, cmd.str(), key, strlen(key), value, size), "SET buffer write error");
-        ev_loop(EV_DEFAULT_ 0);
-        assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
-        ev_loop(EV_DEFAULT_ 0);
-    }
-    else
-    {
-        ReturnValue retVal;
-        StringBuffer cmd2("GETSET %b %b");
-        RedisPlugin::appendExpire(cmd2, expire);
-        //obtain channel
-        assertRedisErr(redisAsyncCommand(context, getCB, (void*)&retVal, cmd2.str(), key, strlen(key), value, size), "SET buffer write error");
-        ev_loop(EV_DEFAULT_ 0);
-
-        if (strncmp(retVal.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
-        {
-            assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
-            ev_loop(EV_DEFAULT_ 0);
-        }
-    }
-}
-//----------------------------------SET----------------------------------------
-template<class type> void Connection::set(ICodeContext * ctx, const char * key, type value, unsigned expire, const char * channel)
-{
-    const char * _value = reinterpret_cast<const char *>(&value);//Do this even for char * to prevent compiler complaining
-    handleLock(ctx, key, _value, sizeof(type), channel, expire);
-}
-template<class type> void Connection::set(ICodeContext * ctx, const char * key, size32_t valueSize, const type * value, unsigned expire, const char * channel)
-{
-    const char * _value = reinterpret_cast<const char *>(value);//Do this even for char * to prevent compiler complaining
-    handleLock(ctx, key, _value, (size_t)valueSize, channel, expire);
-}
-//-----------------------------------SET------------------------------------------
-ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
-{
-    Async::RSet(ctx, options, key, valueLength, value, expire);
-}
-ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned expire /* = 0 (ECL default)*/)
-{
-    Async::RSet(ctx, options, key, (valueLength)*sizeof(UChar), value, expire);
-}
-ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, signed __int64 value, unsigned expire /* = 0 (ECL default)*/)
-{
-    Async::RSet(ctx, options, key, value, expire);
-}
-ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 value, unsigned expire /* = 0 (ECL default)*/)
-{
-    Async::RSet(ctx, options, key, value, expire);
-}
-ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, double value, unsigned expire /* = 0 (ECL default)*/)
-{
-    Async::RSet(ctx, options, key, value, expire);
-}
-ECL_REDIS_API void ECL_REDIS_CALL RSet(ICodeContext * ctx, const char * options, const char * key, bool value, unsigned expire)
-{
-    Async::RSet(ctx, options, key, value, expire);
-}
-ECL_REDIS_API void ECL_REDIS_CALL RSetData(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned expire)
-{
-    Async::RSet(ctx, options, key, valueLength, value, expire);
-}
-ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
-{
-    Async::RSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, expire);
-}
-
 }//close Async namespace
 
 
@@ -712,6 +724,59 @@ ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8(ICodeContext * ctx, const char * opti
 
 
 namespace Lock {
+//-----------------------------------SET------------------------------------------
+ECL_REDIS_API void ECL_REDIS_CALL RSetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, unsigned __int64 _keyPtr, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), valueLength, value, expire, keyPtr->getChannel());
+    returnLength = valueLength;
+    memcpy(&returnValue, value, returnLength);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue, unsigned __int64 _keyPtr, size32_t valueLength, const UChar * value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), (valueLength)*sizeof(UChar), value, expire, keyPtr->getChannel());
+    returnLength = valueLength;
+    memcpy(&returnValue, value, returnLength);
+}
+ECL_REDIS_API signed __int64 ECL_REDIS_CALL RSetInt(ICodeContext * ctx, unsigned __int64 _keyPtr, signed __int64 value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), value, expire, keyPtr->getChannel());
+    return value;
+}
+ECL_REDIS_API  unsigned __int64 ECL_REDIS_CALL RSetUInt(ICodeContext * ctx, unsigned __int64 _keyPtr, unsigned __int64 value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), value, expire, keyPtr->getChannel());
+    return value;
+}
+ECL_REDIS_API double ECL_REDIS_CALL RSetReal(ICodeContext * ctx, unsigned __int64 _keyPtr, double value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), value, expire, keyPtr->getChannel());
+    return value;
+}
+ECL_REDIS_API bool ECL_REDIS_CALL RSetBool(ICodeContext * ctx, unsigned __int64 _keyPtr,  bool value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), value, expire, keyPtr->getChannel());
+    return value;
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetData(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, unsigned __int64 _keyPtr, size32_t valueLength, const void * value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), valueLength, value, expire, keyPtr->getChannel());
+    returnLength = valueLength;
+    memcpy(&returnValue, value, returnLength);
+}
+ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, unsigned __int64 _keyPtr, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
+{
+    KeyLock * keyPtr = (KeyLock*)_keyPtr;
+    Async::RSet(ctx, keyPtr->getOptions(), keyPtr->getKey(), rtlUtf8Size(valueLength, value), value, expire, keyPtr->getChannel());
+    returnLength = valueLength;
+    memcpy(&returnValue, value, returnLength);
+}
 //-------------------------------------GET----------------------------------------
 ECL_REDIS_API bool ECL_REDIS_CALL RGetBool(ICodeContext * ctx, unsigned __int64 _keyPtr)
 {

@@ -71,20 +71,17 @@ extern "C++"
     ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
     ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetUint8 (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
     ECL_REDIS_API double           ECL_REDIS_CALL RGetDouble(ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetUtf8  (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, const char * options, const char * key, const char * partitionKey);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & valueLength, UChar * & returnValue, const char * options, const char * key, const char * partitionKey);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetUChar (ICodeContext * _ctx, size32_t & valueLength, char * & returnValue, const char * options, const char * key, const char * partitionKey);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUtf8  (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, const char * partitionKey);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, const char * partitionKey);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUChar (ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, const char * options, const char * key, const char * partitionKey);
     ECL_REDIS_API void             ECL_REDIS_CALL RGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, const char * options, const char * key, const char * partitionKey);
 
     //--------------------------------AUXILLARIES---------------------------
     ECL_REDIS_API bool             ECL_REDIS_CALL RExist  (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
-    //ECL_REDIS_API const char *     ECL_REDIS_CALL RKeyType(ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
     ECL_REDIS_API void             ECL_REDIS_CALL RClear  (ICodeContext * _ctx, const char * options);
-    ECL_REDIS_API void             ECL_REDIS_CALL RDel  (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
-    ECL_REDIS_API void             ECL_REDIS_CALL RPersist  (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
-    ECL_REDIS_API void             ECL_REDIS_CALL RExpire  (ICodeContext * _ctx, const char * options, const char * key, unsigned expire, const char * partitionKey);
-
-    ECL_REDIS_API void ECL_REDIS_CALL RCmdStr(ICodeContext * _ctx, size32_t & returnLength, void * & value, const char * options, const char * key);
+    ECL_REDIS_API void             ECL_REDIS_CALL RDel    (ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
+    ECL_REDIS_API void             ECL_REDIS_CALL RPersist(ICodeContext * _ctx, const char * options, const char * key, const char * partitionKey);
+    ECL_REDIS_API void             ECL_REDIS_CALL RExpire (ICodeContext * _ctx, const char * options, const char * key, unsigned expire, const char * partitionKey);
 }
 
 #endif
