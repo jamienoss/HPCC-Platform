@@ -15,13 +15,14 @@
     limitations under the License.
 ############################################################################## */
 
-#ifndef ECL_REDIS_LOCK_INCL
-#define ECL_REDIS_LOCK_INCL
+#ifndef ECL_REDIS_ASYNC_INCL
+#define ECL_REDIS_ASYNC_INCL
 
 #include "redisplugin.hpp"
 
 extern "C++"
 {
+namespace Async{
     //------------------------ASYNC--GET----------------------------------------
     ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, const char * options, const char * key);
     ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, const char * options, const char * key);
@@ -40,8 +41,9 @@ extern "C++"
     ECL_REDIS_API void ECL_REDIS_CALL RSetStr  (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire);
     ECL_REDIS_API void ECL_REDIS_CALL RSetUChar(ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned expire);
     ECL_REDIS_API void ECL_REDIS_CALL RSetData (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned expire);
+}
 
-
+namespace Lock{
     ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key);
     ECL_REDIS_API bool ECL_REDIS_CALL RMissThenLock(ICodeContext * ctx, unsigned __int64 keyPtr);
     //------------------------LOCKING--GET----------------------------------------
@@ -63,5 +65,5 @@ extern "C++"
     ECL_REDIS_API void             ECL_REDIS_CALL RSetUChar(ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, unsigned __int64 keyPtr, size32_t valueLength, const UChar * value, unsigned expire);
     ECL_REDIS_API void             ECL_REDIS_CALL RSetData (ICodeContext * _ctx, size32_t & returnLength, void * & returnValue, unsigned __int64 keyPtr, size32_t valueLength, const void * value, unsigned expire);
 }
-
+}
 #endif

@@ -67,7 +67,7 @@ export locking := SERVICE : plugin('redis')
   BOOLEAN MissThenLock(UNSIGNED8 keyPtr) : cpp,once,context,namespace='Lock',entrypoint='RExistLockSub';
 
   UNICODE SetUnicode(UNSIGNED8 keyPtr, CONST UNICODE value, UNSIGNED4 expire = 0) : cpp,once,context,namespace='Lock',entrypoint='RSetUChar';
-  STRING SetString(UNSIGNED8 keyPtr, CONST STRING value, UNSIGNED4 expire = 0) : cpp,once,context,namespace='Lock',entrypoint='RSetstr';
+  STRING SetString(UNSIGNED8 keyPtr, CONST STRING value, UNSIGNED4 expire = 0) : cpp,once,context,namespace='Lock',entrypoint='RSetStr';
   UTF8 SetUtf8(UNSIGNED8 keyPtr, CONST UTF8 value, UNSIGNED4 expire = 0) : cpp,once,context,namespace='Lock',entrypoint='RSetUtf8';
   BOOLEAN SetBoolean(UNSIGNED8 keyPtr, BOOLEAN value, UNSIGNED4 expire = 0) : cpp,once,context,namespace='Lock',entrypoint='RSetBool';
   REAL SetReal(UNSIGNED8 keyPtr, REAL value, UNSIGNED4 expire = 0) : cpp,once,context,namespace='Lock',entrypoint='RSetReal';

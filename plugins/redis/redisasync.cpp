@@ -25,7 +25,7 @@
 #include "jmutex.hpp"
 #include "redisplugin.hpp"
 #include "redissync.hpp"
-#include "redislock.hpp"
+#include "redisasync.hpp"
 
 #include "hiredis/async.h"
 
@@ -588,7 +588,6 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
     handleLockForGet(ctx, key, channel, &retVal);
 
     returnSize = retVal.getSize();
-    //returnValue = reinterpret_cast<type*>(cpy(retVal.str(), returnSize));
     returnValue = reinterpret_cast<type*>(retVal.getStr());
 }
 void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnSize, void * & returnValue, const char * channel )

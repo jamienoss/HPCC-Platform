@@ -30,11 +30,11 @@ if (USE_REDIS)
     set (    SRCS
              redisplugin.hpp
              redissync.hpp
-             redislock.hpp
+             redisasync.hpp
 
              redisplugin.cpp
              redissync.cpp
-             redislock.cpp
+             redisasync.cpp
         )
 
     include_directories (
