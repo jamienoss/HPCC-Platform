@@ -39,7 +39,7 @@ static const unsigned REDIS_MAX_LOCKS = 9999;
 class KeyLock : public CInterface
 {
 public :
-    KeyLock(const char * _options, const char * _key, const char * _lock);
+    KeyLock(ICodeContext * ctx, const char * _options, const char * _key, const char * _lock);
     ~KeyLock();
 
     inline const char * getKey()     const { return key.str(); }
@@ -53,12 +53,12 @@ private :
     StringAttr key;
     StringAttr channel;
 };
-KeyLock::KeyLock(const char * _options, const char * _key, const char * _lockId)
+KeyLock::KeyLock(ICodeContext * ctx, const char * _options, const char * _key, const char * _lockId)
 {
     options.setown(_options);
     key.set(_key);
     channel.set(_lockId);
-    RedisPlugin::parseOptions(_options, master, port);
+    RedisPlugin::parseOptions(ctx, _options, master, port);
 }
 KeyLock::~KeyLock()
 {
@@ -722,7 +722,7 @@ ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx,
     //srand(unsigned int seed);
     lockId.append(rand()%REDIS_MAX_LOCKS+1);
 
-    keyPtr.set(new Lock::KeyLock(options, key, lockId.str()));
+    keyPtr.set(new Lock::KeyLock(ctx, options, key, lockId.str()));
     return reinterpret_cast<unsigned long long>(keyPtr.get());
 }
 ECL_REDIS_API bool ECL_REDIS_CALL RMissThenLock(ICodeContext * ctx, unsigned __int64 _keyPtr)

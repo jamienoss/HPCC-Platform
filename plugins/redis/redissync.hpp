@@ -47,8 +47,9 @@ public :
 
 protected :
     virtual void assertOnError(const redisReply * reply, const char * _msg);
-    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg);
     virtual void assertConnection();
+    virtual void logServerStats(ICodeContext * ctx);
+    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg);
 
 protected :
     redisContext * context;
@@ -57,8 +58,7 @@ protected :
 
 extern "C++"
 {
-namespace Sync
-{
+namespace Sync {
     //--------------------------SET----------------------------------------
     ECL_REDIS_API void ECL_REDIS_CALL RSetBool (ICodeContext * _ctx, const char * options, const char * key, bool value, unsigned expire);
     ECL_REDIS_API void ECL_REDIS_CALL RSetInt  (ICodeContext * _ctx, const char * options, const char * key, signed __int64 value, unsigned expire);

@@ -31,6 +31,7 @@ Connection::Connection(ICodeContext * ctx, const char * _options) : RedisPlugin:
    context = redisConnectWithTimeout(master.str(), port, RedisPlugin::REDIS_TIMEOUT);
    assertConnection();
    redisSetTimeout(context, RedisPlugin::REDIS_TIMEOUT);
+   init(ctx);
 }
 
 Connection * createConnection(ICodeContext * ctx, const char * options)
@@ -42,13 +43,21 @@ Connection * createConnection(ICodeContext * ctx, const char * options)
         return LINK(cachedConnection);
     }
 
-    if (cachedConnection->isSameConnection(options))
+    if (cachedConnection->isSameConnection(ctx, options))
         return LINK(cachedConnection);
 
     cachedConnection.setown(new Connection(ctx, options));
     return LINK(cachedConnection);
 }
-
+void Connection::logServerStats(ICodeContext * ctx)
+{
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "INFO ALL"));
+    assertOnError(reply->query(), "'INFO ALL' request failed");
+    StringBuffer stats("Redis Plugin : Server stats - ");
+    stats.newline().append(reply->query()->str).newline();
+    ctx->logString(stats.str());
+    alreadyInitialized = true;
+}
 bool Connection::logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg)
 {
     if (!reply)
@@ -85,7 +94,7 @@ void Connection::assertConnection()
         rtlFail(0, "Redis Plugin: 'redisConnect' failed - no error available.");
     else if (context->err)
     {
-        VStringBuffer msg("Redis Plugin: Connection failed - %s", context->errstr);
+        VStringBuffer msg("Redis Plugin: Connection failed - %s for %s:%u", context->errstr, master.str(), port);
         rtlFail(0, msg.str());
     }
 }
@@ -205,15 +214,9 @@ void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t 
 
 bool Connection::exist(ICodeContext * ctx, const char * key)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "GET %b", key, strlen(key)*sizeof(char)));
-
-    if (reply->query()->type == REDIS_REPLY_NIL)
-        return false;
-    else
-    {
-        assertOnError(reply->query(), "'Exist' request failed - ");
-        return true;
-    }
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "EXISTS %b", key, strlen(key)*sizeof(char)));
+    assertOnError(reply->query(), "'Exist' request failed - ");
+    return (reply->query()->integer != 0);
 }
 //--------------------------------------------------------------------------------
 //                           ECL SERVICE ENTRYPOINTS

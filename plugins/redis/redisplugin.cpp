@@ -39,33 +39,6 @@ ECL_REDIS_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 namespace RedisPlugin {
 IPluginContext * parentCtx = NULL;
 
-const char * enumToStr(RedisPlugin::eclDataType type)
-{
-    switch(type)
-    {
-    case ECL_BOOLEAN:
-        return "BOOLEAN";
-    case ECL_INTEGER:
-        return "INTEGER";
-    case ECL_UNSIGNED:
-        return "UNSIGNED";
-    case ECL_REAL:
-        return "REAL";
-    case ECL_STRING:
-        return "STRING";
-    case ECL_UTF8:
-        return "UTF8";
-    case ECL_UNICODE:
-        return "UNICODE";
-    case ECL_DATA:
-        return "DATA";
-    case ECL_NONE:
-        return "Nonexistent";
-    default:
-        return "UNKNOWN";
-    }
-}
-
 StringBuffer & appendExpire(StringBuffer & buffer, unsigned expire)
 {
     if (expire > 0)
@@ -109,7 +82,7 @@ Connection * createConnection(ICodeContext * ctx, const char * options)
         return LINK(cachedConnection);
     }
 
-    if (cachedConnection->isSameConnection(options))
+    if (cachedConnection->isSameConnection(ctx, options))
         return LINK(cachedConnection);
 
     cachedConnection.setown(new RedisPlugin::Connection(ctx, options));
@@ -119,7 +92,7 @@ Connection * createConnection(ICodeContext * ctx, const char * options)
 
 ECL_REDIS_API void setPluginContext(IPluginContext * ctx) { RedisPlugin::parentCtx = ctx; }
 
-void RedisPlugin::parseOptions(const char * _options, StringAttr & master, int & port)
+void RedisPlugin::parseOptions(ICodeContext * ctx, const char * _options, StringAttr & master, int & port)
 {
     StringArray optionStrings;
     optionStrings.appendList(_options, " ");
@@ -135,44 +108,39 @@ void RedisPlugin::parseOptions(const char * _options, StringAttr & master, int &
             {
                 master.set(splitPort.item(0));
                 port = atoi(splitPort.item(1));
+                return;
             }
-            else
-            {
-                master.set("localhost");//MORE: May need to explicitly be 127.0.0.1
-                port = 6379;
-            }
-         }
+        }
         else
         {
             VStringBuffer err("RedisPlugin: unsupported option string %s", opt);
             rtlFail(0, err.str());
         }
     }
+    master.set("localhost");
+    port = 6379;
+    if (!ctx)
+        return;
+    VStringBuffer msg("Redis Plugin: WARNING - using default server (%s:%d)", master.str(), port);
+    ctx->logString(msg.str());
 }
 
 RedisPlugin::Connection::Connection(ICodeContext * ctx, const char * _options)
 {
     alreadyInitialized = false;
     options.set(_options);
-    typeMismatchCount = 0;
-    RedisPlugin::parseOptions(_options, master, port);
-
-    /*if (!alreadyInitialized)
-    {
-        init(ctx);//doesn't necessarily initialize anything, instead outputs specs etc for debugging
-        alreadyInitialized = true;
-    }*/
+    RedisPlugin::parseOptions(ctx, _options, master, port);
 }
 //-----------------------------------------------------------------------------
 
-bool RedisPlugin::Connection::isSameConnection(const char * _options) const
+bool RedisPlugin::Connection::isSameConnection(ICodeContext * ctx, const char * _options) const
 {
     if (!_options)
         return false;
 
     StringAttr newMaster;
     int newPort = 0;
-    RedisPlugin::parseOptions(_options, newMaster, newPort);
+    RedisPlugin::parseOptions(ctx, _options, newMaster, newPort);
 
     return stricmp(master.get(), newMaster.get()) == 0 && port == newPort;
 }
@@ -183,106 +151,11 @@ void * RedisPlugin::Connection::cpy(const char * src, size_t size)
     return memcpy(value, src, size);
 }
 
-void RedisPlugin::Connection::checkServersUp(ICodeContext * ctx)
-{
-   /* redisReply * reply;
-    char * args = NULL;
-
-    OwnedMalloc<memcached_stat_st> stats;
-    stats.setown(memcached_stat(connection, args, &reply));
-    assertex(stats);
-
-    unsigned int numberOfServers = memcached_server_count(connection);
-    unsigned int numberOfServersDown = 0;
-    for (unsigned i = 0; i < numberOfServers; ++i)
-    {
-        if (stats[i].pid == -1)//perhaps not the best test?
-        {
-            numberOfServersDown++;
-            VStringBuffer msg("Memcached Plugin: Failed connecting to entry %u\nwithin the server list: %s", i+1, options.str());
-            ctx->logString(msg.str());
-        }
-    }
-    if (numberOfServersDown == numberOfServers)
-        rtlFail(0,"Memcached Plugin: Failed connecting to ALL servers. Check memcached on all servers and \"memcached -B ascii\" not used.");
-
-    //check memcached version homogeneity
-    for (unsigned i = 0; i < numberOfServers-1; ++i)
-    {
-        if (strcmp(stats[i].version, stats[i+1].version) != 0)
-            ctx->logString("Memcached Plugin: Inhomogeneous versions of memcached across servers.");
-    }
-    */
-}
-
 const char * RedisPlugin::Connection::appendIfKeyNotFoundMsg(const redisReply * reply, const char * key, StringBuffer & target) const
 {
     if (reply && reply->type == REDIS_REPLY_NIL)
         target.append("(key: '").append(key).append("') ");
     return target.str();
-}
-
-/*RedisPlugin::RedisPlugin::eclDataType RedisPlugin::Connection::getKeyType(const char * key, const char * partitionKey)
-{
-    size_t returnValueLength;
-    uint32_t flag;
-    OwnedReply reply;
-
-    size_t partitionKeyLength = strlen(partitionKey);
-    if (partitionKeyLength)
-        memcached_get_by_key(connection, partitionKey, partitionKeyLength, key, strlen(key), &returnValueLength, &flag, &reply);
-    else
-        memcached_get(connection, key, strlen(key), &returnValueLength, &flag, &reply);
-
-    if (reply == MEMCACHED_SUCCESS)
-        return (RedisPlugin::eclDataType)(flag);
-    else if (reply == MEMCACHED_NOTFOUND)
-        return ECL_NONE;
-    else
-    {
-        VStringBuffer msg("Memcached Plugin: 'KeyType' request failed - %s", memcached_strerror(connection, reply));
-        rtlFail(0, msg.str());
-    }
-
-}*/
-
-/*void RedisPlugin::Connection::reportKeyTypeMismatch(ICodeContext * ctx, const char * key, uint32_t flag, RedisPlugin::eclDataType eclType)
-{
-    if (flag && eclType != ECL_DATA && flag != eclType)
-    {
-        VStringBuffer msg("Memcached Plugin: The requested key '%s' is of type %s, not %s as requested.", key, enumToStr((RedisPlugin::eclDataType)(flag)), enumToStr(eclType));
-        if (++typeMismatchCount <= MAX_TYPEMISMATCHCOUNT)
-            ctx->logString(msg.str());
-    }
-}*/
-
-void RedisPlugin::Connection::logServerStats(ICodeContext * ctx)
-{
-   /* //NOTE: errors are ignored here so that at least some info is reported, such as non-connection related libmemcached version numbers
-    OwnedReply reply;
-    char * args = NULL;
-
-    OwnedMalloc<memcached_stat_st> stats;
-    stats.setown(memcached_stat(connection, args, &reply));
-
-    OwnedMalloc<char*> keys;
-    keys.setown(memcached_stat_get_keys(connection, stats, &reply));
-
-    unsigned int numberOfServers = memcached_server_count(connection);
-    for (unsigned int i = 0; i < numberOfServers; ++i)
-    {
-        StringBuffer statsStr;
-        unsigned j = 0;
-        do
-        {
-            OwnedMalloc<char> value;
-            value.setown(memcached_stat_get_value(connection, &stats[i], keys[j], &reply));
-            statsStr.newline().append("libmemcached server stat - ").append(keys[j]).append(":").append(value);
-        } while (keys[++j]);
-        statsStr.newline().append("libmemcached client stat - libmemcached version:").append(memcached_lib_version());
-        ctx->logString(statsStr.str());
-    }
-    */
 }
 
 void RedisPlugin::Connection::init(ICodeContext * ctx)

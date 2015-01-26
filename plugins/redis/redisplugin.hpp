@@ -44,10 +44,8 @@ extern "C"
 class StringBuffer;
 
 namespace RedisPlugin {
-
 static const struct timeval REDIS_TIMEOUT = { 1, 500000 }; // { sec, ms } => 1.5 seconds
 static const unsigned unitExpire = 86400;//1 day (secs)
-#define MAX_TYPEMISMATCHCOUNT 10;
 
 //redis base commands
 #define setCmd "SET %b %b"
@@ -56,18 +54,6 @@ static const unsigned unitExpire = 86400;//1 day (secs)
 #define setFailMsg "'Set' request failed - "
 #define getFailMsg "'Get<type>' request failed - "
 
-enum eclDataType {
-    ECL_BOOLEAN,
-    ECL_DATA,
-    ECL_INTEGER,
-    ECL_REAL,
-    ECL_STRING,
-    ECL_UTF8,
-    ECL_UNICODE,
-    ECL_UNSIGNED,
-    ECL_NONE
-};
-const char * enumToStr(eclDataType type);
 StringBuffer & appendExpire(StringBuffer & buffer, unsigned expire);
 
 class Connection : public CInterface
@@ -75,18 +61,16 @@ class Connection : public CInterface
 public :
     Connection(ICodeContext * ctx, const char * _options);
     virtual void clear(ICodeContext * ctx, unsigned when) { };
-    //eclDataType getKeyType(const char * key, const char * partitionKey);
-    bool isSameConnection(const char * _options) const;
+    bool isSameConnection(ICodeContext * ctx, const char * _options) const;
 
 protected :
     virtual void assertOnError(const redisReply * reply, const char * _msg) { };
-    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg) { return FALSE; };
     virtual void assertConnection() { };
+    virtual void logServerStats(ICodeContext * ctx) { };
+    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg) { return FALSE; };
 
-    void checkServersUp(ICodeContext * ctx);
     const char * appendIfKeyNotFoundMsg(const redisReply * reply, const char * key, StringBuffer & target) const;
     void * cpy(const char * src, size_t size);
-    void logServerStats(ICodeContext * ctx);
     void init(ICodeContext * ctx);
     void invokePoolSecurity(ICodeContext * ctx);
     void invokeConnectionSecurity(ICodeContext * ctx);
@@ -97,7 +81,6 @@ protected :
     StringAttr master;
     int port;
     bool alreadyInitialized;
-    unsigned typeMismatchCount;
 };
 
 class Reply : public CInterface
@@ -121,7 +104,7 @@ private :
 Reply * createReply(void * _reply);
 #define OwnedReply Owned<RedisPlugin::Reply>
 
-void parseOptions(const char * options, StringAttr & master, int & port);
+void parseOptions(ICodeContext * ctx, const char * options, StringAttr & master, int & port);
 
 }//close namespace
 
