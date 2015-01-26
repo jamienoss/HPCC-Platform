@@ -22,7 +22,8 @@
 
 extern "C++"
 {
-namespace Async{
+namespace Async
+{
     //------------------------ASYNC--GET----------------------------------------
     ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, const char * options, const char * key);
     ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, const char * options, const char * key);
@@ -43,7 +44,8 @@ namespace Async{
     ECL_REDIS_API void ECL_REDIS_CALL RSetData (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned expire);
 }
 
-namespace Lock{
+namespace Lock
+{
     ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key);
     ECL_REDIS_API bool ECL_REDIS_CALL RMissThenLock(ICodeContext * ctx, unsigned __int64 keyPtr);
     //------------------------LOCKING--GET----------------------------------------

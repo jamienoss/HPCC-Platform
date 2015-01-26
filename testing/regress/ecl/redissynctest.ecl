@@ -27,7 +27,7 @@ REAL pi := 3.14159265359;
 SetReal(servers, 'pi', pi);
 GetReal(servers, 'pi');
 
-INTEGER i := 12345689;
+INTEGER i := 123456789;
 SetInteger(servers, 'i', i);
 GetInteger(servers, 'i');
 
@@ -52,10 +52,8 @@ SetData(servers, 'data', mydata);
 GetData(servers,'data');
 
 Exist(servers, 'utf8');
-KeyType(servers,'utf8');
 
 //The following test some exceptions
 GetInteger(servers, 'pi');
 Clear(servers);
 Exist(servers, 'utf8');
-KeyType(servers,'utf8');
