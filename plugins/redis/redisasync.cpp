@@ -231,7 +231,7 @@ SubContainer::SubContainer(ICodeContext * ctx, const char * options, const char 
     channel.set(_channel);
     callback = _callback;
 }
-Connection::Connection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options)
+Connection::Connection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options, 0)
 {
     createAndAssertConnection();
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.

@@ -73,19 +73,19 @@ static CriticalSection crit;
 typedef Owned<RedisPlugin::Connection> OwnedConnection;
 static OwnedConnection cachedConnection;
 
-Connection * createConnection(ICodeContext * ctx, const char * options)
+Connection * createConnection(ICodeContext * ctx, const char * options, unsigned __int64 _database)
 {
     CriticalBlock block(crit);
     if (!cachedConnection)
     {
-        cachedConnection.setown(new RedisPlugin::Connection(ctx, options));
+        cachedConnection.setown(new RedisPlugin::Connection(ctx, options, _database));
         return LINK(cachedConnection);
     }
 
-    if (cachedConnection->isSameConnection(ctx, options))
+    if (cachedConnection->isSameConnection(ctx, options, _database))
         return LINK(cachedConnection);
 
-    cachedConnection.setown(new RedisPlugin::Connection(ctx, options));
+    cachedConnection.setown(new RedisPlugin::Connection(ctx, options, _database));
     return LINK(cachedConnection);
 }
 }//close namespace
@@ -125,17 +125,19 @@ void RedisPlugin::parseOptions(ICodeContext * ctx, const char * _options, String
     ctx->logString(msg.str());
 }
 
-RedisPlugin::Connection::Connection(ICodeContext * ctx, const char * _options)
+RedisPlugin::Connection::Connection(ICodeContext * ctx, const char * _options, unsigned __int64 _database)
 {
     alreadyInitialized = false;
     options.set(_options);
+    database = _database;
     RedisPlugin::parseOptions(ctx, _options, master, port);
+    selectDB(ctx);
 }
 //-----------------------------------------------------------------------------
 
-bool RedisPlugin::Connection::isSameConnection(ICodeContext * ctx, const char * _options) const
+bool RedisPlugin::Connection::isSameConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) const
 {
-    if (!_options)
+    if (!_options || database != _database)
         return false;
 
     StringAttr newMaster;

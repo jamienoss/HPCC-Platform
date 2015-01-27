@@ -25,7 +25,7 @@ namespace Sync
 class Connection : public RedisPlugin::Connection
 {
 public :
-    Connection(ICodeContext * ctx, const char * _options);
+    Connection(ICodeContext * ctx, const char * _options, unsigned __int64 database);
     ~Connection()
     {
         if (context)
@@ -39,13 +39,15 @@ public :
     template <class type> void get(ICodeContext * ctx, const char * key, type & value);
     template <class type> void get(ICodeContext * ctx, const char * key, size_t & valueLength, type * & value);
     void getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & valueLength, void * & value);
-    bool exist(ICodeContext * ctx, const char * key);
     void persist(ICodeContext * ctx, const char * key);
     void expire(ICodeContext * ctx, const char * key, unsigned _expire);
-    virtual void del(ICodeContext * ctx, const char * key);
-    virtual void clear(ICodeContext * ctx, unsigned when);
+    void del(ICodeContext * ctx, const char * key);
+    void clear(ICodeContext * ctx, unsigned when);
+    unsigned __int64 dbSize(ICodeContext * ctx);
+    bool exist(ICodeContext * ctx, const char * key);
 
 protected :
+    virtual void selectDB(ICodeContext * ctx);
     virtual void assertOnError(const redisReply * reply, const char * _msg);
     virtual void assertConnection();
     virtual void logServerStats(ICodeContext * ctx);
@@ -60,30 +62,31 @@ extern "C++"
 {
 namespace Sync {
     //--------------------------SET----------------------------------------
-    ECL_REDIS_API void ECL_REDIS_CALL RSetBool (ICodeContext * _ctx, const char * options, const char * key, bool value, unsigned expire);
-    ECL_REDIS_API void ECL_REDIS_CALL RSetInt  (ICodeContext * _ctx, const char * options, const char * key, signed __int64 value, unsigned expire);
-    ECL_REDIS_API void ECL_REDIS_CALL RSetUInt (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 value, unsigned expire);
-    ECL_REDIS_API void ECL_REDIS_CALL RSetReal (ICodeContext * _ctx, const char * options, const char * key, double value, unsigned expire);
-    ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8 (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire);
-    ECL_REDIS_API void ECL_REDIS_CALL RSetStr  (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire);
-    ECL_REDIS_API void ECL_REDIS_CALL RSetUChar(ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned expire);
-    ECL_REDIS_API void ECL_REDIS_CALL RSetData (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetBool (ICodeContext * _ctx, const char * options, const char * key, bool value, unsigned __int64 database, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetInt  (ICodeContext * _ctx, const char * options, const char * key, signed __int64 value, unsigned __int64 database, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetUInt (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 value, unsigned __int64 database, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetReal (ICodeContext * _ctx, const char * options, const char * key, double value, unsigned __int64 database, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetUtf8 (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetStr  (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetUChar(ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned __int64 database, unsigned expire);
+    ECL_REDIS_API void ECL_REDIS_CALL RSetData (ICodeContext * _ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned __int64 database, unsigned expire);
     //--------------------------GET----------------------------------------
-    ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, const char * options, const char * key);
-    ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, const char * options, const char * key);
-    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetUint8 (ICodeContext * _ctx, const char * options, const char * key);
-    ECL_REDIS_API double           ECL_REDIS_CALL RGetDouble(ICodeContext * _ctx, const char * options, const char * key);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetUtf8  (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetUChar (ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, const char * options, const char * key);
-    ECL_REDIS_API void             ECL_REDIS_CALL RGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, const char * options, const char * key);
+    ECL_REDIS_API bool             ECL_REDIS_CALL RGetBool  (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API signed __int64   ECL_REDIS_CALL RGetInt8  (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetUint8 (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API double           ECL_REDIS_CALL RGetDouble(ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUtf8  (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetStr   (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetUChar (ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, const char * options, const char * key, unsigned __int64 database);
 
     //--------------------------------AUXILLARIES---------------------------
-    ECL_REDIS_API bool             ECL_REDIS_CALL RExist  (ICodeContext * _ctx, const char * options, const char * key);
-    ECL_REDIS_API void             ECL_REDIS_CALL RClear  (ICodeContext * _ctx, const char * options);
-    ECL_REDIS_API void             ECL_REDIS_CALL RDel    (ICodeContext * _ctx, const char * options, const char * key);
-    ECL_REDIS_API void             ECL_REDIS_CALL RPersist(ICodeContext * _ctx, const char * options, const char * key);
-    ECL_REDIS_API void             ECL_REDIS_CALL RExpire (ICodeContext * _ctx, const char * options, const char * key, unsigned expire);
+    ECL_REDIS_API bool             ECL_REDIS_CALL RExist  (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RClear  (ICodeContext * _ctx, const char * options, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RDel    (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RPersist(ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database);
+    ECL_REDIS_API void             ECL_REDIS_CALL RExpire (ICodeContext * _ctx, const char * options, const char * key, unsigned expire, unsigned __int64 database);
+    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RDBSize (ICodeContext * _ctx, const char * options, unsigned __int64 database);
 }
 }
 #endif

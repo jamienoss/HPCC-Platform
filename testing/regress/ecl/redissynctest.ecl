@@ -27,6 +27,10 @@ REAL pi := 3.14159265359;
 SetReal(servers, 'pi', pi);
 GetReal(servers, 'pi');
 
+REAL pi2 := 3.14159265359*2;
+SetReal(servers, 'pi', pi2, 1);
+GetReal(servers, 'pi', 1);
+
 INTEGER i := 123456789;
 SetInteger(servers, 'i', i);
 GetInteger(servers, 'i');
@@ -57,5 +61,12 @@ Expire(servers, 'str', 1);
 Persist(servers, 'str');
 //The following test some exceptions
 GetInteger(servers, 'pi');
+
+NOFOLD(DBSize(servers));
+NOFOLD(DBSize(servers, 1));
+NOFOLD(DBSize(servers, 2));
 Clear(servers);
-NOFOLD(Exist(servers, 'utf8')); 
+NOFOLD(Exist(servers, 'utf8'));
+
+
+

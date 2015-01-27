@@ -1,0 +1,11 @@
+
+
+
+/**********************/
+/*Databases and SELECT*/
+/**********************/
+
+All internal connections to redis are presumed, at any point in time, to be pointing to the default database (0).
+When specifying a database other than the default (0) 2x 'SELECT db' must be sent to switch db and back again.
+This takes performace preference when using only a single db. There is no way of determining which db a connection is currently pointing towards.
+Alternative is not not return to db0. Only relevant with sync connections as only these are cached.

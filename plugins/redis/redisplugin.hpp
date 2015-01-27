@@ -59,17 +59,18 @@ StringBuffer & appendExpire(StringBuffer & buffer, unsigned expire);
 class Connection : public CInterface
 {
 public :
-    Connection(ICodeContext * ctx, const char * _options);
+    Connection(ICodeContext * ctx, const char * _options, unsigned __int64 _database);
     virtual void clear(ICodeContext * ctx, unsigned when) { };
-    bool isSameConnection(ICodeContext * ctx, const char * _options) const;
+    bool isSameConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) const;
     const char * getMaster() const { return master.str(); }
     int getPort() const { return port; }
 
 protected :
-    virtual void assertOnError(const redisReply * reply, const char * _msg) { };
-    virtual void assertConnection() { };
-    virtual void logServerStats(ICodeContext * ctx) { };
-    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg) { return FALSE; };
+    virtual void selectDB(ICodeContext * ctx) { }
+    virtual void assertOnError(const redisReply * reply, const char * _msg) { }
+    virtual void assertConnection() { }
+    virtual void logServerStats(ICodeContext * ctx) { }
+    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg) { return FALSE; }
 
     const char * appendIfKeyNotFoundMsg(const redisReply * reply, const char * key, StringBuffer & target) const;
     void * cpy(const char * src, size_t size);
@@ -82,6 +83,7 @@ protected :
     StringAttr options;
     StringAttr master;
     int port;
+    unsigned __int64 database;
     bool alreadyInitialized;
 };
 
