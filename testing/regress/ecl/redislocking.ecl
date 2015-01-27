@@ -24,11 +24,18 @@ STRING servers := '--SERVER=127.0.0.1:6379';
 //SetBoolean(servers, 'b', TRUE);
 //GetBoolean(servers, 'b');
 
-REAL pi := 3.14159265359;
 UNSIGNED lock := GetLockObject(servers, 'pi');
-OUTPUT(IF( MissThenLock(lock), SetReal(lock, pi), GetReal(lock) ));
+//GetLockObject(servers, 'pi');
+//GetLockObject(servers, 'pi');
+NOFOLD(MissThenLock(lock));
+NOFOLD(MissThenLock(lock));
+
+
+REAL pi := 3.14159265359;
+//OUTPUT(IF( MissThenLock(lock), SetReal(lock, pi), GetReal(lock) ));
 //SetReal(servers, 'pi', pi);
 //GetReal(servers, 'pi');
+
 
 /*
 INTEGER i := 123456789;
