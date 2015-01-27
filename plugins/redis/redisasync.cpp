@@ -55,7 +55,7 @@ private :
 };
 KeyLock::KeyLock(ICodeContext * ctx, const char * _options, const char * _key, const char * _lockId)
 {
-    options.setown(_options);
+    options.set(_options);
     key.set(_key);
     channel.set(_lockId);
     RedisPlugin::parseOptions(ctx, _options, master, port);
@@ -63,12 +63,11 @@ KeyLock::KeyLock(ICodeContext * ctx, const char * _options, const char * _key, c
 KeyLock::~KeyLock()
 {
     redisContext * context = redisConnectWithTimeout(master, port, RedisPlugin::REDIS_TIMEOUT);
-    StringAttr lockIdFound;
     CriticalBlock block(crit);
     OwnedReply reply = RedisPlugin::createReply(redisCommand(context, getCmd, key.str(), strlen(key.str())));
-    lockIdFound.setown(reply->query()->str);
+    const char * channel2 = reply->query()->str;
 
-    if (strcmp(channel, lockIdFound) == 0)
+    if (strcmp(channel, channel2) == 0)
         OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b", key.str(), strlen(key.str())));
 
     if (context)
@@ -80,7 +79,7 @@ namespace Async
 {
 static CriticalSection crit;
 static const unsigned REDIS_TIMEOUT = 1000;//ms
-class SubHolder;
+class SubContainer;
 
 class ReturnValue : public CInterface
 {
@@ -147,12 +146,12 @@ protected :
     redisAsyncContext * context;
 };
 
-class SubHolder : public Async::Connection
+class SubContainer : public Async::Connection
 {
 public :
-    SubHolder(ICodeContext * ctx, const char * options, const char * _channel);
-    SubHolder(ICodeContext * ctx, const char * options, const char * _channel, redisCallbackFn * _callback);
-    ~SubHolder()
+    SubContainer(ICodeContext * ctx, const char * options, const char * _channel);
+    SubContainer(ICodeContext * ctx, const char * options, const char * _channel, redisCallbackFn * _callback);
+    ~SubContainer()
     {
         unsubscribe();
     }
@@ -187,10 +186,10 @@ protected :
     StringAttr channel;
 };
 
-class SubscriptionThread : implements IThreaded, implements IInterface, public SubHolder
+class SubscriptionThread : implements IThreaded, implements IInterface, public SubContainer
 {
 public :
-    SubscriptionThread(ICodeContext * ctx, const char * options, const char * channel) : SubHolder(ctx, options, channel), thread("SubscriptionThread", (IThreaded*)this)
+    SubscriptionThread(ICodeContext * ctx, const char * options, const char * channel) : SubContainer(ctx, options, channel), thread("SubscriptionThread", (IThreaded*)this)
     {
         evLoop = NULL;
     }
@@ -222,12 +221,12 @@ private :
     CThreaded  thread;
     struct ev_loop * evLoop;
 };
-SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _channel) : Connection(ctx, options)
+SubContainer::SubContainer(ICodeContext * ctx, const char * options, const char * _channel) : Connection(ctx, options)
 {
     channel.set(_channel);
     callback = subCB;
 }
-SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _channel, redisCallbackFn * _callback) : Connection(ctx, options)
+SubContainer::SubContainer(ICodeContext * ctx, const char * options, const char * _channel, redisCallbackFn * _callback) : Connection(ctx, options)
 {
     channel.set(_channel);
     callback = _callback;
@@ -349,7 +348,7 @@ void Connection::assertCallbackError(const redisAsyncContext * context, const re
     assertContextErr(context);
 }
 //Async callbacks-----------------------------------------------------------------
-void SubHolder::subCB(redisAsyncContext * context, void * _reply, void * privdata)
+void SubContainer::subCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     if (_reply == NULL || privdata == NULL)
         return;
@@ -359,7 +358,7 @@ void SubHolder::subCB(redisAsyncContext * context, void * _reply, void * privdat
 
     if (reply->type == REDIS_REPLY_ARRAY)
     {
-        Async::SubHolder * holder = (Async::SubHolder*)privdata;
+        Async::SubContainer * holder = (Async::SubContainer*)privdata;
         if (strcmp("subscribe", reply->element[0]->str) == 0 )
             holder->subActivated();
         else if (strcmp("message", reply->element[0]->str) == 0 )
@@ -418,6 +417,7 @@ void Connection::setLockCB(redisAsyncContext * context, void * _reply, void * pr
     {
     case REDIS_REPLY_STATUS :
         *(bool*)privdata = strcmp(reply->str, "OK") == 0;
+        break;
     case REDIS_REPLY_NIL :
         *(bool*)privdata = false;
     }
@@ -439,13 +439,13 @@ void Connection::subscribe(const char * channel, StringAttr & value)
     assertRedisErr(redisAsyncCommand(context, subCB, (void*)&value, "SUBSCRIBE %b", channel, strlen(channel)), "SUBSCRIBE buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 }
-void SubHolder::subscribe(struct ev_loop * evLoop)
+void SubContainer::subscribe(struct ev_loop * evLoop)
 {
     assertRedisErr(redisLibevAttach(evLoop, context), "failure to attach to libev");
     assertRedisErr(redisAsyncCommand(context, callback, (void*)this, "SUBSCRIBE %b", channel.str(), channel.length()), "SUBSCRIBE buffer write error");
     ev_loop(evLoop, 0);
 }
-void SubHolder::unsubscribe()
+void SubContainer::unsubscribe()
 {
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
@@ -467,7 +467,7 @@ bool Connection::lock(const char * key, const char * channel)
 
     bool locked = false;
     attachLibev();
-    assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&locked, cmd.str(), key, strlen(key)), "SET NX (lock) buffer write error");
+    assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&locked, cmd.str(), key, strlen(key), channel, strlen(channel)), "SET NX (lock) buffer write error");
     ev_loop(EV_DEFAULT_ 0);
     return locked;
 }
@@ -481,7 +481,7 @@ void Connection::handleLockForGet(ICodeContext * ctx, const char * key, const ch
         subThread->start();//subscribe and wait for 1st callback that redis received sub. Do not block for main message callback this is the point of the thread.
     }
 
-    assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
+    attachLibev();
     assertRedisErr(redisAsyncCommand(context, getCB, (void*)retVal, "GET %b", key, strlen(key)), "GET buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 
@@ -508,7 +508,7 @@ void Connection::handleLockForSet(ICodeContext * ctx, const char * key, const ch
 {
     StringBuffer cmd(setCmd);
     RedisPlugin::appendExpire(cmd, expire);
-    assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
+    attachLibev();
     if(channel)//acknowledge locks i.e. for use as the race winner and lock owner
     {
         //Due to locking logic surfacing into ECL, any locking.set (such as this is) assumes that they own the lock and therefore just go ahead and set
