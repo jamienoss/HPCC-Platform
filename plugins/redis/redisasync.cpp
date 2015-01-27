@@ -413,7 +413,14 @@ void Connection::setLockCB(redisAsyncContext * context, void * _reply, void * pr
 {
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(context, reply, "set lock callback fail");
-    memcpy(privdata, _reply, sizeof(redisReply));
+
+    switch(reply->type)
+    {
+    case REDIS_REPLY_STATUS :
+        *(bool*)privdata = strcmp(reply->str, "OK") == 0;
+    case REDIS_REPLY_NIL :
+        *(bool*)privdata = false;
+    }
     redisLibevDelRead((void*)context->ev.data);
 }
 void Connection::pubCB(redisAsyncContext * context, void * _reply, void * privdata)
@@ -458,19 +465,11 @@ bool Connection::lock(const char * key, const char * channel)
     StringBuffer cmd("SET %b %b NX EX ");
     cmd.append(Lock::REDIS_LOCK_EXPIRE);
 
-    redisReply reply;
+    bool locked = false;
     attachLibev();
-    assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&reply, cmd.str(), key, strlen(key)), "SET NX (lock) buffer write error");
+    assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&locked, cmd.str(), key, strlen(key)), "SET NX (lock) buffer write error");
     ev_loop(EV_DEFAULT_ 0);
-
-    switch(reply.type)
-    {
-    case REDIS_REPLY_STATUS :
-        return strcmp(reply.str, "OK") == 0;
-    case REDIS_REPLY_NIL :
-        return false;
-    }
-    return false;
+    return locked;
 }
 void Connection::handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal)
 {
@@ -539,31 +538,6 @@ void Connection::handleLockForSet(ICodeContext * ctx, const char * key, const ch
         }
     }
 }
-
-
-
-
-
-
-
-//----------------------------------GET----------------------------------------
-/*template<class type> void Connection::get(ICodeContext * ctx, const char * key, type & returnValue, const char * channel )
-{
-    ReturnValue retVal;
-    handleLock(ctx, key, channel, &retVal);
-
-    StringBuffer keyMsg = getFailMsg;
-    //assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
-
-    size_t returnSize = retVal.getSize();//*sizeof(type);
-    if (sizeof(type)!=returnSize)
-    {
-        VStringBuffer msg("RedisPlugin: ERROR - Requested type of different size (%uB) from that stored (%uB).", (unsigned)sizeof(type), (unsigned)returnSize);
-        rtlFail(0, msg.str());
-    }
-    memcpy(&returnValue, retVal.str(), returnSize);//one less cpy possible by using retVal.getStr()
-}
-*/
 //-------------------------------------------GET-----------------------------------------
 //---OUTER---
 template<class type> void RGet(ICodeContext * ctx, const char * options, const char * key, type & returnValue, const char * channel = NULL)
@@ -581,11 +555,6 @@ template<class type> void RGet(ICodeContext * ctx, const char * options, const c
     }
     memcpy(&returnValue, retVal.str(), returnSize);
 }
-/*template<class type> void RGet(ICodeContext * ctx, const char * options, const char * key, type & returnValue, const char * channel = NULL)
-{
-    Owned<Async::Connection> master = Async::createConnection(ctx, options);
-    master->get(ctx, key, returnValue, channel);
-}*/
 template<class type> void RGet(ICodeContext * ctx, const char * options, const char * key, size_t & returnLength, type * & returnValue, const char * channel = NULL)
 {
     Owned<Async::Connection> master = Async::createConnection(ctx, options);
@@ -725,11 +694,6 @@ ECL_REDIS_API void ECL_REDIS_CALL RGetData(ICodeContext * ctx, size32_t & return
 }
 }//close Async namespace
 
-
-
-
-
-
 namespace Lock {
 ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RGetLockObject(ICodeContext * ctx, const char * options, const char * key)
 {
@@ -867,6 +831,4 @@ ECL_REDIS_API void ECL_REDIS_CALL RGetData(ICodeContext * ctx, size32_t & return
     Async::RGet(ctx, keyPtr->getOptions(), keyPtr->getKey(), _returnLength, returnValue, keyPtr->getChannel());
     returnLength = static_cast<size32_t>(_returnLength);
 }
-
 }//close Lock namespace
-
