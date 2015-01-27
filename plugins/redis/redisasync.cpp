@@ -82,7 +82,7 @@ static CriticalSection crit;
 static const unsigned REDIS_TIMEOUT = 1000;//ms
 class SubHolder;
 
-class ReturnValue //: public CInterface
+class ReturnValue : public CInterface
 {
 public :
     ReturnValue() : size(0), value(NULL) { }
@@ -118,20 +118,22 @@ public :
     template<class type> void set(ICodeContext * ctx, const char * key, size32_t valueLength, const type * value, unsigned expire, const char * channel);
 
     bool missThenLock(ICodeContext * ctx, Lock::KeyLock * keyPtr);
+    static void assertContextErr(const redisAsyncContext * context);
 
 protected :
-    void createAndAssertConnection();
     virtual void assertOnError(const redisReply * reply, const char * _msg);
     virtual void assertConnection();
+    void createAndAssertConnection();
     void assertRedisErr(int reply, const char * _msg);
     void handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal);
     void handleLockForSet(ICodeContext * ctx, const char * key, const char * value, size_t size, const char * channel, unsigned expire);
-    bool lock(const char * key, const char * channel);
     void subscribe(const char * channel, StringAttr & value);
     void unsubscribe(const char * channel);
+    void attachLibev();
+    bool lock(const char * key, const char * channel);
 
     //callbacks
-    static void assertCallbackError(const redisReply * reply, const char * _msg);
+    static void assertCallbackError(const redisAsyncContext * context, const redisReply * reply, const char * _msg);
     static void connectCB(const redisAsyncContext *c, int status);
     static void disconnectCB(const redisAsyncContext *c, int status);
     static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
@@ -139,6 +141,7 @@ protected :
     static void setCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void getCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void unsubCB(redisAsyncContext * context, void * _reply, void * privdata);
+    static void setLockCB(redisAsyncContext * context, void * _reply, void * privdata);
 
 protected :
     redisAsyncContext * context;
@@ -183,15 +186,13 @@ protected :
     StringAttr message;
     StringAttr channel;
 };
+
 class SubscriptionThread : implements IThreaded, implements IInterface, public SubHolder
 {
 public :
     SubscriptionThread(ICodeContext * ctx, const char * options, const char * channel) : SubHolder(ctx, options, channel), thread("SubscriptionThread", (IThreaded*)this)
     {
         evLoop = NULL;
-        //thread.start();
-        //thread.init(pIThreaded);
-        subActivationWait(REDIS_TIMEOUT);
     }
     virtual ~SubscriptionThread()
     {
@@ -201,7 +202,11 @@ public :
         thread.join();
     }
 
-    void start() { thread.start(); }
+    void start()
+    {
+        thread.start();
+        subActivationWait(REDIS_TIMEOUT);//wait for subscription to be acknowledged by redis
+    }
 
     IMPLEMENT_IINTERFACE;
 
@@ -230,6 +235,7 @@ SubHolder::SubHolder(ICodeContext * ctx, const char * options, const char * _cha
 Connection::Connection(ICodeContext * ctx, const char * _options) : RedisPlugin::Connection(ctx, _options)
 {
     createAndAssertConnection();
+    //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
 }
 Connection::~Connection()
 {
@@ -254,16 +260,27 @@ void Connection::assertConnection()
 {
     if (!context)
         rtlFail(0, "Redis Plugin: async context mem alloc fail.");
-
-    if (context->err)
+    assertContextErr(context);
+}
+void Connection::assertContextErr(const redisAsyncContext * context)
+{
+    if (context && context->err)
     {
-        VStringBuffer msg("Redis Plugin : failed to create connection context for %s:%d - %s", master.str(), port, context->errstr);
-        rtlFail(0, msg.str());
+        const Connection * connection = (const Connection*)context->data;
+        if (connection)
+        {
+            VStringBuffer msg("Redis Plugin : failed to create connection context for %s:%d - %s", connection->getMaster(), connection->getPort(), context->errstr);
+            rtlFail(0, msg.str());
+        }
+        {
+            VStringBuffer msg("Redis Plugin : failed to create connection context - %s", context->errstr);
+            rtlFail(0, msg.str());
+        }
     }
 }
 void Connection::connectCB(const redisAsyncContext * context, int status)
 {
-    if (status != REDIS_OK)//&& status != 2)
+    if (status != REDIS_OK)
     {
         if (context->data)
         {
@@ -280,7 +297,7 @@ void Connection::connectCB(const redisAsyncContext * context, int status)
 }
 void Connection::disconnectCB(const redisAsyncContext * context, int status)
 {
-    if (status != REDIS_OK && context->err != 2)//err = 2:  ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this contex
+    if (status != REDIS_OK)//&& context->err != 2)//err = 2:  ERR only (P)SUBSCRIBE / (P)UNSUBSCRIBE / QUIT allowed in this contex
     {
         if (context->data)
         {
@@ -295,13 +312,10 @@ void Connection::disconnectCB(const redisAsyncContext * context, int status)
         }
     }
 }
-
 Connection * createConnection(ICodeContext * ctx, const char * options)
 {
     return new Connection(ctx, options);
 }
-
-//-----------------------------------------------------------------------------
 void Connection::assertRedisErr(int reply, const char * _msg)
 {
     if (reply != REDIS_OK)
@@ -325,13 +339,14 @@ void Connection::assertOnError(const redisReply * reply, const char * _msg)
         rtlFail(0, msg.str());
     }
 }
-void Connection::assertCallbackError(const redisReply * reply, const char * _msg)
+void Connection::assertCallbackError(const redisAsyncContext * context, const redisReply * reply, const char * _msg)
 {
     if (reply && reply->type == REDIS_REPLY_ERROR)
     {
         VStringBuffer msg("Redis Plugin: %s%s", _msg, reply->str);
         rtlFail(0, msg.str());
     }
+    assertContextErr(context);
 }
 //Async callbacks-----------------------------------------------------------------
 void SubHolder::subCB(redisAsyncContext * context, void * _reply, void * privdata)
@@ -340,15 +355,13 @@ void SubHolder::subCB(redisAsyncContext * context, void * _reply, void * privdat
         return;
 
     redisReply * reply = (redisReply*)_reply;
-    assertCallbackError(reply, "callback fail");
+    assertCallbackError(context, reply, "callback fail");
 
     if (reply->type == REDIS_REPLY_ARRAY)
     {
         Async::SubHolder * holder = (Async::SubHolder*)privdata;
         if (strcmp("subscribe", reply->element[0]->str) == 0 )
-        {
             holder->subActivated();
-        }
         else if (strcmp("message", reply->element[0]->str) == 0 )
         {
             holder->setMessage(reply->element[2]->str);
@@ -365,7 +378,7 @@ void Connection::subCB(redisAsyncContext * context, void * _reply, void * privda
         return;
 
     redisReply * reply = (redisReply*)_reply;
-    assertCallbackError(reply, "callback fail");
+    assertCallbackError(context, reply, "callback fail");
 
     if (reply->type == REDIS_REPLY_ARRAY && strcmp("message", reply->element[0]->str) == 0 )
     {
@@ -378,13 +391,13 @@ void Connection::subCB(redisAsyncContext * context, void * _reply, void * privda
 void Connection::unsubCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     redisReply * reply = (redisReply*)_reply;
-    assertCallbackError(reply, "get callback fail");
+    assertCallbackError(context, reply, "get callback fail");
     redisLibevDelRead((void*)context->ev.data);
 }
 void Connection::getCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     redisReply * reply = (redisReply*)_reply;
-    assertCallbackError(reply, "get callback fail");
+    assertCallbackError(context, reply, "get callback fail");
 
     ReturnValue * retVal = (ReturnValue*)privdata;
     retVal->cpy((size_t)reply->len, reply->str);
@@ -393,13 +406,20 @@ void Connection::getCB(redisAsyncContext * context, void * _reply, void * privda
 void Connection::setCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     redisReply * reply = (redisReply*)_reply;
-    assertCallbackError(reply, "set callback fail");
+    assertCallbackError(context, reply, "set callback fail");
+    redisLibevDelRead((void*)context->ev.data);
+}
+void Connection::setLockCB(redisAsyncContext * context, void * _reply, void * privdata)
+{
+    redisReply * reply = (redisReply*)_reply;
+    assertCallbackError(context, reply, "set lock callback fail");
+    memcpy(privdata, _reply, sizeof(redisReply));
     redisLibevDelRead((void*)context->ev.data);
 }
 void Connection::pubCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     redisReply * reply = (redisReply*)_reply;
-    assertCallbackError(reply, "get callback fail");
+    assertCallbackError(context, reply, "get callback fail");
     redisLibevDelRead((void*)context->ev.data);
 }
 void Connection::unsubscribe(const char * channel)
@@ -427,69 +447,62 @@ bool Connection::missThenLock(ICodeContext * ctx, Lock::KeyLock * keyPtr)
 {
     return lock(keyPtr->getKey(), keyPtr->getChannel());
 }
-
+void Connection::attachLibev()
+{
+    if (context->ev.data)
+        return;
+    assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
+}
 bool Connection::lock(const char * key, const char * channel)
 {
     StringBuffer cmd("SET %b %b NX EX ");
     cmd.append(Lock::REDIS_LOCK_EXPIRE);
 
-    redisContext * c = redisConnect(master, port);
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(c, cmd.str(), key, strlen(key), channel, strlen(channel)));
-    const redisReply * actReply = reply->query();
+    redisReply reply;
+    attachLibev();
+    assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&reply, cmd.str(), key, strlen(key)), "SET NX (lock) buffer write error");
+    ev_loop(EV_DEFAULT_ 0);
 
-    if (!actReply)
-    {
-        VStringBuffer msg("Redis Plugin: reply failure when locking key '%s' with error - %s", key, c->errstr);
-        redisFree(c);
-        rtlFail(0, msg.str());
-    }
-    redisFree(c);
-
-    switch(actReply->type)
+    switch(reply.type)
     {
     case REDIS_REPLY_STATUS :
-        return strcmp(actReply->str, "OK") == 0;
+        return strcmp(reply.str, "OK") == 0;
     case REDIS_REPLY_NIL :
         return false;
-    case REDIS_REPLY_ERROR :
-    {
-        VStringBuffer msg("Redis Plugin: failure to lock key '%s' with error - %s", key, actReply->str);
-        rtlFail(0, msg.str());
-    }
     }
     return false;
 }
 void Connection::handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal)
 {
-    bool ignoreLock = (channel == NULL);
-    Owned<SubscriptionThread> subThread;//ctx, options.str(), channel);
+    bool ignoreLock = (channel == NULL);//function was not passed with channel => called from non-locking async routines
+    Owned<SubscriptionThread> subThread;//thread to hold subscription event loop
     if (!ignoreLock)
     {
         subThread.set(new SubscriptionThread(ctx, options.str(), channel));
-        subThread->start();
+        subThread->start();//subscribe and wait for 1st callback that redis received sub. Do not block for main message callback this is the point of the thread.
     }
 
     assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
     assertRedisErr(redisAsyncCommand(context, getCB, (void*)retVal, "GET %b", key, strlen(key)), "GET buffer write error");
     ev_loop(EV_DEFAULT_ 0);
 
-    //Main logic
     if (ignoreLock)
-        return;
+        return;//with value just retrieved regardless of success (handled by caller)
 
-    if (retVal->isEmpty())
+    if (retVal->isEmpty())//cache miss
     {
         if (lock(key, channel))
-            return;
+            return;//race winner
         else
-            subThread->wait(REDIS_TIMEOUT);
+            subThread->wait(REDIS_TIMEOUT);//race losers
     }
-    else
+    else //contents found
     {
+        //check if already locked
         if (strncmp(retVal->str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
-            subThread->wait(REDIS_TIMEOUT);
+            subThread->wait(REDIS_TIMEOUT);//locked so lets subscribe for value
         else
-            return;
+            return;//normal GET
     }
 }
 void Connection::handleLockForSet(ICodeContext * ctx, const char * key, const char * value, size_t size, const char * channel, unsigned expire)
@@ -497,26 +510,32 @@ void Connection::handleLockForSet(ICodeContext * ctx, const char * key, const ch
     StringBuffer cmd(setCmd);
     RedisPlugin::appendExpire(cmd, expire);
     assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");
-    if(channel)
+    if(channel)//acknowledge locks i.e. for use as the race winner and lock owner
     {
+        //Due to locking logic surfacing into ECL, any locking.set (such as this is) assumes that they own the lock and therefore just go ahead and set
+        //It is possible for a process/call to 'own' a lock and store this info in the LockObject, however, this prevents sharing between clients.
         assertRedisErr(redisAsyncCommand(context, setCB, NULL, cmd.str(), key, strlen(key), value, size), "SET buffer write error");
-        ev_loop(EV_DEFAULT_ 0);
+        ev_loop(EV_DEFAULT_ 0);//not theoretically necessary as subscribers receive value from published message. In addition, the logic stated above allows for any other client to set
+        //and therefore as soon as this is set it can be instantly altered. However, this is here as libev handles socket io to/from redis.
         assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
-        ev_loop(EV_DEFAULT_ 0);
+        ev_loop(EV_DEFAULT_ 0);//this only waits to ensure redis received pub cmd. MORE: reply contains number of subscribers on that channel - utilise this?
     }
     else
     {
         ReturnValue retVal;
+        //This branch represents a normal async get i.e. no lockObject present and this no channel
+        //There are two primary options that could be taken    1) set regardless of lock (publish if it was locked)
+        //                                                     2) Only set if not locked
+        //(1)
         StringBuffer cmd2("GETSET %b %b");
         RedisPlugin::appendExpire(cmd2, expire);
         //obtain channel
         assertRedisErr(redisAsyncCommand(context, getCB, (void*)&retVal, cmd2.str(), key, strlen(key), value, size), "SET buffer write error");
         ev_loop(EV_DEFAULT_ 0);
-
         if (strncmp(retVal.str(), Lock::REDIS_LOCK_PREFIX, strlen(Lock::REDIS_LOCK_PREFIX)) == 0 )
         {
             assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
-            ev_loop(EV_DEFAULT_ 0);
+            ev_loop(EV_DEFAULT_ 0);//again not necessary, could just call redisAsyncHandleWrite(context);
         }
     }
 }
@@ -625,7 +644,7 @@ template<class type> void Connection::set(ICodeContext * ctx, const char * key, 
 //-----------------------------------SET------------------------------------------
 ECL_REDIS_API void ECL_REDIS_CALL RSetStr(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned expire /* = 0 (ECL default)*/)
 {
-    Async::RSet(ctx, options, key, valueLength*sizeof(char), value, expire, NULL);
+    Async::RSet(ctx, options, key, valueLength, value, expire, NULL);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RSetUChar(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned expire /* = 0 (ECL default)*/)
 {

@@ -62,6 +62,8 @@ public :
     Connection(ICodeContext * ctx, const char * _options);
     virtual void clear(ICodeContext * ctx, unsigned when) { };
     bool isSameConnection(ICodeContext * ctx, const char * _options) const;
+    const char * getMaster() const { return master.str(); }
+    int getPort() const { return port; }
 
 protected :
     virtual void assertOnError(const redisReply * reply, const char * _msg) { };

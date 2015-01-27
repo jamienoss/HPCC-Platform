@@ -107,17 +107,17 @@ void Connection::clear(ICodeContext * ctx, unsigned when)
 }
 void Connection::del(ICodeContext * ctx, const char * key)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b", key, strlen(key)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b", key, strlen(key)));
     assertOnError(reply->query(), "'Del' request failed - ");
 }
 void Connection::persist(ICodeContext * ctx, const char * key)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "PERSIST %b", key, strlen(key)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "PERSIST %b", key, strlen(key)));
     assertOnError(reply->query(), "'Persist' request failed - ");
 }
 void Connection::expire(ICodeContext * ctx, const char * key, unsigned _expire)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b %u", key, strlen(key)*sizeof(char), _expire));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "DEL %b %u", key, strlen(key), _expire));
     assertOnError(reply->query(), "'Expire' request failed - ");
 }
 //-------------------------------------------SET-----------------------------------------
@@ -142,7 +142,7 @@ template<class type> void Connection::set(ICodeContext * ctx, const char * key, 
     StringBuffer cmd(setCmd);
     RedisPlugin::appendExpire(cmd, expire);
 
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, cmd.str(), key, strlen(key)*sizeof(char), _value, sizeof(type)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, cmd.str(), key, strlen(key), _value, sizeof(type)));
     assertOnError(reply->query(), msg);
 }
 template<class type> void Connection::set(ICodeContext * ctx, const char * key, size32_t valueLength, const type * value, unsigned expire)
@@ -152,7 +152,7 @@ template<class type> void Connection::set(ICodeContext * ctx, const char * key, 
 
     StringBuffer cmd(setCmd);
     RedisPlugin::appendExpire(cmd, expire);
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, cmd.str(), key, strlen(key)*sizeof(char), _value, (size_t)valueLength));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, cmd.str(), key, strlen(key), _value, (size_t)valueLength));
     assertOnError(reply->query(), msg);
 }
 //-------------------------------------------GET-----------------------------------------
@@ -175,7 +175,7 @@ void RGetVoidPtrLenPair(ICodeContext * ctx, const char * options, const char * k
 //--INNER--
 template<class type> void Connection::get(ICodeContext * ctx, const char * key, type & returnValue)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, getCmd, key, strlen(key)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, getCmd, key, strlen(key)));
 
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
@@ -191,7 +191,7 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
 }
 template<class type> void Connection::get(ICodeContext * ctx, const char * key, size_t & returnLength, type * & returnValue)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, getCmd, key, strlen(key)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, getCmd, key, strlen(key)));
 
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
@@ -203,17 +203,17 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
 }
 void Connection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnLength, void * & returnValue)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, getCmd, key, strlen(key)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, getCmd, key, strlen(key)));
     StringBuffer keyMsg = getFailMsg;
     assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
 
     returnLength = reply->query()->len;
-    returnValue = reinterpret_cast<void*>(cpy(reply->query()->str, reply->query()->len*sizeof(char)));
+    returnValue = reinterpret_cast<void*>(cpy(reply->query()->str, reply->query()->len));
 }
 
 bool Connection::exist(ICodeContext * ctx, const char * key)
 {
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "EXISTS %b", key, strlen(key)*sizeof(char)));
+    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "EXISTS %b", key, strlen(key)));
     assertOnError(reply->query(), "'Exist' request failed - ");
     return (reply->query()->integer != 0);
 }
