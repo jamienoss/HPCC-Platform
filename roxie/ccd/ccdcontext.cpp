@@ -179,7 +179,7 @@ public:
             {
                 output->outputBeginNested("edge", true);
                 output->outputCString((const char *) edges.query().getKey(), "@edgeId");
-                output->outputUInt(edge->queryCount(), sizeof(unsigned), "@count");
+                output->outputUInt(edge->queryCount(), "@count");
                 output->outputEndNested("edge");
             }
             if (reset)
@@ -332,7 +332,7 @@ private:
         return r->getResultInt();
     }
 
-    void setResultInt(const char * name, unsigned sequence, unsigned __int64 value, unsigned size)
+    void setResultInt(const char * name, unsigned sequence, unsigned __int64 value)
     {
         WorkunitUpdate w(&workunit->lock());
         w->setResultInt(name, sequence, value);
@@ -512,9 +512,9 @@ private:
         eclName.append(lfn).append("$eclcrc");
         whenName.append(lfn).append("$when");
 
-        setResultInt(crcName, ResultSequencePersist, allCRC, sizeof(int));
-        setResultInt(eclName, ResultSequencePersist, eclCRC, sizeof(int));
-        setResultInt(whenName, ResultSequencePersist, time(NULL), sizeof(int));
+        setResultInt(crcName, ResultSequencePersist, allCRC);
+        setResultInt(eclName, ResultSequencePersist, eclCRC);
+        setResultInt(whenName, ResultSequencePersist, time(NULL));
 
         logctx.CTXLOG("Convert persist write lock to read lock");
         changePersistLockMode(persistLock, RTM_LOCK_READ, logicalName, true);
@@ -1517,12 +1517,12 @@ public:
     virtual void setResultBool(const char *name, unsigned sequence, bool value) { throwUnexpected(); }
     virtual void setResultData(const char *name, unsigned sequence, int len, const void * data) { throwUnexpected(); }
     virtual void setResultDecimal(const char * stepname, unsigned sequence, int len, int precision, bool isSigned, const void *val) { throwUnexpected(); }
-    virtual void setResultInt(const char *name, unsigned sequence, __int64 value, unsigned size) { throwUnexpected(); }
+    virtual void setResultInt(const char *name, unsigned sequence, __int64 value) { throwUnexpected(); }
     virtual void setResultRaw(const char *name, unsigned sequence, int len, const void * data) { throwUnexpected(); }
     virtual void setResultReal(const char * stepname, unsigned sequence, double value) { throwUnexpected(); }
     virtual void setResultSet(const char *name, unsigned sequence, bool isAll, size32_t len, const void * data, ISetToXmlTransformer * transformer) { throwUnexpected(); }
     virtual void setResultString(const char *name, unsigned sequence, int len, const char * str) { throwUnexpected(); }
-    virtual void setResultUInt(const char *name, unsigned sequence, unsigned __int64 value, unsigned size) { throwUnexpected(); }
+    virtual void setResultUInt(const char *name, unsigned sequence, unsigned __int64 value) { throwUnexpected(); }
     virtual void setResultUnicode(const char *name, unsigned sequence, int len, UChar const * str) { throwUnexpected(); }
     virtual void setResultVarString(const char * name, unsigned sequence, const char * value) { throwUnexpected(); }
     virtual void setResultVarUnicode(const char * name, unsigned sequence, UChar const * value) { throwUnexpected(); }
@@ -3235,7 +3235,7 @@ public:
             }
         }
     }
-    virtual void setResultInt(const char *name, unsigned sequence, __int64 value, unsigned size)
+    virtual void setResultInt(const char *name, unsigned sequence, __int64 value)
     {
         if (isSpecialResultSequence(sequence))
         {
@@ -3247,13 +3247,11 @@ public:
             FlushingStringBuffer *r = queryResult(sequence);
             if (r)
             {
+                r->startScalar(name, sequence);
                 if (isRaw)
-                {
-                    r->startScalar(name, sequence);
                     r->append(sizeof(value), (char *)&value);
-                }
                 else
-                    r->setScalarInt(name, sequence, value, size);
+                    r->appendf("%" I64F "d", value);
             }
         }
 
@@ -3279,7 +3277,7 @@ public:
         }
     }
 
-    virtual void setResultUInt(const char *name, unsigned sequence, unsigned __int64 value, unsigned size)
+    virtual void setResultUInt(const char *name, unsigned sequence, unsigned __int64 value)
     {
         if (isSpecialResultSequence(sequence))
         {
@@ -3291,13 +3289,11 @@ public:
             FlushingStringBuffer *r = queryResult(sequence);
             if (r)
             {
+                r->startScalar(name, sequence);
                 if (isRaw)
-                {
-                    r->startScalar(name, sequence);
                     r->append(sizeof(value), (char *)&value);
-                }
                 else
-                    r->setScalarUInt(name, sequence, value, size);
+                    r->appendf("%"I64F"u", value);
             }
         }
 

@@ -36,7 +36,7 @@
 void usage()
 {
     printf("dafilesrv usage:\n");
-    printf("    dafilesrv -T<n> <port> <-NOSSL> [<send-buff-size-kb> <recv-buff-size-kb>]\n");
+    printf("    dafilesrv -T<n> <port> [<send-buff-size-kb> <recv-buff-size-kb>]\n");
     printf("                                                  -- run test local\n");
     printf("    dafilesrv -D [ -L <log-dir> ] [ -LOCAL ]      -- run as linux daemon\n");
     printf("    dafilesrv -R                                  -- run remote (linux daemon, windows standalone)\n");
@@ -45,9 +45,7 @@ void usage()
     
     printf("add -A to enable authentication to the above \n\n");
     printf("add -I <instance name>  to specify an instance name\n\n");
-    printf("add -NOSSL to disable SSL sockets, even when specified in configuration\n\n");
     printf("Standard port is %d\n",DAFILESRV_PORT);
-    printf("Standard SSL port is %d (certificate specs required in environment.conf)\n",SECURE_DAFILESRV_PORT);
     printf("Version:  %s\n\n",remoteServerVersionString());
 }
 
@@ -347,13 +345,6 @@ int main(int argc,char **argv)
     bool requireauthenticate = false;
     StringBuffer logDir;
     StringBuffer instanceName;
-
-    //Get SSL Settings
-    const char *    sslCertFile;
-    bool            useSSL;
-    unsigned short  dafsPort;//DAFILESRV_PORT or SECURE_DAFILESRV_PORT
-    querySecuritySettings(&useSSL, &dafsPort, &sslCertFile, NULL);
-
     while (argc>i) {
         if (stricmp(argv[i],"-D")==0) {
             i++;
@@ -389,23 +380,8 @@ int main(int argc,char **argv)
             i++;
             locallisten = true;
         }
-        else if (stricmp(argv[i],"-NOSSL")==0) {//overrides config setting
-            i++;
-            if (useSSL)
-            {
-                PROGLOG("DaFileSrv SSL specified in config but overridden by -NOSSL in command line");
-                useSSL = false;
-                dafsPort = DAFILESRV_PORT;
-            }
-        }
         else
             break;
-    }
-
-    if (useSSL && !sslCertFile)
-    {
-        ERRLOG("DaFileSrv SSL specified but certificate file information missing from environment.conf");
-        exit(-1);
     }
 
     if (0 == logDir.length())
@@ -437,10 +413,10 @@ int main(int argc,char **argv)
     }
 #endif
     if (argc == i)
-        listenep.port = dafsPort;
+      listenep.port = DAFILESRV_PORT;
     else {
         if (strchr(argv[i],'.')||!isdigit(argv[i][0]))
-            listenep.set(argv[i], dafsPort);
+            listenep.set(argv[i],DAFILESRV_PORT);
         else
             listenep.port = atoi(argv[i]);
         if (listenep.port==0) {
@@ -457,7 +433,6 @@ int main(int argc,char **argv)
             bool stopped;
             bool started;
             SocketEndpoint listenep;
-            bool useSSL;
             bool requireauthenticate;
 
             
@@ -481,8 +456,8 @@ int main(int argc,char **argv)
 
         public:
 
-            cserv(SocketEndpoint _listenep, bool _useSSL)
-                : listenep(_listenep),useSSL(_useSSL),pollthread(this)
+            cserv(SocketEndpoint _listenep) 
+                : listenep(_listenep),pollthread(this)
             {
                 stopped = false;
                 started = false;
@@ -543,14 +518,14 @@ int main(int argc,char **argv)
                 else
                     listenep.getUrlStr(eps);
                 enableDafsAuthentication(requireauthenticate!=0);
-                PROGLOG("Opening "DAFS_SERVICE_DISPLAY_NAME" on %s%s", useSSL?"SECURE ":"",eps.str());
+                PROGLOG("Opening " DAFS_SERVICE_DISPLAY_NAME " on %s", eps.str());
                 const char * verstring = remoteServerVersionString();
                 PROGLOG("Version: %s", verstring);
                 PROGLOG("Authentication:%s required",requireauthenticate?"":" not");
                 PROGLOG(DAFS_SERVICE_DISPLAY_NAME " Running");
                 server.setown(createRemoteFileServer());
                 try {
-                    server->run(listenep, useSSL);
+                    server->run(listenep);
                 }
                 catch (IException *e) {
                     EXCLOG(e,DAFS_SERVICE_NAME);
@@ -559,7 +534,7 @@ int main(int argc,char **argv)
                 PROGLOG(DAFS_SERVICE_DISPLAY_NAME " Stopped");
                 stopped = true;
             }
-        } service(listenep, useSSL);
+        } service(listenep);
         service.start();
         return 0;
 #else
@@ -581,14 +556,14 @@ int main(int argc,char **argv)
     else
         listenep.getUrlStr(eps);
     enableDafsAuthentication(requireauthenticate);
-    PROGLOG("Opening Dali File Server on %s%s", useSSL?"SECURE ":"",eps.str());
+    PROGLOG("Opening Dali File Server on %s", eps.str());
     PROGLOG("Version: %s", verstring);
     PROGLOG("Authentication:%s required",requireauthenticate?"":" not");
     startPerformanceMonitor(10*60*1000, PerfMonStandard);
     server.setown(createRemoteFileServer());
     writeSentinelFile(sentinelFile);
     try {
-        server->run(listenep, useSSL);
+        server->run(listenep);
     }
     catch (IException *e) {
         EXCLOG(e,"DAFILESRV");
