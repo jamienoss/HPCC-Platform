@@ -3251,7 +3251,7 @@ public:
                 if (isRaw)
                     r->append(sizeof(value), (char *)&value);
                 else
-                    r->appendf("%"I64F"d", value);
+                    r->appendf("%" I64F "d", value);
             }
         }
 
@@ -3293,7 +3293,7 @@ public:
                 if (isRaw)
                     r->append(sizeof(value), (char *)&value);
                 else
-                    r->appendf("%"I64F"u", value);
+                    r->appendf("%" I64F "u", value);
             }
         }
 

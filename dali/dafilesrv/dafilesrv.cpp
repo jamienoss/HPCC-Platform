@@ -518,7 +518,7 @@ int main(int argc,char **argv)
                 else
                     listenep.getUrlStr(eps);
                 enableDafsAuthentication(requireauthenticate!=0);
-                PROGLOG("Opening "DAFS_SERVICE_DISPLAY_NAME" on %s", eps.str());
+                PROGLOG("Opening " DAFS_SERVICE_DISPLAY_NAME " on %s", eps.str());
                 const char * verstring = remoteServerVersionString();
                 PROGLOG("Version: %s", verstring);
                 PROGLOG("Authentication:%s required",requireauthenticate?"":" not");
