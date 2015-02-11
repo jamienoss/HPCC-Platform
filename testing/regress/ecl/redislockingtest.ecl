@@ -15,11 +15,29 @@
     limitations under the License.
 ############################################################################## */
 
-IMPORT * FROM lib_memcached.memcached;
+IMPORT * FROM lib_redis.locking;
+IMPORT FlushDB FROM lib_redis.sync;
 
-STRING servers := '--SERVER=127.0.0.1:11211';
-Clear(servers);
+STRING servers := '--SERVER=127.0.0.1:6379';
+//FlushDB(servers);
 
+key := 'pi';
+REAL compPi() := 3.14159265359;
+
+UNSIGNED lockObject := GetLockObject(servers, key);
+MissThenLock(lockObject);
+MissThenLock(lockObject);
+
+
+/*
+SEQUENTIAL
+(
+    UNSIGNED lockObject := GetLockObject(servers, 'pi'),
+    IF(MissThenLock(lockObject), SetReal(lockObject, compPi()), GetReal(lockObject))
+);
+*/
+
+/*
 SetBoolean(servers, 'b', TRUE);
 GetBoolean(servers, 'b');
 
@@ -27,7 +45,7 @@ REAL pi := 3.14159265359;
 SetReal(servers, 'pi', pi);
 GetReal(servers, 'pi');
 
-INTEGER i := 12345689;
+INTEGER i := 123456789;
 SetInteger(servers, 'i', i);
 GetInteger(servers, 'i');
 
@@ -50,12 +68,4 @@ GetUtf8(servers, 'utf8');
 DATA mydata := x'd790d791d792d793d794d795d796d798d799d79ad79bd79cd79dd79dd79ed79fd7a0d7a1d7a2d7a3d7a4d7a5d7a6d7a7d7a8d7a9d7aa';
 SetData(servers, 'data', mydata);
 GetData(servers,'data');
-
-Exist(servers, 'utf8');
-KeyType(servers,'utf8');
-
-//The following test some exceptions
-GetInteger(servers, 'pi');
-Clear(servers);
-Exist(servers, 'utf8');
-KeyType(servers,'utf8');
+*/

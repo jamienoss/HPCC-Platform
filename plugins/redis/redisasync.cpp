@@ -148,6 +148,8 @@ protected :
     static void assertCallbackError(const redisAsyncContext * context, const redisReply * reply, const char * _msg);
     static void connectCB(const redisAsyncContext *c, int status);
     static void disconnectCB(const redisAsyncContext *c, int status);
+    static void connectCB2(const redisAsyncContext *c);
+    static void disconnectCB2(const redisAsyncContext *c);
     static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void pubCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void setCB(redisAsyncContext * context, void * _reply, void * privdata);
@@ -284,7 +286,7 @@ void AsyncConnection::createAndAssertConnection(ICodeContext * ctx)
     context = redisAsyncConnect(ip(), port());
     assertConnection();
     context->data = (void*)this;
-    assertRedisErr(redisAsyncSetConnectCallback(context, connectCB), "failed to set connect callback");
+    assertRedisErr(redisAsyncSetConnectCallback(context, connectCB2), "failed to set connect callback");
     assertRedisErr(redisAsyncSetDisconnectCallback(context, disconnectCB), "failed to set disconnect callback");
     selectDb(ctx);
 }
@@ -307,6 +309,40 @@ void AsyncConnection::assertContextErr(const redisAsyncContext * context)
         else
         {
             VStringBuffer msg("Redis Plugin : failed to create connection context - %s", context->errstr);
+            rtlFail(0, msg.str());
+        }
+    }
+}
+void AsyncConnection::connectCB2(const redisAsyncContext * context)
+{
+    if (context && context->err)
+    {
+        if (context->data)
+        {
+            const AsyncConnection * connection = (AsyncConnection *)context->data;
+            VStringBuffer msg("Redis Plugin : failed to connect to %s:%d - %s", connection->ip(), connection->port(), context->errstr);
+            rtlFail(0, msg.str());
+        }
+        else
+        {
+            VStringBuffer msg("Redis Plugin : failed to connect - %s", context->errstr);
+            rtlFail(0, msg.str());
+        }
+    }
+}
+void AsyncConnection::disconnectCB2(const redisAsyncContext * context)
+{
+    if (context && context->err != REDIS_OK)
+    {
+        if (context->data)
+        {
+            const AsyncConnection  * connection = (AsyncConnection*)context->data;
+            VStringBuffer msg("Redis Plugin : server (%s:%d) forced disconnect - %s", connection->ip(), connection->port(), context->errstr);
+            rtlFail(0, msg.str());
+        }
+        else
+        {
+            VStringBuffer msg("Redis Plugin : server forced disconnect - %s", context->errstr);
             rtlFail(0, msg.str());
         }
     }
@@ -372,7 +408,7 @@ void AsyncConnection::assertCallbackError(const redisAsyncContext * context, con
 {
     if (reply && reply->type == REDIS_REPLY_ERROR)
     {
-        VStringBuffer msg("Redis Plugin: %s%s", _msg, reply->str);
+        VStringBuffer msg("Redis Plugin: %s - %s", _msg, reply->str);
         rtlFail(0, msg.str());
     }
     assertContextErr(context);
@@ -515,9 +551,10 @@ void AsyncConnection::attachLibev()
 }
 bool AsyncConnection::lock(const char * key, const char * channel)
 {
-    StringBuffer cmd("SET %b %b NX EX ");
-    cmd.append(REDIS_LOCK_EXPIRE);
+    StringBuffer cmd("SET %b %b");// EX ");
+    //cmd.append(REDIS_LOCK_EXPIRE);
 
+    printf("ch: %s - %s - %s\n", channel, key, cmd.str());
     bool locked = false;
     attachLibev();
     assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&locked, cmd.str(), key, strlen(key), channel, strlen(channel)), "SET NX (lock) buffer write error");
@@ -541,7 +578,7 @@ void AsyncConnection::handleLockForGet(ICodeContext * ctx, const char * key, con
     if (ignoreLock)
         return;//with value just retrieved regardless of success (handled by caller)
 
-    if (retVal->isEmpty())//cache miss
+    if (retVal->isEmpty())//cache miss MORE: this is really for the GetString case logic within ECL (rethink)
     {
         if (lock(key, channel))
             return;//race winner
