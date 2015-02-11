@@ -30,6 +30,7 @@
 #define ECL_REDIS_API
 #endif
 
+#include "jhash.hpp"
 #include "hqlplugins.hpp"
 #include "eclhelper.hpp"
 #include "jexcept.hpp"
@@ -58,18 +59,24 @@ public :
     RedisServer() : port(0) { }
     RedisServer(ICodeContext * ctx, const char * _options)
     {
-         options.set(_options);
-         parseOptions(ctx, _options);
+        serverPswdHash = hashc((const unsigned char*)_options, strlen(_options), 0);
+        options.set(_options);
+        parseOptions(ctx, _options);
     }
-    bool isSame(ICodeContext * ctx, const RedisServer * otherServer) const
+    RedisServer(ICodeContext * ctx, const char * _options, const char * pswd) : RedisServer(ctx, _options)
     {
-        return stricmp(ip.str(), otherServer->ip.str()) == 0 && port == otherServer->port;
+        serverPswdHash = hashc((const unsigned char*)_options, strlen(_options), serverPswdHash);
+    }
+    bool isSame(ICodeContext * ctx, unsigned hash) const
+    {
+        return (serverPswdHash == hash);
     }
     const char * getIp() { return ip.str(); }
     int getPort() { return port; }
     void parseOptions(ICodeContext * ctx, const char * _options);
 
 private :
+    unsigned serverPswdHash;
     StringAttr options;
     StringAttr ip;
     int port;
@@ -77,27 +84,22 @@ private :
 class Connection : public CInterface
 {
 public :
-    Connection(ICodeContext * ctx, const char * _options);
-    Connection(ICodeContext * ctx, RedisServer * _server);
+    Connection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * pswd);
+    Connection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database);
 
-    virtual void clear(ICodeContext * ctx, unsigned when) { };
-    bool isSameConnection(ICodeContext * ctx, const RedisServer * _server) const;
+    bool isSameConnection(ICodeContext * ctx, unsigned hash) const;
     const char * ip() const { return server->getIp(); }
     int port() const { return server->getPort(); }
 
 protected :
-    virtual void selectDB(ICodeContext * ctx, unsigned __int64 _database) { }
     virtual void assertOnError(const redisReply * reply, const char * _msg) { }
     virtual void assertConnection() { }
     virtual void logServerStats(ICodeContext * ctx) { }
-    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg) { return FALSE; }
+    virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg) { return false; }
 
     const char * appendIfKeyNotFoundMsg(const redisReply * reply, const char * key, StringBuffer & target) const;
     void * cpy(const char * src, size_t size);
     void init(ICodeContext * ctx);
-    void invokePoolSecurity(ICodeContext * ctx);
-    void invokeConnectionSecurity(ICodeContext * ctx);
-    void setPoolSettings();
 
 protected :
     Owned<RedisServer> server;

@@ -15,55 +15,66 @@
     limitations under the License.
 ############################################################################## */
 
-IMPORT * FROM lib_redis.sync;
+IMPORT sync FROM lib_redis;
 
 STRING servers := '--SERVER=127.0.0.1:6379';
-FlushDB(servers);
+STRING password := '123456789';
+sync.FlushDB(servers,,password);
 
-SetBoolean(servers, 'b', TRUE);
-GetBoolean(servers, 'b');
+sync.SetBoolean(servers, 'b', TRUE, /*database*/, /*expire*/, password);
+sync.GetBoolean(servers, 'b', /*database*/, password);
+
+IMPORT redisSync FROM lib_redis;
+myRedis := redisSync(servers, password);
 
 REAL pi := 3.14159265359;
-SetReal(servers, 'pi', pi);
-GetReal(servers, 'pi');
+myRedis.SetReal('pi', pi);
+myRedis.GetReal('pi');
 
-REAL pi2 := 3.14159265359*2;
-SetReal(servers, 'pi', pi2, 1);
-GetReal(servers, 'pi', 1);
+REAL pi2 := 3.14159265359*3.14159265359;
+myRedis.SetReal('pi', pi2, 1);
+myRedis.GetReal('pi', 1);
 
 INTEGER i := 123456789;
-SetInteger(servers, 'i', i);
-GetInteger(servers, 'i');
+myRedis.SetInteger('i', i);
+myRedis.GetInteger('i');
 
 UNSIGNED u := 7;
-SetUnsigned(servers, 'u', u);
-GetUnsigned(servers, 'u');
+myRedis.SetUnsigned('u', u);
+myRedis.GetUnsigned('u');
 
 STRING str  := 'supercalifragilisticexpialidocious';
-SetString(servers, 'str', str);
-GetString(servers, 'str');
+myRedis.SetString('str', str);
+myRedis.GetString('str');
 
 UNICODE uni := U'אבגדהוזחטיךכלםמןנסעףפץצקרשת';
-SetUnicode(servers, 'uni', uni);
-GetUnicode(servers, 'uni');
+myRedis.setUnicode('uni', uni);
+myRedis.getUnicode('uni');
 
 UTF8 utf := U'אבגדהוזחטיךכלםמןנסעףפץצקרשת';
-SetUtf8(servers, 'utf8', utf);
-GetUtf8(servers, 'utf8');
+myRedis.SetUtf8('utf8', utf);
+myRedis.GetUtf8('utf8');
 
 DATA mydata := x'd790d791d792d793d794d795d796d798d799d79ad79bd79cd79dd79dd79ed79fd7a0d7a1d7a2d7a3d7a4d7a5d7a6d7a7d7a8d7a9d7aa';
-SetData(servers, 'data', mydata);
-GetData(servers,'data');
+myRedis.SetData('data', mydata);
+myRedis.GetData('data');
 
-Exists(servers, 'utf8');
-Del(servers, 'utf8');
-Expire(servers, 'str', 1); 
-Persist(servers, 'str');
-//The following test some exceptions
-GetInteger(servers, 'pi');
+SEQUENTIAL(
+    myRedis.Exists('utf8'),
+    myRedis.Del('utf8'),
+    myRedis.Exists('uft8')
+    );
 
-NOFOLD(DBSize(servers));
-NOFOLD(DBSize(servers, 1));
-NOFOLD(DBSize(servers, 2));
-FlushDB(servers);
-NOFOLD(Exists(servers, 'utf8'));
+myRedis.Expire('str', 1); 
+myRedis.Persist('str');
+
+myRedis.GetInteger('pi');
+
+NOFOLD(myRedis.DBSize());
+NOFOLD(myRedis.DBSize(1));
+NOFOLD(myRedis.DBSize(2));
+
+SEQUENTIAL(
+    myRedis.FlushDB(),
+    NOFOLD(myRedis.Exists('str'))
+    );

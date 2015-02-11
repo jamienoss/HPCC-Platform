@@ -246,19 +246,18 @@ SubContainer::SubContainer(ICodeContext * ctx, RedisServer * _server, const char
     else
         callback = subCB;
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) : Connection(ctx, _options), context(NULL)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) : Connection(ctx, _options, _database, 0), context(NULL)
 {
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database) : Connection(ctx, _server), context(NULL)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database) : Connection(ctx, _server, _database), context(NULL)
 {
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, KeyLock * lockObject) : Connection(ctx, lockObject->getLinkServer()), context(NULL)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, KeyLock * lockObject) : Connection(ctx, lockObject->getLinkServer(), lockObject->getDatabase()), context(NULL)
 {
-    database = lockObject->getDatabase();
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
 }
@@ -286,7 +285,11 @@ void AsyncConnection::createAndAssertConnection(ICodeContext * ctx)
     context = redisAsyncConnect(ip(), port());
     assertConnection();
     context->data = (void*)this;
+#if (HIREDIS_MINOR == 0 && HIREDIS_MINOR < 11)
     assertRedisErr(redisAsyncSetConnectCallback(context, connectCB2), "failed to set connect callback");
+#else
+    assertRedisErr(redisAsyncSetConnectCallback(context, connectCB), "failed to set connect callback");
+#endif
     assertRedisErr(redisAsyncSetDisconnectCallback(context, disconnectCB), "failed to set disconnect callback");
     selectDb(ctx);
 }

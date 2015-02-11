@@ -16,34 +16,61 @@
 ############################################################################## */
 
 
-export sync := SERVICE : plugin('redis'), namespace('RedisPlugin')
-  SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetUChar';
-  SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, UNSIGNED database = 0,  UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetStr';
-  SetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST UTF8 value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetUtf8';
-  SetBoolean(CONST VARSTRING options, CONST VARSTRING key, BOOLEAN value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetBool';
-  SetReal(CONST VARSTRING options, CONST VARSTRING key, REAL value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetReal';
-  SetInteger(CONST VARSTRING options, CONST VARSTRING key, INTEGER value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetInt';
-  SetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetUInt';
-  SetData(CONST VARSTRING options, CONST VARSTRING key, CONST DATA value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='SyncRSetData';
+EXPORT sync := SERVICE : plugin('redis'), namespace('RedisPlugin')
+  SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetUChar';
+  SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, UNSIGNED database = 0,  UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetStr';
+  SetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST UTF8 value, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetUtf8';
+  SetBoolean(CONST VARSTRING options, CONST VARSTRING key, BOOLEAN value, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetBool';
+  SetReal(CONST VARSTRING options, CONST VARSTRING key, REAL value, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetReal';
+  SetInteger(CONST VARSTRING options, CONST VARSTRING key, INTEGER value, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetInt';
+  SetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED value, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetUInt';
+  SetData(CONST VARSTRING options, CONST VARSTRING key, CONST DATA value, UNSIGNED database = 0, UNSIGNED4 expire = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRSetData';
 
-  INTEGER8 GetInteger(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetInt8';
-  UNSIGNED8 GetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetUint8';
-  STRING GetString(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetStr';
-  UNICODE GetUnicode(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetUChar';
-  UTF8 GetUtf8(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetUtf8';
-  BOOLEAN GetBoolean(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetBool';
-  REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetDouble';
-  DATA GetData(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='SyncRGetData';
+  INTEGER8 GetInteger(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetInt8';
+  UNSIGNED8 GetUnsigned(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetUint8';
+  STRING GetString(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetStr';
+  UNICODE GetUnicode(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetUChar';
+  UTF8 GetUtf8(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetUtf8';
+  BOOLEAN GetBoolean(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetBool';
+  REAL GetReal(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetDouble';
+  DATA GetData(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='SyncRGetData';
 
-  BOOLEAN Exists(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='RExist';
-  FlushDB(CONST VARSTRING options, UNSIGNED database = 0) : cpp,once,context,entrypoint='RClear';
-  Del(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='RDel';
-  Persist(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='RPersist';
-  Expire(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED4 expire, UNSIGNED database = 0) : cpp,once,context,entrypoint='RExpire';
-  INTEGER DBSize(CONST VARSTRING options, UNSIGNED database = 0) : cpp,action,context,entrypoint='RDBSize';
+  BOOLEAN Exists(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='RExist';
+  FlushDB(CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='RClear';
+  Del(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='RDel';
+  Persist(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='RPersist';
+  Expire(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED4 expire, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,once,context,entrypoint='RExpire';
+  INTEGER DBSize(CONST VARSTRING options, UNSIGNED database = 0, CONST VARSTRING password = '') : cpp,action,context,entrypoint='RDBSize';
 END;
 
-export async := SERVICE : plugin('redis'), namespace('RedisPlugin')
+EXPORT RedisSync(CONST VARSTRING options, CONST VARSTRING password = '') := MODULE
+  EXPORT SetUnicode(CONST VARSTRING key, CONST UNICODE value, UNSIGNED database = 0, UNSIGNED4 expire = 0)   := sync.SetUnicode(options, key, value, database, expire, password);
+  EXPORT SetString(CONST VARSTRING key, CONST STRING value, UNSIGNED database = 0, UNSIGNED4 expire = 0)     := sync.SetString(options, key, value, database, expire, password);
+  EXPORT SetUtf8(CONST VARSTRING key, CONST UTF8 value, UNSIGNED database = 0, UNSIGNED4 expire = 0)         := sync.SetUtf8(options, key, value, database, expire, password);
+  EXPORT SetBoolean(CONST VARSTRING key, CONST BOOLEAN value, UNSIGNED database = 0, UNSIGNED4 expire = 0)   := sync.SetBoolean(options, key, value, database, expire, password);
+  EXPORT SetReal(CONST VARSTRING key, CONST REAL value, UNSIGNED database = 0, UNSIGNED4 expire = 0)         := sync.SetReal(options, key, value, database, expire, password);
+  EXPORT SetInteger(CONST VARSTRING key, CONST INTEGER value, UNSIGNED database = 0, UNSIGNED4 expire = 0)   := sync.SetInteger(options, key, value, database, expire, password);
+  EXPORT SetUnsigned(CONST VARSTRING key, CONST UNSIGNED value, UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetUnsigned(options, key, value, database, expire, password);
+  EXPORT SetData(CONST VARSTRING key, CONST DATA value, UNSIGNED database = 0, UNSIGNED4 expire = 0)         := sync.SetData(options, key, value, database, expire, password);
+
+  EXPORT GetUnicode(CONST VARSTRING key, UNSIGNED database = 0)  := sync.GetUnicode(options, key, database, password);
+  EXPORT GetString(CONST VARSTRING key, UNSIGNED database = 0)   := sync.GetString(options, key, database, password);
+  EXPORT GetUtf8(CONST VARSTRING key, UNSIGNED database = 0)     := sync.GetUtf8(options, key, database, password);
+  EXPORT GetBoolean(CONST VARSTRING key, UNSIGNED database = 0)  := sync.GetBoolean(options, key, database, password);
+  EXPORT GetReal(CONST VARSTRING key, UNSIGNED database = 0)     := sync.GetReal(options, key, database, password);
+  EXPORT GetInteger(CONST VARSTRING key, UNSIGNED database = 0)  := sync.GetInteger(options, key, database, password);
+  EXPORT GetUnsigned(CONST VARSTRING key, UNSIGNED database = 0) := sync.GetUnsigned(options, key, database, password);
+  EXPORT GetData(CONST VARSTRING key, UNSIGNED database = 0)     := sync.GetData(options, key, database, password);
+
+  EXPORT Exists(CONST VARSTRING key, UNSIGNED database = 0) := sync.Exists(options, key, database, password);
+  EXPORT FlushDB(UNSIGNED database = 0) := sync.FlushDB(options, database, password);
+  EXPORT Del(CONST VARSTRING key, UNSIGNED database = 0) := sync.Del(options, key, database, password);
+  EXPORT Persist(CONST VARSTRING key, UNSIGNED database = 0) := sync.Persist(options, key, database, password);
+  EXPORT Expire(CONST VARSTRING key, UNSIGNED4 expire, UNSIGNED database = 0)  := sync.Expire(options, key, expire, database, password);
+  EXPORT DBSize(UNSIGNED database = 0) := sync.DBSize(options, database, password);
+END;
+
+EXPORT async := SERVICE : plugin('redis'), namespace('RedisPlugin')
   SetUnicode(CONST VARSTRING options, CONST VARSTRING key, CONST UNICODE value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='AsyncRSetUChar';
   SetString(CONST VARSTRING options, CONST VARSTRING key, CONST STRING value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='AsyncRSetStr';
   SetUtf8(CONST VARSTRING options, CONST VARSTRING key, CONST UTF8 value, UNSIGNED database = 0, UNSIGNED4 expire = 0) : cpp,once,context,entrypoint='AsyncRSetUtf8';
@@ -63,7 +90,7 @@ export async := SERVICE : plugin('redis'), namespace('RedisPlugin')
   DATA GetData(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='AsyncRGetData';
 END;
 
-export locking := SERVICE : plugin('redis'), namespace('RedisPlugin')
+EXPORT locking := SERVICE : plugin('redis'), namespace('RedisPlugin')
   UNSIGNED8 GetLockObject(CONST VARSTRING options, CONST VARSTRING key, UNSIGNED database = 0) : cpp,once,context,entrypoint='RGetLockObject';
   BOOLEAN MissThenLock(UNSIGNED8 keyPtr) : cpp,action,context,entrypoint='RMissThenLock';
 

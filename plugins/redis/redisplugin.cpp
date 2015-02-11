@@ -81,7 +81,7 @@ void RedisServer::parseOptions(ICodeContext * ctx, const char * _options)
     ForEachItemIn(idx, optionStrings)
     {
         const char *opt = optionStrings.item(idx);
-        if (strncmp(opt, "--SERVER=", 9) ==0)
+        if (strncmp(opt, "--SERVER=", 9) == 0)
         {
             opt += 9;
             StringArray splitPort;
@@ -106,17 +106,17 @@ void RedisServer::parseOptions(ICodeContext * ctx, const char * _options)
     VStringBuffer msg("Redis Plugin: WARNING - using default server (%s:%d)", ip.str(), port);
     ctx->logString(msg.str());
 }
-Connection::Connection(ICodeContext * ctx, const char * _options) : alreadyInitialized(false), database(0)
+Connection::Connection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * pswd) : alreadyInitialized(false), database(_database)
 {
-    server.set(new RedisServer(ctx, _options));
+    server.set(new RedisServer(ctx, _options, pswd));
 }
-Connection::Connection(ICodeContext * ctx, RedisServer * _server) : alreadyInitialized(false), database(0)
+Connection::Connection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database) : alreadyInitialized(false), database(_database)
 {
     server.setown(_server);
 }
-bool Connection::isSameConnection(ICodeContext * ctx, const RedisServer * requestedServer) const
+bool Connection::isSameConnection(ICodeContext * ctx, unsigned hash) const
 {
-    return server->isSame(ctx, requestedServer);
+    return server->isSame(ctx, hash);
 }
 void * Connection::cpy(const char * src, size_t size)
 {
@@ -132,6 +132,7 @@ const char * Connection::appendIfKeyNotFoundMsg(const redisReply * reply, const 
 void Connection::init(ICodeContext * ctx)
 {
     logServerStats(ctx);
+    alreadyInitialized = true;
 }
 }//close namespace
 
