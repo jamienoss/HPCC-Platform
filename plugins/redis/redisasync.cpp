@@ -285,7 +285,7 @@ void AsyncConnection::createAndAssertConnection(ICodeContext * ctx)
     context = redisAsyncConnect(ip(), port());
     assertConnection();
     context->data = (void*)this;
-#if (HIREDIS_MINOR == 0 && HIREDIS_MINOR < 11)
+#if (HIREDIS_MAJOR == 0 && HIREDIS_MINOR < 11)
     assertRedisErr(redisAsyncSetConnectCallback(context, connectCB2), "failed to set connect callback");
 #else
     assertRedisErr(redisAsyncSetConnectCallback(context, connectCB), "failed to set connect callback");
