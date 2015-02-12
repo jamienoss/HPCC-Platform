@@ -84,8 +84,8 @@ private :
 class Connection : public CInterface
 {
 public :
-    Connection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * pswd);
-    Connection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database);
+    Connection(ICodeContext * ctx, const char * _options, const char * pswd);//remove database from these
+    Connection(ICodeContext * ctx, RedisServer * _server);
 
     bool isSameConnection(ICodeContext * ctx, unsigned hash) const;
     const char * ip() const { return server->getIp(); }

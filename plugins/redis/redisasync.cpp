@@ -246,17 +246,17 @@ SubContainer::SubContainer(ICodeContext * ctx, RedisServer * _server, const char
     else
         callback = subCB;
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) : Connection(ctx, _options, _database, 0), context(NULL)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) : Connection(ctx, _options, 0), context(NULL)
 {
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database) : Connection(ctx, _server, _database), context(NULL)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database) : Connection(ctx, _server), context(NULL)
 {
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, KeyLock * lockObject) : Connection(ctx, lockObject->getLinkServer(), lockObject->getDatabase()), context(NULL)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, KeyLock * lockObject) : Connection(ctx, lockObject->getLinkServer()), context(NULL)
 {
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.

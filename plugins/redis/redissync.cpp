@@ -26,21 +26,21 @@ static CriticalSection crit;
 
 static Owned<SyncConnection> cachedConnection;
 
-SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * pswd) : Connection(ctx, _options, _database, pswd)
+SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * pswd) : Connection(ctx, _options, pswd)
 {
-    connect(ctx, pswd);
+    connect(ctx, _database, pswd);
 }
-SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * pswd) : Connection(ctx, _server, _database)
+SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * pswd) : Connection(ctx, _server)
 {
-    connect(ctx, pswd);
+    connect(ctx, _database, pswd);
 }
-void SyncConnection::connect(ICodeContext * ctx, const char * pswd)
+void SyncConnection::connect(ICodeContext * ctx, unsigned __int64 _database, const char * pswd)
 {
     context = redisConnectWithTimeout(server->getIp(), server->getPort(), REDIS_TIMEOUT);
     assertConnection();
     redisSetTimeout(context, REDIS_TIMEOUT);
     authenticate(ctx, pswd);
-    selectDB(ctx, database);
+    selectDB(ctx, _database);
     init(ctx);
 }
 void SyncConnection::authenticate(ICodeContext * ctx, const char * pswd)

@@ -18,7 +18,7 @@
 IMPORT sync FROM lib_redis;
 
 STRING servers := '--SERVER=127.0.0.1:6379';
-STRING password := '123456789';
+STRING password := 'foobared';
 sync.FlushDB(servers,,password);
 
 sync.SetBoolean(servers, 'b', TRUE, /*database*/, /*expire*/, password);

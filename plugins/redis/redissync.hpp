@@ -49,7 +49,7 @@ public :
     bool exists(ICodeContext * ctx, const char * key);
 
 protected :
-    void connect(ICodeContext * ctx, const char * pswd);
+    void connect(ICodeContext * ctx, unsigned __int64 _database, const char * pswd);
     void selectDB(ICodeContext * ctx, unsigned __int64 _database);
     void authenticate(ICodeContext * ctx, const char * pswd);
 
