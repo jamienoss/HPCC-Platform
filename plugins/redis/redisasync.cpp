@@ -66,7 +66,7 @@ KeyLock::KeyLock(ICodeContext * ctx, const char * _options, const char * _key, c
 }
 KeyLock::~KeyLock()
 {
-    redisContext * context = redisConnectWithTimeout(server->getIp(), server->getPort(), REDIS_TIMEOUT);
+    redisContext * context = redisConnectWithTimeout(server->getIp(), server->getPort(), {1,500});
     CriticalBlock block(crit);
     OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "GET %b", key.str(), strlen(key.str())));
     const char * channelFound = reply->query()->str;
@@ -246,7 +246,7 @@ SubContainer::SubContainer(ICodeContext * ctx, RedisServer * _server, const char
     else
         callback = subCB;
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) : Connection(ctx, _options), context(NULL)
+AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database) : Connection(ctx, _options, NULL, 1500), context(NULL)
 {
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
