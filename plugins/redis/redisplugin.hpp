@@ -45,7 +45,6 @@ extern "C"
 class StringBuffer;
 
 namespace RedisPlugin {
-static const struct timeval REDIS_TIMEOUT = { 1, 500000 }; // { sec, ms } => 1.5 seconds
 static const unsigned unitExpire = 86400;//1 day (secs)
 
 #define setFailMsg "'Set' request failed - "
@@ -84,7 +83,7 @@ private :
 class Connection : public CInterface
 {
 public :
-    Connection(ICodeContext * ctx, const char * _options, const char * pswd);//remove database from these
+    Connection(ICodeContext * ctx, const char * _options, const char * pswd, unsigned timeout);
     Connection(ICodeContext * ctx, RedisServer * _server);
 
     bool isSameConnection(ICodeContext * ctx, unsigned hash) const;
@@ -96,6 +95,7 @@ protected :
     virtual void assertConnection() { }
     virtual void logServerStats(ICodeContext * ctx) { }
     virtual bool logErrorOnFail(ICodeContext * ctx, const redisReply * reply, const char * _msg) { return false; }
+    virtual void updateTimeout(unsigned _timeout) { }
 
     const char * appendIfKeyNotFoundMsg(const redisReply * reply, const char * key, StringBuffer & target) const;
     void * cpy(const char * src, size_t size);
@@ -103,6 +103,7 @@ protected :
 
 protected :
     Owned<RedisServer> server;
+    unsigned timeout;
     unsigned __int64 database;
     bool alreadyInitialized;
 };

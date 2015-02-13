@@ -26,7 +26,7 @@ static CriticalSection crit;
 
 static Owned<SyncConnection> cachedConnection;
 
-SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * pswd) : Connection(ctx, _options, pswd)
+SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * pswd, unsigned timeout) : Connection(ctx, _options, pswd, timeout)
 {
     connect(ctx, _database, pswd);
 }
@@ -36,9 +36,9 @@ SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsign
 }
 void SyncConnection::connect(ICodeContext * ctx, unsigned __int64 _database, const char * pswd)
 {
-    context = redisConnectWithTimeout(server->getIp(), server->getPort(), REDIS_TIMEOUT);
+    context = redisConnectWithTimeout(server->getIp(), server->getPort(), {1, 5000});//timeout);
     assertConnection();
-    redisSetTimeout(context, REDIS_TIMEOUT);
+    //redisSetTimeout(context, REDIS_TIMEOUT);
     authenticate(ctx, pswd);
     selectDB(ctx, _database);
     init(ctx);
@@ -51,12 +51,12 @@ void SyncConnection::authenticate(ICodeContext * ctx, const char * pswd)
         assertOnError(reply->query(), "server authentication failed");
     }
 }
-SyncConnection * SyncConnection::createConnection(ICodeContext * ctx, const char * options, unsigned __int64 _database, const char * pswd)
+SyncConnection * SyncConnection::createConnection(ICodeContext * ctx, const char * options, unsigned __int64 _database, const char * pswd, unsigned timeout)
 {
     CriticalBlock block(crit);
     if (!cachedConnection)
     {
-        cachedConnection.setown(new SyncConnection(ctx, options, _database, pswd));
+        cachedConnection.setown(new SyncConnection(ctx, options, _database, pswd, timeout));
         return LINK(cachedConnection);
     }
 
@@ -64,12 +64,12 @@ SyncConnection * SyncConnection::createConnection(ICodeContext * ctx, const char
     if (cachedConnection->isSameConnection(ctx, optionsPswdHash))
     {
         //MORE: probably need to check that the connection has not expired (think hiredis REDIS_KEEPALIVE_INTERVAL is defaulted to 15s).
-        //updateTimeout(timeout);
+        cachedConnection->updateTimeout(timeout);
         cachedConnection->selectDB(ctx, _database);
         return LINK(cachedConnection);
     }
 
-    cachedConnection.setown(new SyncConnection(ctx, options, _database, pswd));
+    cachedConnection.setown(new SyncConnection(ctx, options, _database, pswd, timeout));
     return LINK(cachedConnection);
 }
 void SyncConnection::selectDB(ICodeContext * ctx, unsigned __int64 _database)
@@ -80,6 +80,14 @@ void SyncConnection::selectDB(ICodeContext * ctx, unsigned __int64 _database)
     VStringBuffer cmd("SELECT %llu", database);
     OwnedReply reply = createReply(redisCommand(context, cmd.str()));
     assertOnError(reply->query(), "'SELECT' request failed");
+}
+void SyncConnection::updateTimeout(unsigned _timeout)
+{
+    if (timeout == _timeout)
+        return;
+    assertConnection();
+    timeout = _timeout;
+    redisSetTimeout(context, {1, 5000});
 }
 void SyncConnection::logServerStats(ICodeContext * ctx)
 {
@@ -173,15 +181,15 @@ unsigned __int64 SyncConnection::dbSize(ICodeContext * ctx)
 }
 //-------------------------------------------SET-----------------------------------------
 //--OUTER--
-template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, type value, unsigned __int64 database, unsigned expire, const char * pswd)
+template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, type value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, _options, database, pswd);
+    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, _options, database, pswd, timeout);
     master->set(ctx, key, value, expire);
 }
 //Set pointer types
-template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueLength, const type * value, unsigned __int64 database, unsigned expire, const char * pswd)
+template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueLength, const type * value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, _options, database, pswd);
+    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, _options, database, pswd, timeout);
     master->set(ctx, key, valueLength, value, expire);
 }
 //--INNER--
@@ -265,113 +273,113 @@ void SyncConnection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, siz
 //--------------------------------------------------------------------------------
 //                           ECL SERVICE ENTRYPOINTS
 //--------------------------------------------------------------------------------
-ECL_REDIS_API void ECL_REDIS_CALL RClear(ICodeContext * ctx, const char * options, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL RClear(ICodeContext * ctx, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd);
+    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd, timeout);
     master->clear(ctx);
 }
-ECL_REDIS_API bool ECL_REDIS_CALL RExist(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API bool ECL_REDIS_CALL RExist(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd);
+    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd, timeout);
     return master->exists(ctx, key);
 }
-ECL_REDIS_API void ECL_REDIS_CALL RDel(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL RDel(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd);
+    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd, timeout);
     master->del(ctx, key);
 }
-ECL_REDIS_API void ECL_REDIS_CALL RPersist(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL RPersist(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd);
+    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd, timeout);
     master->persist(ctx, key);
 }
-ECL_REDIS_API void ECL_REDIS_CALL RExpire(ICodeContext * ctx, const char * options, const char * key, unsigned _expire, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL RExpire(ICodeContext * ctx, const char * options, const char * key, unsigned _expire, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd);
+    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd, timeout);
     master->expire(ctx, key, _expire*unitExpire);
 }
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RDBSize(ICodeContext * ctx, const char * options, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RDBSize(ICodeContext * ctx, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd);
     return master->dbSize(ctx);
 }
 //-----------------------------------SET------------------------------------------
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetStr(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetStr(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, valueLength, value, database, expire, pswd);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUChar(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUChar(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, (valueLength)*sizeof(UChar), value, database, expire, pswd);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetInt(ICodeContext * ctx, const char * options, const char * key, signed __int64 value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetInt(ICodeContext * ctx, const char * options, const char * key, signed __int64 value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, value, database, expire, pswd);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUInt(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUInt(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, value, database, expire, pswd);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetReal(ICodeContext * ctx, const char * options, const char * key, double value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetReal(ICodeContext * ctx, const char * options, const char * key, double value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, value, database, expire, pswd);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetBool(ICodeContext * ctx, const char * options, const char * key, bool value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetBool(ICodeContext * ctx, const char * options, const char * key, bool value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, value, database, expire, pswd);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetData(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetData(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const void * value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, valueLength, value, database, expire, pswd);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUtf8(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUtf8(ICodeContext * ctx, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout)
 {
     SyncRSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, database, expire, pswd);
 }
 //-------------------------------------GET----------------------------------------
-ECL_REDIS_API bool ECL_REDIS_CALL SyncRGetBool(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API bool ECL_REDIS_CALL SyncRGetBool(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     bool value;
     SyncRGet(ctx, options, key, value, database, pswd);
     return value;
 }
-ECL_REDIS_API double ECL_REDIS_CALL SyncRGetDouble(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API double ECL_REDIS_CALL SyncRGetDouble(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     double value;
     SyncRGet(ctx, options, key, value, database, pswd);
     return value;
 }
-ECL_REDIS_API signed __int64 ECL_REDIS_CALL SyncRGetInt8(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API signed __int64 ECL_REDIS_CALL SyncRGetInt8(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     signed __int64 value;
     SyncRGet(ctx, options, key, value, database, pswd);
     return value;
 }
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRGetUint8(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRGetUint8(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     unsigned __int64 value;
     SyncRGet(ctx, options, key, value, database, pswd);
     return value;
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     size_t _returnLength;
     SyncRGet(ctx, options, key, _returnLength, returnValue, database, pswd);
     returnLength = static_cast<size32_t>(_returnLength);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     size_t _returnLength;
     SyncRGet(ctx, options, key, _returnLength, returnValue, database, pswd);
     returnLength = static_cast<size32_t>(_returnLength/sizeof(UChar));
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     size_t _returnLength;
     SyncRGet(ctx, options, key, _returnLength, returnValue, database, pswd);
     returnLength = static_cast<size32_t>(rtlUtf8Length(_returnLength, returnValue));
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetData(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * pswd)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetData(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * pswd, unsigned timeout)
 {
     size_t _returnLength;
     SyncRGetVoidPtrLenPair(ctx, options, key, _returnLength, returnValue, database, pswd);

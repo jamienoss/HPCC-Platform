@@ -106,8 +106,9 @@ void RedisServer::parseOptions(ICodeContext * ctx, const char * _options)
     VStringBuffer msg("Redis Plugin: WARNING - using default server (%s:%d)", ip.str(), port);
     ctx->logString(msg.str());
 }
-Connection::Connection(ICodeContext * ctx, const char * _options, const char * pswd) : alreadyInitialized(false), database(0)
+Connection::Connection(ICodeContext * ctx, const char * _options, const char * pswd, unsigned _timeout) : alreadyInitialized(false), database(0)
 {
+    timeout = {_timeout/1000, (_timeout-1)/1000};
     server.set(new RedisServer(ctx, _options, pswd));
 }
 Connection::Connection(ICodeContext * ctx, RedisServer * _server) : alreadyInitialized(false), database(0)
