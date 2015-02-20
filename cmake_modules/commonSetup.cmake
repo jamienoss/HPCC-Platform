@@ -91,9 +91,10 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
   option(USE_MEMCACHED "Enable Memcached support" ON)
   option(USE_REDIS "Enable Redis support" ON)
   if ( USE_REDIS)
-      option(USE_LIBEV "Enable libev support" ON)
-  else
-      option(USE_LIBEV "Enable libev support" OFF)
+      option(USE_EV "Enable ev support" ON)
+  else()
+      option(USE_EV "Enable ev support" OFF)
+  endif()
 
   option(USE_OPTIONAL "Automatically disable requested features with missing dependencies" ON)
 

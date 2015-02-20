@@ -30,9 +30,11 @@ if (USE_REDIS)
     set (    SRCS
              redisplugin.hpp
              redissync.hpp
+             redisasync.hpp
 
              redisplugin.cpp
              redissync.cpp
+             redisasync.cpp
         )
 
     include_directories (
@@ -58,7 +60,8 @@ if (USE_REDIS)
     target_link_libraries ( redis
         eclrtl
         jlib
-        ${LIBHIREDIS_LIBRARIES}
+        ${LIBEV_LIBRARY}
+        ${LIBHIREDIS_LIBRARY}
         )
   endif()
 endif()
