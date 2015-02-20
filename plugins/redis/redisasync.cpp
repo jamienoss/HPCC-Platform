@@ -33,77 +33,14 @@
 
 namespace RedisPlugin {
 static CriticalSection crit;
-static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";// needs to be a large random value uniquely individual per client
-static const unsigned REDIS_LOCK_EXPIRE = 60; //(secs)
-static const unsigned REDIS_MAX_LOCKS = 9999;
-static const unsigned TIMEOUT = 2000;//ms
-static const ev_tstamp EV_TIMEOUT = TIMEOUT/1000.;//secs
+static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 class SubContainer;
 
-class KeyLock : public CInterface
-{
-public :
-    KeyLock(ICodeContext * ctx, const char * _options, const char * _key, const char * _channel, unsigned __int64 _database);
-    ~KeyLock();
-
-    RedisServer * getLinkServer() { return server.getLink(); }
-    const char * getKey() { return key.str(); }
-    const char * getChannel() { return channel.str(); }
-    unsigned __int64 getDatabase() {  return database; }
-
-private :
-    Owned<RedisServer> server;
-    unsigned __int64 database;
-    StringAttr key;
-    StringAttr channel;
-};
-KeyLock::KeyLock(ICodeContext * ctx, const char * _options, const char * _key, const char * _channel, unsigned __int64 _database)
-{
-    key.set(_key);
-    channel.set(_channel);
-    database =_database;
-    server.set(new RedisServer(ctx, _options));
-}
-KeyLock::~KeyLock()
-{
-    redisContext * context = redisConnectWithTimeout(server->getIp(), server->getPort(), {1,500});
-    CriticalBlock block(crit);
-    OwnedReply reply = RedisPlugin::createReply(redisCommand(context, "GET %b", key.str(), strlen(key.str())));
-    const char * channelFound = reply->query()->str;
-
-    if (strcmp(channel, channelFound) == 0)
-        redisCommand(context, "DEL %b", key.str(), strlen(key.str()));
-
-    if (context)
-        redisFree(context);
-}
-
-class ReturnValue : public CInterface
-{
-public :
-    ReturnValue() : size(0), value(NULL) { }
-    ~ReturnValue()
-    {
-        if (value)
-            free(value);
-    }
-
-    void cpy(size_t _size, const char * _value) { size = _size; value = (char*)malloc(size); memcpy(value, _value, size); }
-    inline size_t getSize() const { return size; }
-    inline const char * str() const { return value; }
-    char * getStr() { char * tmp = value; value = NULL; size = 0; return tmp; }
-    inline bool isEmpty() const { return size == 0; }//!value||!*value; }
-
-private :
-    size_t size;
-    char * value;
-};
 class AsyncConnection : public Connection
 {
 public :
     AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database);
     AsyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database);
-    AsyncConnection(ICodeContext * ctx, KeyLock * _lockObject);
 
     ~AsyncConnection();
     static AsyncConnection * createConnection(ICodeContext * ctx, const char * options, unsigned __int64 database)
@@ -114,13 +51,9 @@ public :
     {
         return new AsyncConnection(ctx, _server, database);
     }
-    static AsyncConnection * createConnection(ICodeContext * ctx, KeyLock * _lockObject)
-    {
-        return new AsyncConnection(ctx, _lockObject);
-    }
 
     //get
-    void get(ICodeContext * ctx, const char * key, ReturnValue * retVal, const char * channel);
+    void get(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * channel);
     template <class type> void get(ICodeContext * ctx, const char * key, size_t & valueLength, type * & value, const char * channel);
     void getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & valueLength, void * & value, const char * channel);
     //set
@@ -136,7 +69,7 @@ protected :
     virtual void assertConnection();
     void createAndAssertConnection(ICodeContext * ctx);
     void assertRedisErr(int reply, const char * _msg);
-    void handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal);
+    void handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, MemoryAttr * retVal);
     void handleLockForSet(ICodeContext * ctx, const char * key, const char * value, size_t size, const char * channel, unsigned expire);
     void subscribe(const char * channel, StringAttr & value);
     void unsubscribe(const char * channel);
@@ -161,7 +94,6 @@ protected :
 
 protected :
     redisAsyncContext * context;
-    Owned<KeyLock> lockObject;
 };
 
 class SubContainer : public AsyncConnection
@@ -256,17 +188,12 @@ AsyncConnection::AsyncConnection(ICodeContext * ctx, RedisServer * _server, unsi
     createAndAssertConnection(ctx);
     //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
 }
-AsyncConnection::AsyncConnection(ICodeContext * ctx, KeyLock * lockObject) : Connection(ctx, lockObject->getLinkServer()), context(NULL)
-{
-    createAndAssertConnection(ctx);
-    //could log server stats here, however async connections are not cached and therefore book keeping of only doing so for new servers may not be worth it.
-}
 void AsyncConnection::selectDb(ICodeContext * ctx)
 {
     if (database == 0)
         return;
     attachLibev();
-    VStringBuffer cmd("SELECT %llu", database);
+    VStringBuffer cmd("SELECT %" I64F "u", database);
     assertRedisErr(redisAsyncCommand(context, selectCB, NULL, cmd.str()), "SELECT (lock) buffer write error");
     handleLoop(EV_DEFAULT_ EV_TIMEOUT);
 }
@@ -301,7 +228,7 @@ void AsyncConnection::assertConnection()
 }
 void AsyncConnection::assertContextErr(const redisAsyncContext * context)
 {
-    if (context && context->err)
+    if (context && context->err)//would cause issues if caching connections and a non rtFail error was observed.
     {
         const AsyncConnection * connection = (const AsyncConnection*)context->data;
         if (connection)
@@ -480,8 +407,8 @@ void AsyncConnection::getCB(redisAsyncContext * context, void * _reply, void * p
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(context, reply, "get callback fail");
 
-    ReturnValue * retVal = (ReturnValue*)privdata;
-    retVal->cpy((size_t)reply->len, reply->str);
+    MemoryAttr * retVal = (MemoryAttr*)privdata;
+    retVal->set((size32_t)reply->len, (const void*)reply->str);
     redisLibevDelRead((void*)context->ev.data);
 }
 void AsyncConnection::setCB(redisAsyncContext * context, void * _reply, void * privdata)
@@ -564,7 +491,7 @@ bool AsyncConnection::lock(const char * key, const char * channel)
     handleLoop(EV_DEFAULT_ EV_TIMEOUT);
     return locked;
 }
-void AsyncConnection::handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, ReturnValue * retVal)
+void AsyncConnection::handleLockForGet(ICodeContext * ctx, const char * key, const char * channel, MemoryAttr * retVal)
 {
     bool ignoreLock = (channel == NULL);//function was not passed with channel => called from non-locking async routines
     Owned<SubscriptionThread> subThread;//thread to hold subscription event loop
@@ -581,18 +508,18 @@ void AsyncConnection::handleLockForGet(ICodeContext * ctx, const char * key, con
     if (ignoreLock)
         return;//with value just retrieved regardless of success (handled by caller)
 
-    if (retVal->isEmpty())//cache miss MORE: this is really for the GetString case logic within ECL (rethink)
+    if (retVal->length() == 0)//cache miss MORE: this is really for the GetString case logic within ECL (rethink)
     {
         if (lock(key, channel))
             return;//race winner
         else
-            subThread->wait(TIMEOUT);//race losers
+            subThread->wait(timeout);//race losers
     }
     else //contents found
     {
         //check if already locked
-        if (strncmp(retVal->str(), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
-            subThread->wait(TIMEOUT);//locked so lets subscribe for value
+        if (strncmp(static_cast<const char*>(retVal->get()), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
+            subThread->wait(timeout);//locked so lets subscribe for value
         else
             return;//normal GET
     }
@@ -615,7 +542,7 @@ void AsyncConnection::handleLockForSet(ICodeContext * ctx, const char * key, con
     }
     else
     {
-        ReturnValue retVal;
+       MemoryAttr retVal;
         //This branch represents a normal async get i.e. no lockObject present and no channel
         //There are two primary options that could be taken    1) set regardless of lock (publish if it was locked)
         //                                                     2) Only set if not locked
@@ -625,7 +552,7 @@ void AsyncConnection::handleLockForSet(ICodeContext * ctx, const char * key, con
         //obtain channel
         assertRedisErr(redisAsyncCommand(context, getCB, (void*)&retVal, cmd2.str(), key, strlen(key), value, size), "SET buffer write error");
         handleLoop(EV_DEFAULT_ EV_TIMEOUT);
-        if (strncmp(retVal.str(), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
+        if (strncmp(static_cast<const char*>(retVal.get()), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
         {
             assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel, strlen(channel), value, size), "PUBLISH buffer write error");
             handleLoop(EV_DEFAULT_ EV_TIMEOUT);//again not necessary, could just call redisAsyncHandleWrite(context);
@@ -637,17 +564,18 @@ void AsyncConnection::handleLockForSet(ICodeContext * ctx, const char * key, con
 template<class type> void AsyncRGet(ICodeContext * ctx, const char * options, const char * key, type & returnValue, const char * channel, unsigned __int64 database)
 {
     Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, options, database);
-    ReturnValue retVal;
+    MemoryAttr retVal;
     master->get(ctx, key, &retVal, channel);
     StringBuffer keyMsg = getFailMsg;
 
-    size_t returnSize = retVal.getSize();
+    size_t returnSize = retVal.length();
     if (sizeof(type)!=returnSize)
     {
         VStringBuffer msg("RedisPlugin: ERROR - Requested type of different size (%uB) from that stored (%uB).", (unsigned)sizeof(type), (unsigned)returnSize);
         rtlFail(0, msg.str());
     }
-    memcpy(&returnValue, retVal.str(), returnSize);
+    returnValue = *retVal.get();
+    //memcpy(&returnValue, retVal.str(), returnSize);
 }
 template<class type> void AsyncRGet(ICodeContext * ctx, const char * options, const char * key, size_t & returnLength, type * & returnValue, const char * channel, unsigned __int64 database)
 {
@@ -659,53 +587,26 @@ void AsyncRGetVoidPtrLenPair(ICodeContext * ctx, const char * options, const cha
     Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, options, database);
     master->getVoidPtrLenPair(ctx, key, returnLength, returnValue, channel);
 }
-//refactor these routines - this is silly
-template<class type> void AsyncRGet(ICodeContext * ctx, RedisServer * server, const char * key, type & returnValue, const char * channel, unsigned __int64 database)
-{
-    Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, server, database);
-    ReturnValue retVal;
-    master->get(ctx, key, &retVal, channel);
-    StringBuffer keyMsg = getFailMsg;
-
-    size_t returnSize = retVal.getSize();
-    if (sizeof(type)!=returnSize)
-    {
-        VStringBuffer msg("RedisPlugin: ERROR - Requested type of different size (%uB) from that stored (%uB).", (unsigned)sizeof(type), (unsigned)returnSize);
-        rtlFail(0, msg.str());
-    }
-    memcpy(&returnValue, retVal.str(), returnSize);
-}
-template<class type> void AsyncRGet(ICodeContext * ctx, RedisServer * server, const char * key, size_t & returnLength, type * & returnValue, const char * channel, unsigned __int64 database)
-{
-    Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, server, database);
-    master->get(ctx, key, returnLength, returnValue, channel);
-}
-void AsyncRGetVoidPtrLenPair(ICodeContext * ctx, RedisServer * server, const char * key, size_t & returnLength, void * & returnValue, const char * channel, unsigned __int64 database)
-{
-    Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, server, database);
-    master->getVoidPtrLenPair(ctx, key, returnLength, returnValue, channel);
-}
-
 //---INNER---
-void AsyncConnection::get(ICodeContext * ctx, const char * key, ReturnValue * retVal, const char * channel )
+void AsyncConnection::get(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * channel )
 {
     handleLockForGet(ctx, key, channel, retVal);
 }
 template<class type> void AsyncConnection::get(ICodeContext * ctx, const char * key, size_t & returnSize, type * & returnValue, const char * channel)
 {
-    ReturnValue retVal;
+    MemoryAttr retVal;
     handleLockForGet(ctx, key, channel, &retVal);
 
-    returnSize = retVal.getSize();
-    returnValue = reinterpret_cast<type*>(retVal.getStr());
+    returnSize = retVal.length();
+    returnValue = reinterpret_cast<type*>(retVal.detach());
 }
 void AsyncConnection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnSize, void * & returnValue, const char * channel )
 {
-    ReturnValue retVal;
+    MemoryAttr retVal;
     handleLockForGet(ctx, key, channel, &retVal);
 
-    returnSize = retVal.getSize();
-    returnValue = reinterpret_cast<void*>(cpy(retVal.str(), returnSize));
+    returnSize = retVal.length();
+    returnValue = retVal.detach();//cpy(retVal.str(), returnSize));
 }
 //-------------------------------------------SET-----------------------------------------
 //---OUTER---
@@ -718,17 +619,6 @@ template<class type> void AsyncRSet(ICodeContext * ctx, const char * _options, c
 template<class type> void AsyncRSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueLength, const type * value, unsigned expire, const char * channel, unsigned __int64 database)
 {
     Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, _options, database);
-    master->set(ctx, key, valueLength, value, expire, channel);
-}
-template<class type> void AsyncRSet(ICodeContext * ctx, RedisServer * server, const char * key, type value, unsigned expire, const char * channel, unsigned __int64 database)
-{
-    Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, server, database);
-    master->set(ctx, key, value, expire, channel);
-}
-//Set pointer types
-template<class type> void AsyncRSet(ICodeContext * ctx, RedisServer * server, const char * key, size32_t valueLength, const type * value, unsigned expire, const char * channel, unsigned __int64 database)
-{
-    Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, server, database);
     master->set(ctx, key, valueLength, value, expire, channel);
 }
 //---INNER---
