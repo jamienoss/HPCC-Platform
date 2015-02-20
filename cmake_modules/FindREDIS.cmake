@@ -24,26 +24,22 @@
 IF (NOT LIBREDIS_FOUND)
   IF (WIN32)
     SET (libhiredis "libhiredis")
-    SET (libev "libev")
   ELSE()
     SET (libhiredis "hiredis")
-    SET (libev "ev")
   ENDIF()
 
   FIND_PATH(LIBHIREDIS_INCLUDE_DIR hiredis/hiredis.h PATHS /usr/include /usr/share/include /usr/local/include PATH_SUFFIXES hiredis)
   FIND_PATH(LIBHIREDIS_ADAPTERS_INCLUDE_DIR hiredis/adapters/ae.h PATHS /usr/include /usr/share/include /usr/local/include PATH_SUFFIXES hiredis/adapters)
   FIND_LIBRARY(LIBHIREDIS_LIBRARY NAMES ${libhiredis} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)
-  FIND_LIBRARY(LIBEV_LIBRARY NAMES ${libev} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)
 
-  SET (LIBHIREDIS_INCLUDE_DIRS  ${LIBHIREDIS_INCLUDE_DIR} ${LIBHIREDIS_ADAPTERS_INCLUDE_DIR} ${libev})
-  SET (LIBHIREDIS_LIBRARIES  ${LIBHIREDIS_LIBRARY} ${LIBEV_LIBRARY})
+  SET (LIBHIREDIS_INCLUDE_DIRS  ${LIBHIREDIS_INCLUDE_DIR} ${LIBHIREDIS_ADAPTERS_INCLUDE_DIR})
 
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(redis DEFAULT_MSG
-    LIBHIREDIS_LIBRARIES
+    LIBHIREDIS_LIBRARY
     LIBHIREDIS_INCLUDE_DIRS
   )
 
-  MARK_AS_ADVANCED(LIBHIREDIS_INCLUDE_DIRS LIBHIREDIS_LIBRARIES)
+  MARK_AS_ADVANCED(LIBHIREDIS_INCLUDE_DIRS LIBHIREDIS_LIBRARY)
 ENDIF()
 
