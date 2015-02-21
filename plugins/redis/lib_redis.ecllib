@@ -93,25 +93,23 @@ EXPORT RedisServer    (CONST VARSTRING options, CONST VARSTRING password = '', u
 
   //locking
   EXPORT locking := MODULE
-    EXPORT GetUnicode(CONST VARSTRING key, UNSIGNED database = 0) :=  lockingInternal.GetUnicode(key, options, database, password, timeout);
+    //EXPORT GetUnicode(CONST VARSTRING key, UNSIGNED database = 0) :=  lockingInternal.GetUnicode(key, options, database, password, timeout);
     
     
-    EXPORT STRING GetString(CONST VARSTRING key, STRING value, UNSIGNED database = 0) :=  FUNCTION
-                                                                                            IF (lockingInternal.MissThenLock,
-                                                                                                lockingInternal.SetString(key, value, options, database, password, timeout),
-                                                                                                lockingInternal.GetString(key, options, database, password, timeoout)
-                                                                                                );
-                                                                                          END;
+    EXPORT STRING GetString(CONST VARSTRING key, STRING value, UNSIGNED database = 0, UNSIGNED expire = 0) := IF (lockingInternal.MissThenLock(key, options, database, password, timeout),
+                                                                                                                  lockingInternal.SetString(key, value, options, database, expire, password, timeout),
+                                                                                                                  lockingInternal.GetString(key, options, database, password, timeout)
+                                                                                                                  );
     
     
-    EXPORT     GetUtf8(CONST VARSTRING key, UNSIGNED database = 0) :=     lockingInternal.GetUtf8(key, options, database, password, timeout);
+    /*EXPORT     GetUtf8(CONST VARSTRING key, UNSIGNED database = 0) :=     lockingInternal.GetUtf8(key, options, database, password, timeout);
     EXPORT  GetBoolean(CONST VARSTRING key, UNSIGNED database = 0) :=  lockingInternal.GetBoolean(key, options, database, password, timeout);
     
     
-    EXPORT     GetReal(CONST VARSTRING key, UNSIGNED database = 0) := FUNCTION
-                                                                        IF (lockingInternal.MissThenLock,
+    EXPORT     GetReal(CONST VARSTRING key, UNSIGNED database = 0, UNSIGNED expire = 0) := FUNCTION
+                                                                        IF (lockingInternal.MissThenLock(key, options, database, password, timeout),
                                                                             lockingInternal.SetReal(key, value, options, database, password, timeout),
-                                                                            lockingInternal.GetReal(key, options, database, password, timeoout)
+                                                                            lockingInternal.GetReal(key, options, database, password, timeout)
                                                                             );
                                                                       END;
     
@@ -120,41 +118,9 @@ EXPORT RedisServer    (CONST VARSTRING options, CONST VARSTRING password = '', u
     EXPORT  GetInteger(CONST VARSTRING key, UNSIGNED database = 0) :=  lockingInternal.GetInteger(key, options, database, password, timeout);
     EXPORT GetUnsigned(CONST VARSTRING key, UNSIGNED database = 0) := lockingInternal.GetUnsigned(key, options, database, password, timeout);
     EXPORT     GetData(CONST VARSTRING key, UNSIGNED database = 0) :=     lockingInternal.GetData(key, options, database, password, timeout);
+    */
   END;
 END;
-
-
-
-
-
-
-
-
-
-
-
-
-EXPORT RedisServer(CONST VARSTRING options, CONST VARSTRING password = '', unsigned timeout = 1000000) := MODULE
-  /*EXPORT  SetUnicode(CONST VARSTRING key, CONST UNICODE value,  UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetUnicode (key, value, options, database, expire, password, timeout);
-  EXPORT   SetString(CONST VARSTRING key, CONST STRING value,   UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetString  (key, value, options, database, expire, password, timeout);
-  EXPORT     SetUtf8(CONST VARSTRING key, CONST UTF8 value,     UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetUtf8    (key, value, options, database, expire, password, timeout);
-  EXPORT  SetBoolean(CONST VARSTRING key, CONST BOOLEAN value,  UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetBoolean (key, value, options, database, expire, password, timeout);
-  EXPORT     SetReal(CONST VARSTRING key, CONST REAL value,     UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetReal    (key, value, options, database, expire, password, timeout);
-  EXPORT  SetInteger(CONST VARSTRING key, CONST INTEGER value,  UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetInteger (key, value, options, database, expire, password, timeout);
-  EXPORT SetUnsigned(CONST VARSTRING key, CONST UNSIGNED value, UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetUnsigned(key, value, options, database, expire, password, timeout);
-  EXPORT     SetData(CONST VARSTRING key, CONST DATA value,     UNSIGNED database = 0, UNSIGNED4 expire = 0) := sync.SetData    (key, value, options, database, expire, password, timeout);
-*/
-  EXPORT  GetUnicode(CONST VARSTRING key, UNSIGNED database = 0) :=  sync.GetUnicode(key, options, database, password, timeout);
-  EXPORT   GetString(CONST VARSTRING key, UNSIGNED database = 0) :=   sync.GetString(key, options, database, password, timeout);
-  EXPORT     GetUtf8(CONST VARSTRING key, UNSIGNED database = 0) :=     sync.GetUtf8(key, options, database, password, timeout);
-  EXPORT  GetBoolean(CONST VARSTRING key, UNSIGNED database = 0) :=  sync.GetBoolean(key, options, database, password, timeout);
-  EXPORT     GetReal(CONST VARSTRING key, UNSIGNED database = 0) :=     sync.GetReal(key, options, database, password, timeout);
-  EXPORT  GetInteger(CONST VARSTRING key, UNSIGNED database = 0) :=  sync.GetInteger(key, options, database, password, timeout);
-  EXPORT GetUnsigned(CONST VARSTRING key, UNSIGNED database = 0) := sync.GetUnsigned(key, options, database, password, timeout);
-  EXPORT     GetData(CONST VARSTRING key, UNSIGNED database = 0) :=     sync.GetData(key, options, database, password, timeout);
-END;
-
-
 
 
 

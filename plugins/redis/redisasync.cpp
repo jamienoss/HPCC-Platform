@@ -617,40 +617,40 @@ template<class type> void AsyncConnection::set(ICodeContext * ctx, const char * 
     handleLockForSet(ctx, key, _value, (size_t)valueSize, expire);
 }
 //-------------------------------ENTRY-POINTS-------------------------------------
-ECL_REDIS_API bool ECL_REDIS_CALL RMissThenLock(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API bool ECL_REDIS_CALL AsyncRMissThenLock(ICodeContext * ctx, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     Owned<AsyncConnection> master = AsyncConnection::createConnection(ctx, options, database, password, timeout);
     return master->missThenLock(ctx, key);
 }
 //-----------------------------------SET------------------------------------------
-ECL_REDIS_API void ECL_REDIS_CALL AsyncRSetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API void ECL_REDIS_CALL AsyncRSetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
 {
     AsyncRSet(ctx, options, key, valueLength, value, expire,  database, password, timeout);
     returnLength = valueLength;
     returnValue = (char*)memcpy(rtlMalloc(valueLength), value, valueLength);
 }
-ECL_REDIS_API void ECL_REDIS_CALL AsyncRSetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API void ECL_REDIS_CALL AsyncRSetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue, const char * key, size32_t valueLength, const UChar * value, const char * options, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
 {
     AsyncRSet(ctx, options, key, (valueLength)*sizeof(UChar), value, expire, database, password, timeout);
     returnLength = valueLength;
     returnValue = (UChar*)memcpy(rtlMalloc(valueLength), value, valueLength);
 }
-ECL_REDIS_API signed __int64 ECL_REDIS_CALL AsyncRSetInt(ICodeContext * ctx, const char * options, const char * key, signed __int64 value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API signed __int64 ECL_REDIS_CALL AsyncRSetInt(ICodeContext * ctx, const char * key, signed __int64 value, const char * options, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
 {
     AsyncRSet(ctx, options, key, value, expire, database, password, timeout);
     return value;
 }
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsyncRSetUInt(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsyncRSetUInt(ICodeContext * ctx, const char * key, unsigned __int64 value, const char * options, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
 {
     AsyncRSet(ctx, options, key, value, expire, database, password, timeout);
     return value;
 }
-ECL_REDIS_API double ECL_REDIS_CALL AsyncRSetReal(ICodeContext * ctx, const char * options, const char * key, double value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API double ECL_REDIS_CALL AsyncRSetReal(ICodeContext * ctx, const char * key, double value, const char * options, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
 {
     AsyncRSet(ctx, options, key, value, expire, database, password, timeout);
     return value;
 }
-ECL_REDIS_API bool ECL_REDIS_CALL AsyncRSetBool(ICodeContext * ctx, const char * options, const char * key, bool value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API bool ECL_REDIS_CALL AsyncRSetBool(ICodeContext * ctx, const char * key, bool value, const char * options, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
 {
     AsyncRSet(ctx, options, key, value, expire, database, password, timeout);
     return value;
@@ -661,56 +661,56 @@ ECL_REDIS_API void ECL_REDIS_CALL AsyncRSetData(ICodeContext * ctx, size32_t & r
     returnLength = valueLength;
     returnValue = memcpy(rtlMalloc(valueLength), value, valueLength);
 }
-ECL_REDIS_API void ECL_REDIS_CALL AsyncRSetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API void ECL_REDIS_CALL AsyncRSetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout)
 {
     AsyncRSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, expire, database, password, timeout);
     returnLength = valueLength;
     returnValue = (char*)memcpy(rtlMalloc(valueLength), value, valueLength);
 }
 //-------------------------------------GET----------------------------------------
-ECL_REDIS_API bool ECL_REDIS_CALL AsyncRGetBool(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API bool ECL_REDIS_CALL AsyncRGetBool(ICodeContext * ctx, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     bool value;
     AsyncRGet(ctx, options, key, value, database, password, timeout);
     return value;
 }
-ECL_REDIS_API double ECL_REDIS_CALL AsyncRGetDouble(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API double ECL_REDIS_CALL AsyncRGetDouble(ICodeContext * ctx, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     double value;
     AsyncRGet(ctx, options, key, value, database, password, timeout);
     return value;
 }
-ECL_REDIS_API signed __int64 ECL_REDIS_CALL AsyncRGetInt8(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API signed __int64 ECL_REDIS_CALL AsyncRGetInt8(ICodeContext * ctx, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     signed __int64 value;
     AsyncRGet(ctx, options, key, value, database, password, timeout);
     return value;
 }
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsyncRGetUint8(ICodeContext * ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsyncRGetUint8(ICodeContext * ctx, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     unsigned __int64 value;
     AsyncRGet(ctx, options, key, value, database, password, timeout);
     return value;
 }
-ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     size_t _returnLength;
     AsyncRGet(ctx, options, key, _returnLength, returnValue, database, password, timeout);
     returnLength = static_cast<size32_t>(_returnLength);
 }
-ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     size_t returnSize = 0;
     AsyncRGet(ctx, options, key, returnSize, returnValue, database, password, timeout);
     returnLength = static_cast<size32_t>(returnSize/sizeof(UChar));
 }
-ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     size_t returnSize = 0;
     AsyncRGet(ctx, options, key, returnSize, returnValue, database, password, timeout);
     returnLength = static_cast<size32_t>(rtlUtf8Length(returnSize, returnValue));
 }
-ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetData(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout)
+ECL_REDIS_API void ECL_REDIS_CALL AsyncRGetData(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
 {
     size_t _returnLength = 0;
     AsyncRGet(ctx, options, key, _returnLength, returnValue, database, password, timeout);

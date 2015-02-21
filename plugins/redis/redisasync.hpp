@@ -15,34 +15,34 @@
     limitations under the License.
 ############################################################################## */
 
-#ifndef ECL_REDIS_ASYNC_INCL
-#define ECL_REDIS_ASYNC_INCL
+#ifndef ECL_REDIS_AAsync_INCL
+#define ECL_REDIS_AAsync_INCL
 
 #include "redisplugin.hpp"
 
 extern "C++"
 {
 namespace RedisPlugin {
-    //------------------------ASYNC--GET----------------------------------------
-    ECL_REDIS_API bool             ECL_REDIS_CALL AsncRGetBool  (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API signed __int64   ECL_REDIS_CALL AsncRGetInt8  (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsncRGetUint8 (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API double           ECL_REDIS_CALL AsncRGetDouble(ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRGetUtf8  (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRGetStr   (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRGetUChar (ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
-    //------------------------ASYNC--SET----------------------------------------
-    ECL_REDIS_API bool             ECL_REDIS_CALL AsncRSetBool (ICodeContext * _ctx, const char * options, const char * key, bool value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API signed __int64   ECL_REDIS_CALL AsncRSetInt  (ICodeContext * _ctx, const char * options, const char * key, signed __int64 value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsncRSetUInt (ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API double           ECL_REDIS_CALL AsncRSetReal (ICodeContext * _ctx, const char * options, const char * key, double value, unsigned expire, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRSetUtf8 (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRSetStr  (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * options, const char * key, size32_t valueLength, const char * value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRSetUChar(ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, const char * options, const char * key, size32_t valueLength, const UChar * value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout);
-    ECL_REDIS_API void             ECL_REDIS_CALL AsncRSetData (ICodeContext * _ctx, size32_t & returnLength, void * & returnValue, const char * options, const char * key, size32_t valueLength, const void * value, unsigned __int64 database, unsigned expire, const char * password, unsigned __int64 timeout);
+   //--------------------------SET----------------------------------------
+   ECL_REDIS_API bool             ECL_REDIS_CALL AsyncRSetBool (ICodeContext * _ctx, const char * key, bool value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   ECL_REDIS_API signed __int64   ECL_REDIS_CALL AsyncRSetInt  (ICodeContext * _ctx, const char * key, signed __int64 value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsyncRSetUInt (ICodeContext * _ctx, const char * key, unsigned __int64 value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   ECL_REDIS_API double           ECL_REDIS_CALL AsyncRSetReal (ICodeContext * _ctx, const char * key, double value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRSetUtf8 (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRSetStr  (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRSetUChar(ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, const char * key, size32_t valueLength, const UChar * value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRSetData (ICodeContext * _ctx, size32_t & returnLength, void * & returnValue, const char * key, size32_t valueLength, const void * value, const char * options, unsigned __int64 database, unsigned expire, const char * pswd, unsigned timeout);
+   //--------------------------GET----------------------------------------
+   ECL_REDIS_API bool             ECL_REDIS_CALL AsyncRGetBool  (ICodeContext * _ctx, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
+   ECL_REDIS_API signed __int64   ECL_REDIS_CALL AsyncRGetInt8  (ICodeContext * _ctx, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
+   ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL AsyncRGetUint8 (ICodeContext * _ctx, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
+   ECL_REDIS_API double           ECL_REDIS_CALL AsyncRGetDouble(ICodeContext * _ctx, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRGetUtf8  (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRGetStr   (ICodeContext * _ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRGetUChar (ICodeContext * _ctx, size32_t & returnLength, UChar * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
+   ECL_REDIS_API void             ECL_REDIS_CALL AsyncRGetData  (ICodeContext * _ctx,size32_t & returnLength, void * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned timeout);
 
-    ECL_REDIS_API bool ECL_REDIS_CALL RMissThenLock(ICodeContext * _ctx, const char * options, const char * key, unsigned __int64 database, const char * password, unsigned __int64 timeout);
+    ECL_REDIS_API bool ECL_REDIS_CALL AsyncRMissThenLock(ICodeContext * _ctx, const char * key, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout);
 }
 }
 #endif
