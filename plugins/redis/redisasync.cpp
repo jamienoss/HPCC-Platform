@@ -37,7 +37,7 @@ class AsyncConnection : public Connection
 public :
     AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * password, unsigned __int64 timeout);
     AsyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * password, unsigned __int64 timeout);
-    ~AsyncConnection();
+    virtual ~AsyncConnection();
 
     static AsyncConnection * createConnection(ICodeContext * ctx, const char * options, unsigned __int64 database, const char * password, unsigned __int64 timeout)
     {
@@ -67,8 +67,8 @@ protected :
     void assertRedisErr(int reply, const char * _msg);
     void handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * password);
     void handleLockOnSet(ICodeContext * ctx, const char * key, const char * value, size_t size, unsigned expire);
-    void subscribe(const char * channel, StringAttr & value);
-    void unsubscribe(const char * channel);
+    //void subscribe(const char * channel, StringAttr & value);
+    void sendUnsubscribeCommand(const char * channel);
     void ensureEventLoop();
     bool lock(const char * key, const char * channel);
     void awaitResponceViaEventLoop(struct ev_loop * evLoop);
@@ -80,7 +80,7 @@ protected :
     static void connectCB(const redisAsyncContext *c, int status);
     static void disconnectCB(const redisAsyncContext *c, int status);
     static void hiredisLessThan011ConnectCB(const redisAsyncContext *c);
-    static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
+    //static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void pubCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void setCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void getCB(redisAsyncContext * context, void * _reply, void * privdata);
@@ -99,7 +99,7 @@ public :
     SubscriptionThread(ICodeContext * ctx, RedisServer * _server, const char * channel, redisCallbackFn * _callback, unsigned __int64 _database, const char * password, unsigned __int64 timeout);
     ~SubscriptionThread();
 
-    void setMessage(const char * _message) { message.set(_message); }
+    void setMessage(const char * _message) { message.set(_message, strlen(_message)); }
     void wait() { assertTimeout(messageSemaphore.wait(timeout)); }
     void signal() { messageSemaphore.signal(); }
     void activateSubscriptionSemaphore() { activeSubscriptionSemaphore.signal(); }
@@ -129,7 +129,7 @@ private :
 SubscriptionThread::SubscriptionThread(ICodeContext * ctx, RedisServer * _server, const char * _channel, redisCallbackFn * _callback, unsigned __int64 _database, const char * password, unsigned __int64 timeout)
   : AsyncConnection(ctx, _server, _database, password, timeout), thread("SubscriptionThread", (IThreaded*)this), evLoop(NULL)
 {
-    channel.set(_channel);
+    channel.set(_channel, strlen(_channel));
     if (_callback)
         callback = _callback;
     else
@@ -137,11 +137,19 @@ SubscriptionThread::SubscriptionThread(ICodeContext * ctx, RedisServer * _server
 }
 SubscriptionThread::~SubscriptionThread()
 {
-    unsubscribe();
+    //sendUnsubscribeCommand();//This could be shaved off. Since the connection/context belongs to this class, closing a connection with the server unsubscribes all channels on it.
     stopEvLoop();
     wait();//stopEvLoop() is an async operation in stopping any current read/write listening. We need to wait for this before closing this thread.
+    if (context)
+    {
+        //redis can auto disconnect upon certain errors, disconnectCB is called to handle this and is automatically
+        //disconnected after this freeing the context
+        if (context->err == REDIS_OK)//prevent double free due to the above reason
+            redisAsyncDisconnect(context);
+    }
     thread.stopped.signal();
     thread.join();
+
 }
 void SubscriptionThread::start()
 {
@@ -158,7 +166,7 @@ void SubscriptionThread::assertTimeout(bool timedout)
 {
     if (timedout)
     {
-    	printf("in here\n");
+    	printf("timedout\n");
         rtlFail(0, "RedisPlugin : subscription timed out");
     }
 }
@@ -173,11 +181,6 @@ void SubscriptionThread::waitForMessage(MemoryAttr * value)
     wait();
     value->setOwn(message.length(), message.detach());
 }
-
-
-
-
-
 AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * password, unsigned __int64 timeout)
   : Connection(ctx, _options, password, timeout), context(NULL)
 {
@@ -369,12 +372,12 @@ void SubscriptionThread::subCB(redisAsyncContext * context, void * _reply, void 
             subscriber->setMessage(reply->element[2]->str);
             const char * channel = reply->element[1]->str;
             redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
-            redisAsyncHandleWrite(context);//send unsubscribe command but don't bother to wait
+            redisAsyncHandleWrite(context);//send unsubscribe command but don't bother to wait as we close socket read event below, which unregisters this callback
             context->ev.delRead((void*)context->ev.data);
         }
     }
 }
-void AsyncConnection::subCB(redisAsyncContext * context, void * _reply, void * privdata)
+/*void AsyncConnection::subCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     if (_reply == NULL)
         return;
@@ -389,7 +392,7 @@ void AsyncConnection::subCB(redisAsyncContext * context, void * _reply, void * p
         redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
         redisLibevDelRead((void*)context->ev.data);
     }
-}
+}*/
 void AsyncConnection::unsubCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
     redisReply * reply = (redisReply*)_reply;
@@ -444,18 +447,18 @@ void AsyncConnection::pubCB(redisAsyncContext * context, void * _reply, void * p
     assertCallbackError(context, reply, "get callback fail");
     redisLibevDelRead((void*)context->ev.data);
 }
-void AsyncConnection::unsubscribe(const char * channel)
+void AsyncConnection::sendUnsubscribeCommand(const char * channel)
 {
     ensureEventLoop();
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
 }
-void AsyncConnection::subscribe(const char * channel, StringAttr & value)
+/*void AsyncConnection::subscribe(const char * channel, StringAttr & value)
 {
     ensureEventLoop();
     assertRedisErr(redisAsyncCommand(context, subCB, (void*)&value, "SUBSCRIBE %b", channel, strlen(channel)), "SUBSCRIBE buffer write error");
     awaitResponceViaEventLoop(EV_DEFAULT);
-}
+}*/
 void SubscriptionThread::subscribe(struct ev_loop * evLoop)
 {
     assertRedisErr(redisLibevAttach(evLoop, context), "failure to attach to libev");
