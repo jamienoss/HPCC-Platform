@@ -507,7 +507,7 @@ void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, Memo
     assertRedisErr(redisAsyncCommand(context, getCB, (void*)retVal, "GET %b", key, strlen(key)), "GET buffer write error");
     awaitResponceViaEventLoop(EV_DEFAULT);
 
-    //check if value returned is locked
+    //check if value is locked
     if (strncmp(static_cast<const char*>(retVal->get()), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
         subscriptionThread->waitForMessage(retVal);//locked so subscribe for value
 }
@@ -520,7 +520,7 @@ void AsyncConnection::handleLockOnSet(ICodeContext * ctx, const char * key, cons
     //Due to locking logic surfacing into ECL, any locking.set (such as this is) assumes that they own the lock and therefore go ahead and set
     //It is possible for a process/call to 'own' a lock and store this info in the LockObject, however, this prevents sharing between clients.
     assertRedisErr(redisAsyncCommand(context, setCB, NULL, cmd.str(), key, strlen(key), value, size), "SET buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT);//not theoretically necessary as subscribers receive value from published message. In addition,
+    awaitResponceViaEventLoop(EV_DEFAULT);
 
     StringBuffer channel;
     encodeChannel(channel, key);
