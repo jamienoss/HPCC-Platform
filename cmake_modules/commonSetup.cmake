@@ -90,11 +90,8 @@ IF ("${COMMONSETUP_DONE}" STREQUAL "")
   option(USE_RINSIDE "Enable R support" ON)
   option(USE_MEMCACHED "Enable Memcached support" ON)
   option(USE_REDIS "Enable Redis support" ON)
-  if ( USE_REDIS)
-      option(USE_EV "Enable ev support" ON)
-  else()
-      option(USE_EV "Enable ev support" OFF)
-  endif()
+  #option(USE_EV "Enable EV support" ON)
+
 
   option(USE_OPTIONAL "Automatically disable requested features with missing dependencies" ON)
 

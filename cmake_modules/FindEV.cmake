@@ -32,7 +32,7 @@ IF (NOT LIBEV_FOUND)
   FIND_LIBRARY(LIBEV_LIBRARY NAMES ${libev} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)
 
   include(FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(libev DEFAULT_MSG
+  find_package_handle_standard_args(ev DEFAULT_MSG
     LIBEV_LIBRARY
     LIBEV_INCLUDE_DIR
   )

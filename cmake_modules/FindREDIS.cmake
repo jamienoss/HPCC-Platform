@@ -43,3 +43,21 @@ IF (NOT LIBREDIS_FOUND)
   MARK_AS_ADVANCED(LIBHIREDIS_INCLUDE_DIRS LIBHIREDIS_LIBRARY)
 ENDIF()
 
+IF (NOT LIBEV_FOUND)
+  IF (WIN32)
+    SET (libev "libev")
+  ELSE()
+    SET (libev "ev")
+  ENDIF()
+
+  FIND_PATH(LIBEV_INCLUDE_DIR ev.h PATHS /usr/include /usr/share/include /usr/local/include)
+  FIND_LIBRARY(LIBEV_LIBRARY NAMES ${libev} PATHS /usr/lib /usr/share /usr/lib64 /usr/local/lib /usr/local/lib64)
+
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(ev DEFAULT_MSG
+    LIBEV_LIBRARY
+    LIBEV_INCLUDE_DIR
+  )
+
+  MARK_AS_ADVANCED(LIBEV_INCLUDE_DIR LIBEV_LIBRARY)
+ENDIF()

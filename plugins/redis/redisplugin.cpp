@@ -85,8 +85,9 @@ Connection::Connection(ICodeContext * ctx, const char * _options, const char * p
 {
     server.set(new RedisServer(ctx, _options, pswd));
 }
-Connection::Connection(ICodeContext * ctx, RedisServer * _server) : alreadyInitialized(false), database(0), timeout(0)
+Connection::Connection(ICodeContext * ctx, RedisServer * _server, const char * pswd, unsigned __int64 _timeout) : alreadyInitialized(false), database(0), timeout(_timeout)
 {
+    //should check that the password passed in is the same as that in server, perhaps?
     server.setown(_server);
 }
 bool Connection::isSameConnection(ICodeContext * ctx, unsigned hash) const

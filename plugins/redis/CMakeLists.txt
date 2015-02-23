@@ -43,12 +43,14 @@ if (USE_REDIS)
              ./../../rtl/include
              ./../../common/deftype
              ./../../system/jlib
+             ${LIBEV_INCLUDE_DIR}
              ${LIBHIREDIS_INCLUDE_DIRS}
         )
 
     ADD_DEFINITIONS( -D_USRDLL -DECL_REDIS_EXPORTS)
 
     HPCC_ADD_LIBRARY( redis SHARED ${SRCS} )
+    
     if (${CMAKE_VERSION} VERSION_LESS "2.8.9")
       message("WARNING: Cannot set NO_SONAME. shlibdeps will give warnings when package is installed")
     elif(NOT APPLE)

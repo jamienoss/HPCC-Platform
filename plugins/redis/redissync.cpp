@@ -55,11 +55,11 @@ SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options, unsign
 {
     connect(ctx, _database, pswd);
 }
-SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * pswd)
+/*SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * pswd)
   : Connection(ctx, _server)
 {
     connect(ctx, _database, pswd);
-}
+}*/
 void SyncConnection::connect(ICodeContext * ctx, unsigned __int64 _database, const char * pswd)
 {
     struct timeval to = { timeout/1000000, timeout%1000000 };

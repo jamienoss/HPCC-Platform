@@ -20,12 +20,19 @@ IMPORT redisServer FROM lib_redis;
 STRING server := '--SERVER=127.0.0.1:6379';
 STRING password := 'foobared';
 myRedis := redisServer(server, password);
+key := 'Einstein';
+//myRedis.FlushDB();
 
-myRedis.FlushDB();
-
-STRING myFunc() := FUNCTION
-  RETURN 'good boy Einnie!';
+myFunc() := FUNCTION
+ out := output('uh oh!');
+ return WHEN('Good boy Einnie!', out);
 END;
 
-myRedis.locking.GetString('Einstein', myFunc());
+ IF (myRedis.locking.Exists(key),
+     myRedis.locking.SetString(key, myFunc()),
+     myRedis.locking.GetString(key)
+     );
 
+//myRedis.locking.GetString('Einstein', myFunc(), 0, 0);
+
+//myRedis.FlushDB();
