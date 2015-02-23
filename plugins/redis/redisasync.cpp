@@ -93,8 +93,6 @@ protected :
 protected :
     redisAsyncContext * context;
 };
-
-
 class SubscriptionThread : implements IThreaded, implements IInterface, public AsyncConnection
 {
 public :
@@ -159,7 +157,10 @@ void SubscriptionThread::stopEvLoop()
 void SubscriptionThread::assertTimeout(bool timedout)
 {
     if (timedout)
+    {
+    	printf("in here\n");
         rtlFail(0, "RedisPlugin : subscription timed out");
+    }
 }
 void SubscriptionThread::main()
 {
