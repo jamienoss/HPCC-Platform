@@ -147,7 +147,7 @@ SubscriptionThread::~SubscriptionThread()
         if (context->err == REDIS_OK)//prevent double free due to the above reason
             redisAsyncDisconnect(context);
     }
-    thread.stopped.signal();
+    //thread.stopped.signal();
     thread.join();
 
 }
@@ -174,7 +174,7 @@ void SubscriptionThread::main()
 {
     evLoop = ev_loop_new(0);
     subscribe(evLoop);
-    signal();
+    //signal();
 }
 void SubscriptionThread::waitForMessage(MemoryAttr * value)
 {
@@ -365,14 +365,14 @@ void SubscriptionThread::subCB(redisAsyncContext * context, void * _reply, void 
     if (reply->type == REDIS_REPLY_ARRAY)
     {
         SubscriptionThread * subscriber = (SubscriptionThread*)privdata;
-        if (strcmp("subscribe", reply->element[0]->str) == 0 )
-            subscriber->activateSubscriptionSemaphore();
-        else if (strcmp("message", reply->element[0]->str) == 0 )
+        if (strcmp("subscribe", reply->element[0]->str) == 0 )//Upon subscribing redis replies with an 'OK' acknowledging the subscription
+            subscriber->activateSubscriptionSemaphore();//Signal that the subscription has been acknowledged
+        else if (strcmp("message", reply->element[0]->str) == 0 )//Any publication will be tagged as a 'message'
         {
             subscriber->setMessage(reply->element[2]->str);
-            const char * channel = reply->element[1]->str;
+            const char * channel = reply->element[1]->str;//We could extract the channel from 'SubscriptionThread * subscriber'
             redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
-            redisAsyncHandleWrite(context);//send unsubscribe command but don't bother to wait as we close socket read event below, which unregisters this callback
+            redisAsyncHandleWrite(context);//send unsubscribe command but don't bother to wait as we close socket read event below
             context->ev.delRead((void*)context->ev.data);
         }
     }
