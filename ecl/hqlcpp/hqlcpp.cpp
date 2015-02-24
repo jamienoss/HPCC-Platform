@@ -1210,10 +1210,11 @@ bool HqlCppInstance::useFunction(IHqlExpression * func)
     helpers.append(*LINK(func));
 
     IHqlExpression * funcDef = func->queryChild(0);
-    StringBuffer libname, init, include;
+    StringBuffer libname, init, include, source;
     getAttribute(funcDef, libraryAtom, libname);
     getAttribute(funcDef, initfunctionAtom, init);
     getAttribute(funcDef, includeAtom, include);
+    getAttribute(funcDef, sourceAtom, source);
     if (init.length())
     {
         BuildCtx ctx(*this, initAtom);
@@ -1240,6 +1241,8 @@ bool HqlCppInstance::useFunction(IHqlExpression * func)
     }
     if (include.length())
         useInclude(include.str());
+    if (source.length())
+        useSourceFile(source);
     return true;
 }
 
@@ -1754,6 +1757,8 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.newBalancedSpotter,"newBalancedSpotter",true),
         DebugOption(options.keyedJoinPreservesOrder,"keyedJoinPreservesOrder",true),
         DebugOption(options.expandSelectCreateRow,"expandSelectCreateRow",false),
+        DebugOption(options.optimizeSortAllFields,"optimizeSortAllFields",true),
+        DebugOption(options.optimizeSortAllFieldsStrict,"optimizeSortAllFieldsStrict",false),
     };
 
     //get options values from workunit
@@ -7452,6 +7457,13 @@ void HqlCppTranslator::processCppBodyDirectives(IHqlExpression * expr)
                 getStringValue(libraryName, cur->queryChild(0));
                 if (libraryName.length())
                     useLibrary(libraryName.str());
+            }
+            else if (name == sourceAtom)
+            {
+                StringBuffer sourceName;
+                getStringValue(sourceName, cur->queryChild(0));
+                if (sourceName.length())
+                    code->useSourceFile(sourceName.str());
             }
         }
     }
