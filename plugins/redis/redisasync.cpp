@@ -32,6 +32,8 @@ namespace RedisPlugin {
 static CriticalSection crit;
 static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 
+typedef void (EvTimeoutCBFn)(struct ev_loop * evLoop, ev_timer *w, int revents);
+
 class AsyncConnection : public Connection
 {
 public :
@@ -69,9 +71,9 @@ protected :
     void handleLockOnSet(ICodeContext * ctx, const char * key, const char * value, size_t size, unsigned expire);
     //void subscribe(const char * channel, StringAttr & value);
     void sendUnsubscribeCommand(const char * channel);
-    void ensureEventLoop();
+    void ensureEventLoop(struct ev_loop * eventLoop);
     bool lock(const char * key, const char * channel);
-    void awaitResponceViaEventLoop(struct ev_loop * evLoop);
+    void awaitResponceViaEventLoop(struct ev_loop * evLoop, void * data, EvTimeoutCBFn * callback);
     void encodeChannel(StringBuffer & channel, const char * key) const;
     void authenticate(ICodeContext * ctx, const char * password);
 
@@ -100,22 +102,24 @@ public :
     ~SubscriptionThread();
 
     void setMessage(const char * _message) { message.set(_message, strlen(_message)); }
-    void wait() { assertTimeout(messageSemaphore.wait(timeout)); }
+    void wait() { assertSemaphoreTimeout(messageSemaphore.wait(timeout/1000)); }//timeout is in micro-secs and wait() requires ms
     void signal() { messageSemaphore.signal(); }
     void activateSubscriptionSemaphore() { activeSubscriptionSemaphore.signal(); }
-    void waitForSubscriptionActivation() { assertTimeout(activeSubscriptionSemaphore.wait(timeout)); }
+    void waitForSubscriptionActivation() { assertSemaphoreTimeout(activeSubscriptionSemaphore.wait(timeout)); }//timeout is in micro-secs and wait() requires ms
     void subscribe(struct ev_loop * evLoop);
     void unsubscribe();
     void waitForMessage(MemoryAttr * value);
     void start();
     void stopEvLoop();
+    void rtlFail(int code, const char * msg);
     static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
+    static void StTimeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents);
 
     IMPLEMENT_IINTERFACE;
 
 private :
     void main();
-    void assertTimeout(bool timedout);
+    void assertSemaphoreTimeout(bool timedout);
 
 private :
     Semaphore messageSemaphore;
@@ -162,12 +166,18 @@ void SubscriptionThread::stopEvLoop()
     context->ev.delRead((void*)context->ev.data);
     context->ev.delWrite((void*)context->ev.data);
 }
-void SubscriptionThread::assertTimeout(bool timedout)
+void SubscriptionThread::assertSemaphoreTimeout(bool didNotTimeout)
 {
-    if (timedout)
+    if (!didNotTimeout)
     {
     	printf("timedout\n");
-        rtlFail(0, "RedisPlugin : subscription timed out");
+        stopEvLoop();
+
+        //do we need this?
+        wait();//stopEvLoop() is an async operation in stopping any current read/write listening. We need to wait for this before closing this thread.
+
+
+        this->rtlFail(0, "RedisPlugin : subscription timed out");
     }
 }
 void SubscriptionThread::main()
@@ -195,17 +205,17 @@ void AsyncConnection::selectDb(ICodeContext * ctx)
 {
     if (database == 0)//connections are not cached so only check that not default rather than against previous connection selected database
         return;
-    ensureEventLoop();
+    ensureEventLoop(EV_DEFAULT);
     VStringBuffer cmd("SELECT %" I64F "u", database);
     assertRedisErr(redisAsyncCommand(context, selectCB, NULL, cmd.str()), "SELECT (lock) buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT);
+    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
 }
 void AsyncConnection::authenticate(ICodeContext * ctx, const char * password)
 {
     if (strlen(password) > 0)
     {
         assertRedisErr(redisAsyncCommand(context, authenticationCB, NULL, "AUTH %b", password, strlen(password)), "AUTH buffer write error");
-        awaitResponceViaEventLoop(EV_DEFAULT);
+        awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
     }
 }
 AsyncConnection::~AsyncConnection()
@@ -290,16 +300,30 @@ void AsyncConnection::assertCallbackError(const redisAsyncContext * context, con
 }
 void AsyncConnection::timeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents)
 {
-
     rtlFail(0, "Redis Plugin : async operation timed out");
 }
-void AsyncConnection::awaitResponceViaEventLoop(struct ev_loop * evLoop)
+void SubscriptionThread::StTimeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents)
+{
+    if (w->data)
+    {
+        SubscriptionThread * thread = static_cast<SubscriptionThread*>(w->data);
+        thread->rtlFail(0, "Redis Plugin : async operation timed out");
+    }
+    //should still do something?
+}
+void SubscriptionThread::rtlFail(int code, const char * msg)
+{
+    thread.join();
+    rtlFail(code, msg);
+}
+void AsyncConnection::awaitResponceViaEventLoop(struct ev_loop * evLoop, void * data, EvTimeoutCBFn * callback)
 {
     ev_tstamp _timeout = timeout/1000000;
     ev_timer timer;
-    ev_timer_init(&timer, timeoutCB, _timeout, 0.);
+    timer.data = data;
+    ev_timer_init(&timer, callback, _timeout, 0.);
     ev_timer_again(evLoop, &timer);
-    //the above creates a timeout timer for the main event loop (below)
+    //the above creates a timeout timer for the main event loop below
     ev_run(evLoop, 0);//the actual event loop
 }
 //callbacks-----------------------------------------------------------------
@@ -449,25 +473,25 @@ void AsyncConnection::pubCB(redisAsyncContext * context, void * _reply, void * p
 }
 void AsyncConnection::sendUnsubscribeCommand(const char * channel)
 {
-    ensureEventLoop();
+    ensureEventLoop(EV_DEFAULT);
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
 }
 /*void AsyncConnection::subscribe(const char * channel, StringAttr & value)
 {
-    ensureEventLoop();
+    ensureEventLoop(EV_DEFAULT);
     assertRedisErr(redisAsyncCommand(context, subCB, (void*)&value, "SUBSCRIBE %b", channel, strlen(channel)), "SUBSCRIBE buffer write error");
     awaitResponceViaEventLoop(EV_DEFAULT);
 }*/
 void SubscriptionThread::subscribe(struct ev_loop * evLoop)
 {
-    assertRedisErr(redisLibevAttach(evLoop, context), "failure to attach to libev");
+    ensureEventLoop(evLoop);
     assertRedisErr(redisAsyncCommand(context, callback, (void*)this, "SUBSCRIBE %b", channel.str(), channel.length()), "SUBSCRIBE buffer write error");
-    awaitResponceViaEventLoop(evLoop);
+    awaitResponceViaEventLoop(evLoop, (void*)this, SubscriptionThread::timeoutCB);
 }
 void SubscriptionThread::unsubscribe()
 {
-    ensureEventLoop();
+    ensureEventLoop(evLoop);
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
 }
@@ -477,11 +501,11 @@ bool AsyncConnection::missThenLock(ICodeContext * ctx, const char * key)
     encodeChannel(channel, key);
     return lock(key, channel);
 }
-void AsyncConnection::ensureEventLoop()
+void AsyncConnection::ensureEventLoop(struct ev_loop * eventLoop)
 {
     if (context->ev.data)
         return;//already attached
-    assertRedisErr(redisLibevAttach(EV_DEFAULT_ context), "failure to attach to libev");//attach and report on fail
+    assertRedisErr(redisLibevAttach(eventLoop, context), "failure to attach to libev");//attach and report on fail
 }
 void AsyncConnection::encodeChannel(StringBuffer & channel, const char * key) const
 {
@@ -493,9 +517,9 @@ bool AsyncConnection::lock(const char * key, const char * channel)
     cmd.append(timeout);
 
     bool locked = false;
-    ensureEventLoop();
+    ensureEventLoop(EV_DEFAULT);
     assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&locked, cmd.str(), key, strlen(key), channel, strlen(channel)), "SET NX (lock) buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT);
+    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
     return locked;
 }
 void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * password)
@@ -506,9 +530,9 @@ void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, Memo
     subscriptionThread->start();//subscribe and wait for 1st callback that redis received sub. Do not block for main message callback this is the point of the thread.
 
     //GET command
-    ensureEventLoop();
+    ensureEventLoop(EV_DEFAULT);
     assertRedisErr(redisAsyncCommand(context, getCB, (void*)retVal, "GET %b", key, strlen(key)), "GET buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT);
+    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
 
     //check if value is locked
     if (strncmp(static_cast<const char*>(retVal->get()), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
@@ -518,17 +542,17 @@ void AsyncConnection::handleLockOnSet(ICodeContext * ctx, const char * key, cons
 {
     StringBuffer cmd("SET %b %b");
     RedisPlugin::appendExpire(cmd, expire);
-    ensureEventLoop();
+    ensureEventLoop(EV_DEFAULT);
 
     //Due to locking logic surfacing into ECL, any locking.set (such as this is) assumes that they own the lock and therefore go ahead and set
     //It is possible for a process/call to 'own' a lock and store this info in the LockObject, however, this prevents sharing between clients.
     assertRedisErr(redisAsyncCommand(context, setCB, NULL, cmd.str(), key, strlen(key), value, size), "SET buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT);
+    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
 
     StringBuffer channel;
     encodeChannel(channel, key);
     assertRedisErr(redisAsyncCommand(context, pubCB, NULL, "PUBLISH %b %b", channel.str(), channel.length(), value, size), "PUBLISH buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT);//this only waits to ensure redis received pub cmd. MORE: reply contains number of subscribers on that channel - utilise this?
+    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);//this only waits to ensure redis received pub cmd. MORE: reply contains number of subscribers on that channel - utilise this?
 }
 //-------------------------------------------GET-----------------------------------------
 //---OUTER---
