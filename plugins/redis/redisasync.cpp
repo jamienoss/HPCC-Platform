@@ -34,14 +34,15 @@ static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 
 typedef void (EvTimeoutCBFn)(struct ev_loop * evLoop, ev_timer *w, int revents);
 
-class TimerAndDataContainer
+class EvDataContainer
 {
 public :
-    TimerAndDataContainer() : timer(NULL), data(NULL) { }
-    TimerAndDataContainer(ev_timer * _timer, void * _data) : timer(_timer), data(_data) { }
-    ~TimerAndDataContainer() { timer = NULL; data = NULL; }
+    EvDataContainer() : eventLoop(NULL), timer(NULL), data(NULL) { }
+    EvDataContainer(struct ev_loop * _eventLoop, ev_timer * _timer, void * _data) : eventLoop(_eventLoop), timer(_timer), data(_data) { }
+    ~EvDataContainer() { eventLoop = NULL; timer = NULL; data = NULL; }
 
 public :
+    struct ev_loop * eventLoop;
     ev_timer * timer;
     void * data;
 };
@@ -221,21 +222,26 @@ void AsyncConnection::authenticate(ICodeContext * ctx, const char * password)
 {
     if (strlen(password) > 0)
     {
-        assertRedisErr(redisAsyncCommand(context, authenticationCB, NULL, "AUTH %b", password, strlen(password)), "AUTH buffer write error");
-        awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
+        sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, "AUTH buffer write error", authenticationCB, NULL, "AUTH %b", password, strlen(password));
+        //assertRedisErr(redisAsyncCommand(context, authenticationCB, NULL, "AUTH %b", password, strlen(password)), "AUTH buffer write error");
+        //awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
     }
 }
 void AsyncConnection::sendCommandAndWait(ICodeContext * ctx, struct ev_loop * eventLoop, EvTimeoutCBFn * timeoutCallback, void * timeoutData, const char * exceptionMessage, \
         redisCallbackFn * callback, void * callbackData, const char * command, ...)
 {
+	printf("%s\n", exceptionMessage);
     ensureEventLoop(eventLoop);
 
     ev_timer timer;
-    TimerAndDataContainer timerAndData(&timer, callbackData);
-    timer.data = timeoutData;//Accessible from EvTimeoutCBFn * timeoutCallback.
+    EvDataContainer container(eventLoop, &timer, callbackData);
+
+    timer.data = timeoutData;//Make accessible from EvTimeoutCBFn * timeoutCallback.
 
     va_list arguments;
-    assertRedisErr(redisvAsyncCommand(context, callback, static_cast<void*>(&timerAndData), command, arguments), exceptionMessage);
+    va_start(arguments, command);
+    assertRedisErr(redisvAsyncCommand(context, callback, static_cast<void*>(&container), command, arguments), exceptionMessage);
+    va_end(arguments);
 
     ev_tstamp evTimeout = timeout/1000000;//timeout has units micro-seconds & ev_tstamp has that of seconds.
     ev_timer_init(&timer, timeoutCallback, evTimeout, 0.);
@@ -497,6 +503,12 @@ void AsyncConnection::authenticationCB(redisAsyncContext * context, void * _repl
     redisReply * reply = (redisReply*)_reply;
     assertCallbackError(context, reply, "password authentication callback fail");
     redisLibevDelRead((void*)context->ev.data);
+
+    if (privdata)
+    {
+        EvDataContainer * container = static_cast<EvDataContainer*>(privdata);
+        ev_timer_stop(container->eventLoop, container->timer);
+    }
 }
 void AsyncConnection::pubCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
