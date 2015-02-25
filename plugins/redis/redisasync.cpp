@@ -37,14 +37,17 @@ typedef void (EvTimeoutCBFn)(struct ev_loop * evLoop, ev_timer *w, int revents);
 class EvDataContainer
 {
 public :
-    EvDataContainer() : eventLoop(NULL), timer(NULL), data(NULL) { }
-    EvDataContainer(struct ev_loop * _eventLoop, ev_timer * _timer, void * _data) : eventLoop(_eventLoop), timer(_timer), data(_data) { }
-    ~EvDataContainer() { eventLoop = NULL; timer = NULL; data = NULL; }
+    EvDataContainer() : eventLoop(NULL), timer(NULL), data(NULL), exceptionMessage(NULL), exceptionCode(0) { }
+    EvDataContainer(struct ev_loop * _eventLoop, ev_timer * _timer, void * _data, int _exceptionCode, const char * _exceptionMessage)
+      : eventLoop(_eventLoop), timer(_timer), data(_data), exceptionMessage(_exceptionMessage), exceptionCode(_exceptionCode) { }
+    ~EvDataContainer() { eventLoop = NULL; timer = NULL; data = NULL; exceptionMessage = NULL; }
 
 public :
     struct ev_loop * eventLoop;
     ev_timer * timer;
     void * data;
+    const char * exceptionMessage;
+    int exceptionCode;
 };
 class AsyncConnection : public Connection
 {
@@ -82,13 +85,13 @@ protected :
     void handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * password);
     void handleLockOnSet(ICodeContext * ctx, const char * key, const char * value, size_t size, unsigned expire);
     //void subscribe(const char * channel, StringAttr & value);
-    void sendUnsubscribeCommand(const char * channel);
+    //void sendUnsubscribeCommand(const char * channel);
     void ensureEventLoop(struct ev_loop * eventLoop);
-    bool lock(const char * key, const char * channel);
-    void awaitResponceViaEventLoop(struct ev_loop * evLoop, void * data, EvTimeoutCBFn * callback);
+    bool lock(ICodeContext * ctx, const char * key, const char * channel);
+    //void awaitResponceViaEventLoop(struct ev_loop * evLoop, void * data, EvTimeoutCBFn * callback);
     void encodeChannel(StringBuffer & channel, const char * key) const;
     void authenticate(ICodeContext * ctx, const char * password);
-    void sendCommandAndWait(ICodeContext * ctx, struct ev_loop * eventLoop, EvTimeoutCBFn * timeoutCallback, void * timeoutData, const char * exceptionMessage, \
+    void sendCommandAndWait(ICodeContext * ctx, struct ev_loop * eventLoop, EvTimeoutCBFn * timeoutCallback, void * timeoutData, int exceptionCode, const char * exceptionMessage, \
                             redisCallbackFn, void * callabckData, const char * command, ...);
 
     //callbacks
@@ -215,32 +218,32 @@ void AsyncConnection::selectDb(ICodeContext * ctx)
         return;
     ensureEventLoop(EV_DEFAULT);
     VStringBuffer cmd("SELECT %" I64F "u", database);
-    assertRedisErr(redisAsyncCommand(context, selectCB, NULL, cmd.str()), "SELECT (lock) buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
+    sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, authenticationCB, NULL, cmd.str());
 }
 void AsyncConnection::authenticate(ICodeContext * ctx, const char * password)
 {
     if (strlen(password) > 0)
-    {
-        sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, "AUTH buffer write error", authenticationCB, NULL, "AUTH %b", password, strlen(password));
-        //assertRedisErr(redisAsyncCommand(context, authenticationCB, NULL, "AUTH %b", password, strlen(password)), "AUTH buffer write error");
-        //awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
-    }
+        sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, authenticationCB, NULL, "AUTH %b", password, strlen(password));
 }
-void AsyncConnection::sendCommandAndWait(ICodeContext * ctx, struct ev_loop * eventLoop, EvTimeoutCBFn * timeoutCallback, void * timeoutData, const char * exceptionMessage, \
+void AsyncConnection::sendCommandAndWait(ICodeContext * ctx, struct ev_loop * eventLoop, EvTimeoutCBFn * timeoutCallback, void * timeoutData, int exceptionCode, const char * exceptionMessage, \
         redisCallbackFn * callback, void * callbackData, const char * command, ...)
 {
-	printf("%s\n", exceptionMessage);
     ensureEventLoop(eventLoop);
 
     ev_timer timer;
-    EvDataContainer container(eventLoop, &timer, callbackData);
-
+    EvDataContainer container(eventLoop, &timer, callbackData, 0, exceptionMessage);
+    if (exceptionMessage)
+        container.exceptionMessage = exceptionMessage;
+    else
+        container.exceptionMessage = command;
     timer.data = timeoutData;//Make accessible from EvTimeoutCBFn * timeoutCallback.
 
     va_list arguments;
     va_start(arguments, command);
-    assertRedisErr(redisvAsyncCommand(context, callback, static_cast<void*>(&container), command, arguments), exceptionMessage);
+
+    StringBuffer redisBufferMessage(" buffer write error of - ");
+    redisBufferMessage.append(command);
+    assertRedisErr(redisvAsyncCommand(context, callback, static_cast<void*>(&container), command, arguments), redisBufferMessage.str());
     va_end(arguments);
 
     ev_tstamp evTimeout = timeout/1000000;//timeout has units micro-seconds & ev_tstamp has that of seconds.
@@ -332,15 +335,23 @@ void AsyncConnection::assertCallbackError(const redisAsyncContext * context, con
 }
 void AsyncConnection::timeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents)
 {
-    rtlFail(0, "Redis Plugin : async operation timed out");
+    EvDataContainer * container = (EvDataContainer*)w->data;
+    StringBuffer msg("Redis Plugin : async operation timed out");
+    if (container)
+        msg.append(" - ").append(container->exceptionMessage);
+    rtlFail(0, msg.str());
 }
 void SubscriptionThread::StTimeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents)
 {
+    EvDataContainer * container = (EvDataContainer*)w->data;
 	printf("in timeout\n");
-    if (w->data)
+    if (container && container->data)
     {
+        StringBuffer msg("Redis Plugin : async operation timed out");
+        if (container)
+            msg.append(" - ").append(container->exceptionMessage);
         SubscriptionThread * thread = static_cast<SubscriptionThread*>(w->data);
-        thread->rtlFail(0, "Redis Plugin : async operation timed out");
+        thread->rtlFail(0, msg.str());
     }
     //should still do something?
 }
@@ -349,7 +360,7 @@ void SubscriptionThread::rtlFail(int code, const char * msg)
     join();
     rtlFail(code, msg);
 }
-void AsyncConnection::awaitResponceViaEventLoop(struct ev_loop * eventLoop, void * data, EvTimeoutCBFn * callback)
+/*void AsyncConnection::awaitResponceViaEventLoop(struct ev_loop * eventLoop, void * data, EvTimeoutCBFn * callback)
 {
     ev_tstamp evTimeout = timeout/1000000;//timeout has units micro-seconds & ev_tstamp has that of seconds.
     ev_timer timer;
@@ -362,7 +373,7 @@ void AsyncConnection::awaitResponceViaEventLoop(struct ev_loop * eventLoop, void
     ev_run(eventLoop, 0);//the actual event loop
     printf("loop over\n");
     ev_timer_stop(eventLoop, &timer);
-}
+}*/
 //callbacks-----------------------------------------------------------------
 void AsyncConnection::hiredisLessThan011ConnectCB(const redisAsyncContext * context)
 {
@@ -516,12 +527,13 @@ void AsyncConnection::pubCB(redisAsyncContext * context, void * _reply, void * p
     assertCallbackError(context, reply, "get callback fail");
     redisLibevDelRead((void*)context->ev.data);
 }
-void AsyncConnection::sendUnsubscribeCommand(const char * channel)
+/*void AsyncConnection::sendUnsubscribeCommand(const char * channel)
 {
+    //sendCommandAndWait(NULL, EV_DEFAULT, timeoutCB, NULL, 0, NULL, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
     ensureEventLoop(EV_DEFAULT);
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel)), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
-}
+}*/
 /*void AsyncConnection::subscribe(const char * channel, StringAttr & value)
 {
     ensureEventLoop(EV_DEFAULT);
@@ -544,7 +556,7 @@ bool AsyncConnection::missThenLock(ICodeContext * ctx, const char * key)
 {
     StringBuffer channel;
     encodeChannel(channel, key);
-    return lock(key, channel);
+    return lock(ctx, key, channel);
 }
 void AsyncConnection::ensureEventLoop(struct ev_loop * eventLoop)
 {
@@ -556,15 +568,14 @@ void AsyncConnection::encodeChannel(StringBuffer & channel, const char * key) co
 {
     channel.append(REDIS_LOCK_PREFIX).append("_").append(key).append("_").append(database).append("_").append(server->getIp()).append("_").append(server->getPort());
 }
-bool AsyncConnection::lock(const char * key, const char * channel)
+bool AsyncConnection::lock(ICodeContext * ctx, const char * key, const char * channel)
 {
+    bool locked = false;
+
     StringBuffer cmd("SET %b %b NX EX ");
     cmd.append(timeout);
+    sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, setLockCB, (void*)&locked, cmd.str(), key, strlen(key), channel, strlen(channel));
 
-    bool locked = false;
-    ensureEventLoop(EV_DEFAULT);
-    assertRedisErr(redisAsyncCommand(context, setLockCB, (void*)&locked, cmd.str(), key, strlen(key), channel, strlen(channel)), "SET NX (lock) buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
     return locked;
 }
 void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * password)
@@ -575,9 +586,7 @@ void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, Memo
     subscriptionThread->start();//subscribe and wait for 1st callback that redis received sub. Do not block for main message callback this is the point of the thread.
 
     //GET command
-    ensureEventLoop(EV_DEFAULT);
-    assertRedisErr(redisAsyncCommand(context, getCB, (void*)retVal, "GET %b", key, strlen(key)), "GET buffer write error");
-    awaitResponceViaEventLoop(EV_DEFAULT, NULL, timeoutCB);
+    sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, getCB, (void*)retVal, "GET %b", key, strlen(key));
 
     //check if value is locked
     if (strncmp(static_cast<const char*>(retVal->get()), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
