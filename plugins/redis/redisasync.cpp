@@ -80,6 +80,7 @@ public :
     template<class type> void set(ICodeContext * ctx, const char * key, type value, unsigned expire);
     template<class type> void set(ICodeContext * ctx, const char * key, size32_t valueLength, const type * value, unsigned expire);
 
+    //static void rtlFail(int code, const char * msg) { ::rtlFail(code, msg); }
     static void assertContextErr(const redisAsyncContext * context);
     static void assertConnection(const redisAsyncContext * context);
     static void assertContext(const redisAsyncContext * context, const char * _msg);
@@ -88,6 +89,7 @@ public :
     bool missThenLock(ICodeContext * ctx, const char * key);
 
 protected :
+    //virtual void rtlFail(int code, const char * msg) { ::rtlFail(code, msg); }
     virtual void selectDb(ICodeContext * ctx);
     virtual void authenticate(ICodeContext * ctx, const char * password);
     virtual void assertOnError(const redisReply * reply, const char * _msg);
@@ -128,27 +130,27 @@ public :
     SubscriptionThread(ICodeContext * ctx, RedisServer * _server, const char * channel, redisCallbackFn * _callback, unsigned __int64 _database, const char * password, unsigned __int64 timeout);
     ~SubscriptionThread();
 
+    virtual void rtlFail(int code, const char * msg);
     void setMessage(const char * _message) { message.set(_message, strlen(_message)); }
-    void waitForMessage() { assertSemaphoreTimeout(messageSemaphore.wait(timeout/1000)); }//timeout is in micro-secs and wait() requires ms
-    void signalMessageReceived() { messageSemaphore.signal(); }
+    void waitForPublication() { assertSemaphoreTimeout(messageSemaphore.wait(timeout/1000)); }//timeout is in micro-secs and wait() requires ms
+    void signalPublicationReceived() { messageSemaphore.signal(); }
     void signalSubscriptionActivated() { activeSubscriptionSemaphore.signal(); }
     void waitForSubscriptionActivation() { assertSemaphoreTimeout(activeSubscriptionSemaphore.wait(timeout/1000)); }//timeout is in micro-secs and wait() requires ms
     //void subscribe(struct ev_loop * evLoop);
     //void unsubscribe();
-    void waitForMessage(MemoryAttr * value);
+    void waitForPublication(MemoryAttr * value);
     void startThread();
     void stopEvLoop();
-    void rtlFail(int code, const char * msg);
     void join();
     static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void StTimeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents);
 
     IMPLEMENT_IINTERFACE;
 
-private :
+protected :
     virtual void selectDb(ICodeContext * ctx);
     virtual void authenticate(ICodeContext * ctx, const char * password);
-    void main();
+    virtual void main();
     void assertSemaphoreTimeout(bool timedout);
 
 private :
@@ -181,8 +183,8 @@ void SubscriptionThread::startThread()
 }
 void SubscriptionThread::main()
 {
-    //evLoop = ev_loop_new(0);
-#if (1)
+    evLoop = ev_loop_new(0); //THIS IS MOST LIKLEY THE ISSUE!!!
+#if (0)
     sendCommandAndWait(NULL, evLoop, StTimeoutCB, (void*)this, 0, NULL, callback, (void*)this, "SUBSCRIBE %b", channel.str(), channel.length());
 #else
     ensureEventLoopAttached(evLoop);
@@ -203,14 +205,14 @@ void SubscriptionThread::stopEvLoop()
 void AsyncConnection::delRead(redisAsyncContext * context)
 {
     CriticalBlock block(crit);
-    if (context)
-        redisLibevDelRead(context->ev.data);
+    if (context && context->ev.data)
+        redisLibevDelRead(context->ev.data);//this is a hiredis function
 }
 void AsyncConnection::delWrite(redisAsyncContext * context)
 {
     CriticalBlock block(crit);
-    if (context)
-        redisLibevDelWrite(context->ev.data);
+    if (context && context->ev.data)
+        redisLibevDelWrite(context->ev.data);//this is a hiredis function
 }
 void SubscriptionThread::join()
 {
@@ -223,9 +225,9 @@ void SubscriptionThread::assertSemaphoreTimeout(bool didNotTimeout)
     if (!didNotTimeout)
         this->rtlFail(0, "RedisPlugin : internal subscription thread timed out");
 }
-void SubscriptionThread::waitForMessage(MemoryAttr * value)
+void SubscriptionThread::waitForPublication(MemoryAttr * value)
 {
-    waitForMessage();
+    waitForPublication();
     value->setOwn(message.length(), message.detach());
 }
 AsyncConnection::AsyncConnection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * password, unsigned __int64 timeout)
@@ -392,8 +394,6 @@ void AsyncConnection::assertContext(const redisAsyncContext * context, const cha
         rtlFail(0, msg.str());
     }
 }
-
-
 void SubscriptionThread::rtlFail(int code, const char * msg)
 {
     join();
@@ -479,7 +479,7 @@ void SubscriptionThread::subCB(redisAsyncContext * context, void * _reply, void 
 {
     redisReply * reply = (redisReply*)_reply;
 
-    //can't rtl fail from sub thread!!!!!!!!!!!!!!!!!!!!!!!!! there are others
+    //can't rtl fail from sub thread!!!!!!!!!!!!!!!!!!!!!!!!! there are others! Will need to inc virtual rtlFail wrapper in class
     assertCallbackError(context, reply, "subscription thread sub callback fail");
 
     if (reply->type == REDIS_REPLY_ARRAY && privdata)
@@ -495,7 +495,7 @@ void SubscriptionThread::subCB(redisAsyncContext * context, void * _reply, void 
             else if (strcmp("message", reply->element[0]->str) == 0 )//Any publication will be tagged as a 'message'
             {
                 subscriber->setMessage(reply->element[2]->str);
-                subscriber->signalMessageReceived();
+                subscriber->signalPublicationReceived();
 
                 //const char * channel = reply->element[1]->str;//We could extract the channel from 'SubscriptionThread * subscriber'
                 //redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
@@ -609,6 +609,8 @@ bool AsyncConnection::missThenLock(ICodeContext * ctx, const char * key)
 }
 void AsyncConnection::ensureEventLoopAttached(struct ev_loop * eventLoop)
 {
+	//This is a function that may also be the CURRENT ISSUE
+
     assertConnection(context);
     if (!context->ev.data)
     {
@@ -618,7 +620,7 @@ void AsyncConnection::ensureEventLoopAttached(struct ev_loop * eventLoop)
 
     redisLibevEvents * contextEv = reinterpret_cast<redisLibevEvents*>(context->ev.data);
 
-//move this to beginning or header?
+//move this to beginning or header? Or remove when the code below is removed
 #ifdef loop
 #undef loop
 #endif
@@ -628,7 +630,6 @@ void AsyncConnection::ensureEventLoopAttached(struct ev_loop * eventLoop)
     {
         redisLibevCleanup(context->ev.data);
         context->ev.data = NULL;//required otherwise redisLibevAttach() (below) will fail
-        //Nullifying the above may not be a good idea, perhaps we should let redisLibevAttach() fail?
         assertRedisErr(redisLibevAttach(eventLoop, context), "failed to attach new evLoop to context");
     }
 }
@@ -639,11 +640,9 @@ void AsyncConnection::encodeChannel(StringBuffer & channel, const char * key) co
 bool AsyncConnection::lock(ICodeContext * ctx, const char * key, const char * channel)
 {
     bool locked = false;
-
     StringBuffer cmd("SET %b %b NX EX ");
     cmd.append(timeout);
     sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, setLockCB, (void*)&locked, cmd.str(), key, strlen(key), channel, strlen(channel));
-
     return locked;
 }
 void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * password)
@@ -658,8 +657,8 @@ void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, Memo
 
     //check if value is locked
     if (strncmp(reinterpret_cast<const char*>(retVal->get()), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
-        subscriptionThread->waitForMessage(retVal);//locked so subscribe for value
-    //subscriptionThread->join();//test case only. Called within ~SubscriptionThread()
+        subscriptionThread->waitForPublication(retVal);//locked so subscribe for value
+    //subscriptionThread->join();//test case only. Called within ~SubscriptionThread() MAY BE TEH CURRENT ISSUE!!!!!
 }
 void AsyncConnection::handleLockOnSet(ICodeContext * ctx, const char * key, const char * value, size_t size, unsigned expire)
 {
