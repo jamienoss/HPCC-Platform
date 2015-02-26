@@ -197,8 +197,6 @@ void SubscriptionThread::main()
 }
 void SubscriptionThread::stopEvLoop()
 {
-    CriticalBlock block(crit);
-    assertContext(context, "internal fail within stopEvLoop()");
     delRead(context);
     delWrite(context);
 }
@@ -216,7 +214,6 @@ void AsyncConnection::delWrite(redisAsyncContext * context)
 }
 void SubscriptionThread::join()
 {
-    CriticalBlock block(crit);
     stopEvLoop();
     thread.join();
 }
