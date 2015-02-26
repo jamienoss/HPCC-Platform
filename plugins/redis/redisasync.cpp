@@ -80,10 +80,12 @@ public :
     template<class type> void set(ICodeContext * ctx, const char * key, type value, unsigned expire);
     template<class type> void set(ICodeContext * ctx, const char * key, size32_t valueLength, const type * value, unsigned expire);
 
-    bool missThenLock(ICodeContext * ctx, const char * key);
     static void assertContextErr(const redisAsyncContext * context);
     static void assertConnection(const redisAsyncContext * context);
     static void assertContext(const redisAsyncContext * context, const char * _msg);
+    static void delRead(redisAsyncContext * context);
+    static void delWrite(redisAsyncContext * context);
+    bool missThenLock(ICodeContext * ctx, const char * key);
 
 protected :
     virtual void selectDb(ICodeContext * ctx);
@@ -95,12 +97,12 @@ protected :
     //void subscribe(const char * channel, StringAttr & value);
     //void sendUnsubscribeCommand(const char * channel);
     void ensureEventLoopAttached(struct ev_loop * eventLoop);
-    bool lock(ICodeContext * ctx, const char * key, const char * channel);
     //void awaitResponceViaEventLoop(struct ev_loop * evLoop, void * data, EvTimeoutCBFn * callback);
     void encodeChannel(StringBuffer & channel, const char * key) const;
     void authenticate(ICodeContext * ctx, const char * password);
     void sendCommandAndWait(ICodeContext * ctx, struct ev_loop * eventLoop, EvTimeoutCBFn * timeoutCallback, void * timeoutData, int exceptionCode, const char * exceptionMessage, \
                             redisCallbackFn, void * callabckData, const char * command, ...);
+    bool lock(ICodeContext * ctx, const char * key, const char * channel);
 
     //callbacks
     static void assertCallbackError(const redisAsyncContext * context, const redisReply * reply, const char * _msg);
@@ -129,17 +131,17 @@ public :
     void setMessage(const char * _message) { message.set(_message, strlen(_message)); }
     void waitForMessage() { assertSemaphoreTimeout(messageSemaphore.wait(timeout/1000)); }//timeout is in micro-secs and wait() requires ms
     void signalMessageReceived() { messageSemaphore.signal(); }
-    void activateSubscriptionSemaphore() { activeSubscriptionSemaphore.signal(); }
+    void signalSubscriptionActivated() { activeSubscriptionSemaphore.signal(); }
     void waitForSubscriptionActivation() { assertSemaphoreTimeout(activeSubscriptionSemaphore.wait(timeout/1000)); }//timeout is in micro-secs and wait() requires ms
     //void subscribe(struct ev_loop * evLoop);
-    void unsubscribe();
+    //void unsubscribe();
     void waitForMessage(MemoryAttr * value);
-    void start();
+    void startThread();
     void stopEvLoop();
     void rtlFail(int code, const char * msg);
+    void join();
     static void subCB(redisAsyncContext * context, void * _reply, void * privdata);
     static void StTimeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents);
-    void join();
 
     IMPLEMENT_IINTERFACE;
 
@@ -170,7 +172,7 @@ SubscriptionThread::~SubscriptionThread()
     //sendUnsubscribeCommand();//This could be shaved off. Since the connection/context belongs to this class, closing a connection with the server unsubscribes all channels on it.
     join();
 }
-void SubscriptionThread::start()
+void SubscriptionThread::startThread()
 {
     thread.start();
     waitForSubscriptionActivation();//wait for subscription to be acknowledged by redis
@@ -193,8 +195,20 @@ void SubscriptionThread::stopEvLoop()
 {
     CriticalBlock block(crit);
     assertContext(context, "internal fail within stopEvLoop()");
-    context->ev.delRead(context->ev.data);
-    context->ev.delWrite(context->ev.data);
+    delRead(context);
+    delWrite(context);
+}
+void AsyncConnection::delRead(redisAsyncContext * context)
+{
+    CriticalBlock block(crit);
+    if (context)
+        redisLibevDelRead(context->ev.data);
+}
+void AsyncConnection::delWrite(redisAsyncContext * context)
+{
+    CriticalBlock block(crit);
+    if (context)
+        redisLibevDelWrite(context->ev.data);
 }
 void SubscriptionThread::join()
 {
@@ -366,6 +380,13 @@ void AsyncConnection::assertContext(const redisAsyncContext * context, const cha
     }
 }
 
+
+void SubscriptionThread::rtlFail(int code, const char * msg)
+{
+    join();
+    ::rtlFail(code, msg);
+}
+//callbacks-----------------------------------------------------------------
 void AsyncConnection::timeoutCB(struct ev_loop * evLoop, ev_timer *w, int revents)
 {
     EvDataContainer * container = (EvDataContainer*)w->data;
@@ -387,12 +408,6 @@ void SubscriptionThread::StTimeoutCB(struct ev_loop * evLoop, ev_timer *w, int r
     }
     //should still do something?
 }
-void SubscriptionThread::rtlFail(int code, const char * msg)
-{
-    join();
-    ::rtlFail(code, msg);
-}
-//callbacks-----------------------------------------------------------------
 void AsyncConnection::hiredisLessThan011ConnectCB(const redisAsyncContext * context)
 {
     assertContext(context, "failed to connect with no error details");
@@ -449,59 +464,48 @@ void AsyncConnection::disconnectCB(const redisAsyncContext * context, int status
 }
 void SubscriptionThread::subCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
-    //if (_reply == NULL || privdata == NULL)
-      //  return;
-
     redisReply * reply = (redisReply*)_reply;
 
-
-
-    //can't rtl fail from sub thread!!!!!!!!!!!!!!!!!!!!!!!!!
+    //can't rtl fail from sub thread!!!!!!!!!!!!!!!!!!!!!!!!! there are others
     assertCallbackError(context, reply, "subscription thread sub callback fail");
 
-
-
-
-
-    if (reply->type == REDIS_REPLY_ARRAY)
+    if (reply->type == REDIS_REPLY_ARRAY && privdata)
     {
         EvDataContainer * container = (EvDataContainer*)privdata;
-        if (container)
+        Owned<SubscriptionThread> subscriber = LINK((SubscriptionThread*)container->data);
+        if (subscriber)
         {
-            SubscriptionThread * subscriber = (SubscriptionThread*)container->data;
-            if (subscriber)
+            if (strcmp("subscribe", reply->element[0]->str) == 0 )//Upon subscribing redis replies with an 'OK' acknowledging the subscription
             {
-                if (strcmp("subscribe", reply->element[0]->str) == 0 )//Upon subscribing redis replies with an 'OK' acknowledging the subscription
-                {
-                    subscriber->activateSubscriptionSemaphore();//Signal that the subscription has been acknowledged
-                    //container->stopTimeoutTimer();//Not actually needed as the evLoop is called without a timer, but for future change
-                }
-                else if (strcmp("message", reply->element[0]->str) == 0 )//Any publication will be tagged as a 'message'
-                {
-                    subscriber->setMessage(reply->element[2]->str);
-                    const char * channel = reply->element[1]->str;//We could extract the channel from 'SubscriptionThread * subscriber'
-                    //redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
-                    //redisAsyncHandleWrite(context);//send unsubscribe command but don't bother to wait as we close socket read event below
-                    assertContext(context, "subscription thread sub callback fail");
-                    context->ev.delRead(context->ev.data);
-                    subscriber->signalMessageReceived();
-                    //container->stopTimeoutTimer();//Not actually needed as the evLoop is called without a timer, but for future change
-                }
+                subscriber->signalSubscriptionActivated();
+            }
+            else if (strcmp("message", reply->element[0]->str) == 0 )//Any publication will be tagged as a 'message'
+            {
+                subscriber->setMessage(reply->element[2]->str);
+                subscriber->signalMessageReceived();
+
+                //const char * channel = reply->element[1]->str;//We could extract the channel from 'SubscriptionThread * subscriber'
+                //redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel, strlen(channel));
+                //redisAsyncHandleWrite(context);//send unsubscribe command but don't bother to wait as we close socket read event below
+
+                assertContext(context, "subscription thread sub callback fail");
+                delRead(context);
             }
         }
     }
 }
 void AsyncConnection::unsubCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
+    EvDataContainer::stopTimeoutTimer(privdata);
     redisReply * reply = (redisReply*)_reply;
     const char * msg = "unsub callback fail";
     assertCallbackError(context, reply, msg);
     assertContext(context, msg);
-    redisLibevDelRead(context->ev.data);
-    EvDataContainer::stopTimeoutTimer(privdata);
+    delRead(context);
 }
 void AsyncConnection::getCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
+    EvDataContainer::stopTimeoutTimer(privdata);
     redisReply * reply = (redisReply*)_reply;
     const char * msg =  "get callback fail";
     assertCallbackError(context, reply, msg);
@@ -513,20 +517,20 @@ void AsyncConnection::getCB(redisAsyncContext * context, void * _reply, void * p
         retVal->set((size32_t)reply->len, (const void*)reply->str);
     }
     assertContext(context, msg);
-    redisLibevDelRead(context->ev.data);
-    container->stopTimeoutTimer();
+    delRead(context);
 }
 void AsyncConnection::setCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
+    EvDataContainer::stopTimeoutTimer(privdata);
     redisReply * reply = (redisReply*)_reply;
     const char * msg = "set callback fail";
     assertCallbackError(context, reply, msg);
     assertContext(context, msg);
-    redisLibevDelRead(context->ev.data);
-    EvDataContainer::stopTimeoutTimer(privdata);
+    delRead(context);
 }
 void AsyncConnection::setLockCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
+    EvDataContainer::stopTimeoutTimer(privdata);
     redisReply * reply = (redisReply*)_reply;
     const char * msg = "set lock callback fail";
     assertCallbackError(context, reply, msg);
@@ -547,43 +551,43 @@ void AsyncConnection::setLockCB(redisAsyncContext * context, void * _reply, void
         }
     }
     assertContext(context, msg);
-    redisLibevDelRead(context->ev.data);
-    container->stopTimeoutTimer();
+    delRead(context);
 }
 void AsyncConnection::selectCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
+    EvDataContainer::stopTimeoutTimer(privdata);
     redisReply * reply = (redisReply*)_reply;
     const char * msg = "select callback fail";
     assertCallbackError(context, reply, msg);
     assertContext(context, msg);
-    redisLibevDelRead(context->ev.data);
-    EvDataContainer::stopTimeoutTimer(privdata);
+    delRead(context);
 }
 void AsyncConnection::authenticationCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
+    EvDataContainer::stopTimeoutTimer(privdata);
     redisReply * reply = (redisReply*)_reply;
     const char * msg = "password authentication callback fail";
     assertCallbackError(context, reply, msg);
     assertContext(context, msg);
-    redisLibevDelRead(context->ev.data);
-    EvDataContainer::stopTimeoutTimer(privdata);
+    delRead(context);
 }
 void AsyncConnection::pubCB(redisAsyncContext * context, void * _reply, void * privdata)
 {
+    EvDataContainer::stopTimeoutTimer(privdata);
     redisReply * reply = (redisReply*)_reply;
     const char * msg = "pub callback fail";
     assertCallbackError(context, reply, msg);
     assertContext(context, msg);
-    redisLibevDelRead(context->ev.data);
-    EvDataContainer::stopTimeoutTimer(privdata);
+    delRead(context);
 }
 //end of callbacks
-void SubscriptionThread::unsubscribe()
+
+/*void SubscriptionThread::unsubscribe()
 {
     ensureEventLoopAttached(evLoop);
     assertRedisErr(redisAsyncCommand(context, NULL, NULL, "UNSUBSCRIBE %b", channel.str(), channel.length()), "UNSUBSCRIBE buffer write error");
     redisAsyncHandleWrite(context);
-}
+}*/
 bool AsyncConnection::missThenLock(ICodeContext * ctx, const char * key)
 {
     StringBuffer channel;
@@ -606,8 +610,8 @@ void AsyncConnection::ensureEventLoopAttached(struct ev_loop * eventLoop)
         return;//already attached
     else
     {
-        context->ev.data = NULL;//required otherwise redisLibevAttach() (below) will fail
-        //The above may not be a good idea, perhaps we should let redisLibevAttach() fail?
+        //context->ev.data = NULL;//required otherwise redisLibevAttach() (below) will fail
+        //Nullifying the above may not be a good idea, perhaps we should let redisLibevAttach() fail?
         assertRedisErr(redisLibevAttach(eventLoop, context), "failed to attach new evLoop to context");
     }
 }
@@ -630,11 +634,11 @@ void AsyncConnection::handleLockOnGet(ICodeContext * ctx, const char * key, Memo
     StringBuffer channel;
     encodeChannel(channel, key);
     Owned<SubscriptionThread> subscriptionThread = new SubscriptionThread(ctx, server.getLink(), channel.str(), NULL, database, password, timeout);
-    subscriptionThread->start();//subscribe and wait for 1st callback that redis received sub. Do not block for main message callback this is the point of the thread.
+    subscriptionThread->startThread();//subscribe and wait for 1st callback that redis received sub. Do not block for main message callback this is the point of the thread.
 
     //GET command
     sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, getCB, (void*)retVal, "GET %b", key, strlen(key));
-    printf("GET complete - %s\n", reinterpret_cast<const char*>(retVal->get()));
+
     //check if value is locked
     if (strncmp(reinterpret_cast<const char*>(retVal->get()), REDIS_LOCK_PREFIX, strlen(REDIS_LOCK_PREFIX)) == 0 )
         subscriptionThread->waitForMessage(retVal);//locked so subscribe for value
