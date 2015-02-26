@@ -89,6 +89,7 @@ public :
 
 protected :
     virtual void selectDb(ICodeContext * ctx);
+    virtual void authenticate(ICodeContext * ctx, const char * password);
     virtual void assertOnError(const redisReply * reply, const char * _msg);
     void createAndAssertConnection(ICodeContext * ctx, const char * password);
     void assertRedisErr(int reply, const char * _msg);
@@ -99,7 +100,6 @@ protected :
     void ensureEventLoopAttached(struct ev_loop * eventLoop);
     //void awaitResponceViaEventLoop(struct ev_loop * evLoop, void * data, EvTimeoutCBFn * callback);
     void encodeChannel(StringBuffer & channel, const char * key) const;
-    void authenticate(ICodeContext * ctx, const char * password);
     void sendCommandAndWait(ICodeContext * ctx, struct ev_loop * eventLoop, EvTimeoutCBFn * timeoutCallback, void * timeoutData, int exceptionCode, const char * exceptionMessage, \
                             redisCallbackFn, void * callabckData, const char * command, ...);
     bool lock(ICodeContext * ctx, const char * key, const char * channel);
@@ -146,6 +146,8 @@ public :
     IMPLEMENT_IINTERFACE;
 
 private :
+    virtual void selectDb(ICodeContext * ctx);
+    virtual void authenticate(ICodeContext * ctx, const char * password);
     void main();
     void assertSemaphoreTimeout(bool timedout);
 
@@ -159,7 +161,7 @@ private :
     struct ev_loop * evLoop;
 };
 SubscriptionThread::SubscriptionThread(ICodeContext * ctx, RedisServer * _server, const char * _channel, redisCallbackFn * _callback, unsigned __int64 _database, const char * password, unsigned __int64 timeout)
-  : AsyncConnection(ctx, _server, _database, password, timeout), thread("SubscriptionThread", (IThreaded*)this), evLoop(NULL)
+  : AsyncConnection(ctx, _server, _database, password, timeout), thread("SubscriptionThread", (IThreaded*)this), evLoop(ev_loop_new(0))
 {
     channel.set(_channel, strlen(_channel));
     if (_callback)
@@ -179,7 +181,7 @@ void SubscriptionThread::startThread()
 }
 void SubscriptionThread::main()
 {
-    evLoop = ev_loop_new(0);
+    //evLoop = ev_loop_new(0);
 #if (1)
     sendCommandAndWait(NULL, evLoop, StTimeoutCB, (void*)this, 0, NULL, callback, (void*)this, "SUBSCRIBE %b", channel.str(), channel.length());
 #else
@@ -248,11 +250,22 @@ void AsyncConnection::selectDb(ICodeContext * ctx)
 {
     if (database == 0)//connections are not cached so only check that not default rather than against previous connection selected database
         return;
-    ensureEventLoopAttached(EV_DEFAULT);
     VStringBuffer cmd("SELECT %" I64F "u", database);
     sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, selectCB, NULL, cmd.str());
 }
 void AsyncConnection::authenticate(ICodeContext * ctx, const char * password)
+{
+    if (strlen(password) > 0)
+        sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, authenticationCB, NULL, "AUTH %b", password, strlen(password));
+}
+void SubscriptionThread::selectDb(ICodeContext * ctx)
+{
+    if (database == 0)//connections are not cached so only check that not default rather than against previous connection selected database
+        return;
+    VStringBuffer cmd("SELECT %" I64F "u", database);
+    sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, selectCB, NULL, cmd.str());
+}
+void SubscriptionThread::authenticate(ICodeContext * ctx, const char * password)
 {
     if (strlen(password) > 0)
         sendCommandAndWait(ctx, EV_DEFAULT, timeoutCB, NULL, 0, NULL, authenticationCB, NULL, "AUTH %b", password, strlen(password));
@@ -598,9 +611,12 @@ void AsyncConnection::ensureEventLoopAttached(struct ev_loop * eventLoop)
 {
     assertConnection(context);
     if (!context->ev.data)
+    {
         assertRedisErr(redisLibevAttach(eventLoop, context), "failed to attach evLoop to context");
+        return;
+    }
 
-    redisLibevEvents * contextEv = static_cast<redisLibevEvents*>(context->ev.data);
+    redisLibevEvents * contextEv = reinterpret_cast<redisLibevEvents*>(context->ev.data);
 
 //move this to beginning or header?
 #ifdef loop
@@ -610,7 +626,8 @@ void AsyncConnection::ensureEventLoopAttached(struct ev_loop * eventLoop)
         return;//already attached
     else
     {
-        //context->ev.data = NULL;//required otherwise redisLibevAttach() (below) will fail
+        redisLibevCleanup(context->ev.data);
+        context->ev.data = NULL;//required otherwise redisLibevAttach() (below) will fail
         //Nullifying the above may not be a good idea, perhaps we should let redisLibevAttach() fail?
         assertRedisErr(redisLibevAttach(eventLoop, context), "failed to attach new evLoop to context");
     }
