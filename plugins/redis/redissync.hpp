@@ -26,7 +26,6 @@ class SyncConnection : public Connection
 {
 public :
     SyncConnection(ICodeContext * ctx, const char * options, unsigned __int64 database, const char * pswd, unsigned __int64 _timeout);
-    //SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 database, const char * pswd);
     ~SyncConnection()
     {
         if (context)
@@ -40,7 +39,6 @@ public :
     //get
     template <class type> void get(ICodeContext * ctx, const char * key, type & value);
     template <class type> void get(ICodeContext * ctx, const char * key, size_t & valueLength, type * & value);
-    void getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & valueLength, void * & value);
     void persist(ICodeContext * ctx, const char * key);
     void expire(ICodeContext * ctx, const char * key, unsigned _expire);
     void del(ICodeContext * ctx, const char * key);

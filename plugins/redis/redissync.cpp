@@ -55,11 +55,6 @@ SyncConnection::SyncConnection(ICodeContext * ctx, const char * _options, unsign
 {
     connect(ctx, _database, pswd);
 }
-/*SyncConnection::SyncConnection(ICodeContext * ctx, RedisServer * _server, unsigned __int64 _database, const char * pswd)
-  : Connection(ctx, _server)
-{
-    connect(ctx, _database, pswd);
-}*/
 void SyncConnection::connect(ICodeContext * ctx, unsigned __int64 _database, const char * pswd)
 {
     struct timeval to = { timeout/1000000, timeout%1000000 };
@@ -256,11 +251,6 @@ template<class type> void SyncRGet(ICodeContext * ctx, const char * options, con
     Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd, _timeout);
     master->get(ctx, key, returnLength, returnValue);
 }
-void SyncRGetVoidPtrLenPair(ICodeContext * ctx, const char * options, const char * key, size_t & returnLength, void * & returnValue, unsigned __int64 database, const char * pswd, unsigned __int64 _timeout)
-{
-    Owned<SyncConnection> master = SyncConnection::createConnection(ctx, options, database, pswd, _timeout);
-    master->getVoidPtrLenPair(ctx, key, returnLength, returnValue);
-}
 //--INNER--
 template<class type> void SyncConnection::get(ICodeContext * ctx, const char * key, type & returnValue)
 {
@@ -289,15 +279,6 @@ template<class type> void SyncConnection::get(ICodeContext * ctx, const char * k
     size_t returnSize = returnLength;
 
     returnValue = reinterpret_cast<type*>(allocateAndCopy(reply->query()->str, returnSize));
-}
-void SyncConnection::getVoidPtrLenPair(ICodeContext * ctx, const char * key, size_t & returnLength, void * & returnValue)
-{
-    OwnedReply reply = Reply::createReply(redisCommand(context, "GET %b", key, strlen(key)));
-    StringBuffer keyMsg = getFailMsg;
-    assertOnError(reply->query(), appendIfKeyNotFoundMsg(reply->query(), key, keyMsg));
-
-    returnLength = reply->query()->len;
-    returnValue = reinterpret_cast<void*>(allocateAndCopy(reply->query()->str, reply->query()->len));
 }
 
 //--------------------------------------------------------------------------------
@@ -412,7 +393,7 @@ ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUtf8(ICodeContext * ctx, size32_t & re
 ECL_REDIS_API void ECL_REDIS_CALL SyncRGetData(ICodeContext * ctx, size32_t & returnLength, void * & returnValue, const char * key, const char * options, unsigned __int64 database, const char * pswd, unsigned __int64 timeout)
 {
     size_t _returnLength;
-    SyncRGetVoidPtrLenPair(ctx, options, key, _returnLength, returnValue, database, pswd, timeout);
+    SyncRGet(ctx, options, key, _returnLength, returnValue, database, pswd, timeout);
     returnLength = static_cast<size32_t>(_returnLength);
 }
 }//close namespace
