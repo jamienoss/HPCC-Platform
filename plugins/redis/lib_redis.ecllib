@@ -113,7 +113,7 @@ EXPORT RedisServer    (CONST VARSTRING options, CONST VARSTRING password = '', u
     EXPORT GetUnsigned(CONST VARSTRING key, UNSIGNED database = 0) := lockingInternal.GetUnsigned(key, options, database, password, timeout);
     EXPORT     GetData(CONST VARSTRING key, UNSIGNED database = 0) :=     lockingInternal.GetData(key, options, database, password, timeout);
 
-    EXPORT Exists(CONST VARSTRING key, UNSIGNED database = 0) := lockingInternal.MissTHenLock(key, options, database, password, timeout);
+    EXPORT Exists(CONST VARSTRING key, UNSIGNED database = 0) := NOT(lockingInternal.MissTHenLock(key, options, database, password, timeout));
 
 
 /*

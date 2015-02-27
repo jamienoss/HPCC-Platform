@@ -177,6 +177,7 @@ void SubscriptionThread::startThread()
 }
 void SubscriptionThread::main()
 {
+
 #if (0)
     sendCommandAndWait(NULL, ev_loop_new(0), StTimeoutCB, (void*)this, 0, NULL, callback, (void*)this, "SUBSCRIBE %b", channel.str(), channel.length());
 #else
@@ -186,17 +187,21 @@ void SubscriptionThread::main()
    // awaitResponceViaEventLoop(evLoop, static_cast<void*>(this), StTimeoutCB);
     ev_run(evLoop, 0);//wait for response WITHOUT a timeout. This is stopped from the parent thread in handleLockOnGet
 #endif
+
     printf("loop stopped\n");
 }
 void SubscriptionThread::stopEvLoop()
 {
+    //Check that there is a loop attached e.g. this is called from ~SubscriptionThread() where none may have been attached yet.
+    if (context && !context->ev.data)
+        return;
     delRead(context);
     delWrite(context);
 }
 void AsyncConnection::delRead(redisAsyncContext * context)
 {
     assertex(context);
-    assertex(context->ev.data);
+    assertex(context->ev.data);//Assert or return? If you are calling this directly then you
     CriticalBlock block(crit);
     redisLibevDelRead(context->ev.data);//this is a hiredis function
 }
