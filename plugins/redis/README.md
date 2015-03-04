@@ -159,3 +159,24 @@ A few notes to point out here:
     have the key-value received on another, and yet, the key-value still does not exist on the cache.
    * At present the 'lock' is not as such an actual lock, as only the `locking.Get<type>` functions acknowledge it. By current implementation it is better thought as a flag for
    `GET` to wait and subscribe. I.e. the locked key can be deleted and re-set just as any other key can be.
+   * Since the timeout duration is not for an individual plugin call but instead that waiting for each reply from the server, the actual possible maximum timeout duration differs from
+     various functions within this plugin, i.e. some functions do more than others. Below is a table for each of the plugin functions (or catagories of) including the maximum possible and
+     nominal expected, where the latter is due to using a cached connection, i.e. neither the server IP, port, nor password have changed from the function called prior to the one in
+     question. The values given are multiples of the given timeout.
+
+     | Operation/Function  | Nominal | Maximum | Diff due to...   |
+     |:--------------------|:-------:|:-------:|-----------------:|
+     | A new connection    | 3       | 4       | database         |
+     | Cached connection   | 0       | 2       | database, timeout|
+     | Get<type>           | 1       | 5       | new connection   |
+     | Set<type>           | 1       | 5       | new connection   |
+     | FlushDB             | 1       | 5       | new connection   |
+     | Del                 | 1       | 5       | new connection   |
+     | Persist             | 1       | 5       | new connection   |
+     | Exists              | 1       | 5       | new connection   |
+     | DBSize              | 1       | 5       | new connection   |
+     | Expire              | 1       | 5       | new connection   |
+     | GetOrLock           | 7       | 11      | new connection   |
+     | GetOrLock (locked)  | 8       | 12      | new connection   |
+     | SetAndPublish       | 2       | 6       | new connection   |
+     | Unlock              | 5       | 9       | new connection   |
