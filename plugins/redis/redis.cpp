@@ -38,7 +38,6 @@ ECL_REDIS_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 }
 
 namespace RedisPlugin {
-
 class Connection;
 static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 static __thread Connection * cachedConnection;
@@ -116,25 +115,26 @@ protected :
     void parseOptions(ICodeContext * ctx, const char * _options);
     void connect(ICodeContext * ctx, unsigned __int64 _database, const char * password);
     void selectDB(ICodeContext * ctx, unsigned __int64 _database);
+    void authenticate(ICodeContext * ctx, const char * password);
     void resetContextErr();
     void readReply(Reply * reply);
     void readReplyAndAssert(Reply * reply, const char * msg);
     void readReplyAndAssertWithKey(Reply * reply, const char * msg, const char * key);
     void assertKey(const redisReply * reply, const char * key);
-    void assertAuthorization(const redisReply * reply);
     void assertOnError(const redisReply * reply, const char * _msg);
     void assertOnCommandError(const redisReply * reply, const char * cmd);
     void assertOnCommandErrorWithDatabase(const redisReply * reply, const char * cmd);
     void assertOnCommandErrorWithKey(const redisReply * reply, const char * cmd, const char * key);
     void assertConnection();
     void updateTimeout(unsigned __int64 _timeout);
-    static unsigned hashServerIpPortPassword(ICodeContext * ctx, const char * _options, const char * password);
-    bool isSameConnection(ICodeContext * ctx, const char * _options, const char * password) const;
+    void * allocateAndCopy(const char * src, size_t size);
+    bool isSameConnection(ICodeContext * ctx, const char * password) const;
 
     //-------------------------------LOCKING------------------------------------------------
     void handleLockOnSet(ICodeContext * ctx, const char * key, const char * value, size_t size, unsigned expire);
     void handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAttr * retVal, const char * password);
     void encodeChannel(StringBuffer & channel, const char * key) const;
+    bool noScript(const redisReply * reply) const;
     bool lock(ICodeContext * ctx, const char * key, const char * channel);
     //--------------------------------------------------------------------------------------
 
@@ -150,11 +150,11 @@ protected :
 
 //The following class is here to ensure destruction of the cachedConnection within the main thread
 //as this is not handled by the thread hook mechanism.
-static class MainThreadCachedConnection
+static class mainThreadCachedConnection
 {
 public :
-    MainThreadCachedConnection() { }
-    ~MainThreadCachedConnection()
+    mainThreadCachedConnection() { }
+    ~mainThreadCachedConnection()
     {
         if (cachedConnection)
             cachedConnection->Release();
@@ -175,8 +175,10 @@ static void releaseContext()
     }
 }
 Connection::Connection(ICodeContext * ctx, const char * _options, unsigned __int64 _database, const char * password, unsigned __int64 _timeout)
-  : database(0), timeout(_timeout), port(0), serverIpPortPasswordHash(hashServerIpPortPassword(ctx, _options, password))
+  : database(0), timeout(_timeout), port(0)
 {
+    serverIpPortPasswordHash = hashc((const unsigned char*)password, strlen(password), 0);
+    serverIpPortPasswordHash = hashc((const unsigned char*)_options, strlen(_options), serverIpPortPasswordHash);
     options.set(_options, strlen(_options));
     parseOptions(ctx, _options);
     connect(ctx, _database, password);
@@ -190,7 +192,7 @@ Connection::Connection(ICodeContext * ctx, const char * _options, const char * _
 }
 void Connection::connect(ICodeContext * ctx, unsigned __int64 _database, const char * password)
 {
-    struct timeval to = { timeout/1000, (timeout%1000)*1000 };
+    struct timeval to = { timeout/1000, timeout%1000 };
     context = redisConnectWithTimeout(ip.str(), port, to);
     redisSetTimeout(context, to);
     assertConnection();
@@ -198,11 +200,11 @@ void Connection::connect(ICodeContext * ctx, unsigned __int64 _database, const c
     //The following is the dissemination of the two methods authenticate(ctx, password) & selectDB(ctx, _database)
     //such that they may be pipelined to save an extra round trip to the server and back.
     if (password && *password)
-        redisAppendCommand(context, "AUTH %b", password, strlen(password));
+      redisAppendCommand(context, "AUTH %b", password, strlen(password));
 
     if (database != _database)
     {
-        VStringBuffer cmd("SELECT %" I64F "u", _database);
+        VStringBuffer cmd("SELECT %" I64F "u", database);
         redisAppendCommand(context, cmd.str());
     }
 
@@ -217,13 +219,15 @@ void Connection::connect(ICodeContext * ctx, unsigned __int64 _database, const c
         database = _database;
     }
 }
-bool Connection::isSameConnection(ICodeContext * ctx, const char * _options, const char * password) const
+bool Connection::isSameConnection(ICodeContext * ctx, const char * password) const
 {
-    return (hashServerIpPortPassword(ctx, _options, password) == serverIpPortPasswordHash);
+    unsigned hash = hashc((const unsigned char*)options.str(), options.length(), hashc((const unsigned char*)password, strlen(password), 0));
+    return (serverIpPortPasswordHash == hash);
 }
-unsigned Connection::hashServerIpPortPassword(ICodeContext * ctx, const char * _options, const char * password)
+void * Connection::allocateAndCopy(const char * src, size_t size)
 {
-    return hashc((const unsigned char*)_options, strlen(_options), hashc((const unsigned char*)password, strlen(password), 0));
+    void * value = rtlMalloc(size);
+    return memcpy(value, src, size);
 }
 void Connection::parseOptions(ICodeContext * ctx, const char * _options)
 {
@@ -259,6 +263,15 @@ void Connection::parseOptions(ICodeContext * ctx, const char * _options)
             ctx->logString(msg.str());
         }
     }
+    return;
+}
+void Connection::authenticate(ICodeContext * ctx, const char * password)
+{
+    if (password && *password)
+    {
+        OwnedReply reply = Reply::createReply(redisCommand(context, "AUTH %b", password, strlen(password)));
+        assertOnError(reply->query(), "server authentication failed");
+    }
 }
 void Connection::resetContextErr()
 {
@@ -293,7 +306,7 @@ Connection * Connection::createConnection(ICodeContext * ctx, const char * optio
         return LINK(cachedConnection);
     }
 
-    if (cachedConnection->isSameConnection(ctx, options, password))
+    if (cachedConnection->isSameConnection(ctx, password))
     {
         //MORE: should perhaps check that the connection has not expired (think hiredis REDIS_KEEPALIVE_INTERVAL is defaulted to 15s).
         //At present updateTimeout calls assertConnection.
@@ -304,7 +317,6 @@ Connection * Connection::createConnection(ICodeContext * ctx, const char * optio
     }
 
     cachedConnection->Release();
-    cachedConnection = NULL;
     cachedConnection = new Connection(ctx, options, _database, password, _timeout);
     return LINK(cachedConnection);
 }
@@ -323,7 +335,7 @@ void Connection::updateTimeout(unsigned __int64 _timeout)
         return;
     assertConnection();
     timeout = _timeout;
-    struct timeval to = { timeout/1000, (timeout%1000)*1000 };
+    struct timeval to = { timeout/1000, timeout%1000 };
     assertex(context);
     if (redisSetTimeout(context, to) != REDIS_OK)
     {
@@ -338,7 +350,7 @@ void Connection::updateTimeout(unsigned __int64 _timeout)
 }
 void Connection::assertOnError(const redisReply * reply, const char * _msg)
 {
-    if (!reply)//MORE: should this be assertex(reply) instead?
+    if (!reply)//assertex(reply)?
     {
         //There should always be a context error if no reply error
         assertConnection();
@@ -347,14 +359,21 @@ void Connection::assertOnError(const redisReply * reply, const char * _msg)
     }
     else if (reply->type == REDIS_REPLY_ERROR)
     {
-        assertAuthorization(reply);
-        VStringBuffer msg("Redis Plugin: %s - %s", _msg, reply->str);
-        rtlFail(0, msg.str());
+        if (strncmp(reply->str, "NOAUTH", 6) == 0)
+        {
+            VStringBuffer msg("Redis Plugin: server authentication failed - %s", reply->str);
+            rtlFail(0, msg.str());
+        }
+        else
+        {
+            VStringBuffer msg("Redis Plugin: %s - %s", _msg, reply->str);
+            rtlFail(0, msg.str());
+        }
     }
 }
 void Connection::assertOnCommandErrorWithKey(const redisReply * reply, const char * cmd, const char * key)
 {
-    if (!reply)//MORE: should this be assertex(reply) instead?
+    if (!reply)//assertex(reply)?
     {
         //There should always be a context error if no reply error
         assertConnection();
@@ -363,9 +382,16 @@ void Connection::assertOnCommandErrorWithKey(const redisReply * reply, const cha
     }
     else if (reply->type == REDIS_REPLY_ERROR)
     {
-        assertAuthorization(reply);
-        VStringBuffer msg("Redis Plugin: ERROR - %s '%s' on database %" I64F "u failed : %s", cmd, key, database, reply->str);
-        rtlFail(0, msg.str());
+        if (strncmp(reply->str, "NOAUTH", 6) == 0)
+        {
+            VStringBuffer msg("Redis Plugin: server authentication failed - %s", reply->str);
+            rtlFail(0, msg.str());
+        }
+        else
+        {
+            VStringBuffer msg("Redis Plugin: ERROR - %s '%s' on database %" I64F "u failed : %s", cmd, key, database, reply->str);
+            rtlFail(0, msg.str());
+        }
     }
 }
 void Connection::assertOnCommandErrorWithDatabase(const redisReply * reply, const char * cmd)
@@ -379,9 +405,16 @@ void Connection::assertOnCommandErrorWithDatabase(const redisReply * reply, cons
     }
     else if (reply->type == REDIS_REPLY_ERROR)
     {
-        assertAuthorization(reply);
-        VStringBuffer msg("Redis Plugin: ERROR - %s on database %" I64F "u failed : %s", cmd, database, reply->str);
-        rtlFail(0, msg.str());
+        if (strncmp(reply->str, "NOAUTH", 6) == 0)
+        {
+            VStringBuffer msg("Redis Plugin: server authentication failed - %s", reply->str);
+            rtlFail(0, msg.str());
+        }
+        else
+        {
+            VStringBuffer msg("Redis Plugin: ERROR - %s on database %" I64F "u failed : %s", cmd, database, reply->str);
+            rtlFail(0, msg.str());
+        }
     }
 }
 void Connection::assertOnCommandError(const redisReply * reply, const char * cmd)
@@ -395,17 +428,16 @@ void Connection::assertOnCommandError(const redisReply * reply, const char * cmd
     }
     else if (reply->type == REDIS_REPLY_ERROR)
     {
-        assertAuthorization(reply);
-        VStringBuffer msg("Redis Plugin: ERROR - %s failed : %s", cmd, reply->str);
-        rtlFail(0, msg.str());
-    }
-}
-void Connection::assertAuthorization(const redisReply * reply)
-{
-    if (strncmp(reply->str, "NOAUTH", 6) == 0)
-    {
-        VStringBuffer msg("Redis Plugin: server authentication failed - %s", reply->str);
-        rtlFail(0, msg.str());
+        if (strncmp(reply->str, "NOAUTH", 6) == 0)
+        {
+            VStringBuffer msg("Redis Plugin: server authentication failed - %s", reply->str);
+            rtlFail(0, msg.str());
+        }
+        else
+        {
+            VStringBuffer msg("Redis Plugin: ERROR - %s failed : %s", cmd, reply->str);
+            rtlFail(0, msg.str());
+        }
     }
 }
 void Connection::assertKey(const redisReply * reply, const char * key)
@@ -678,7 +710,7 @@ void Connection::lockGet(ICodeContext * ctx, const char * key, size_t & returnSi
 //---------------------------------------------------------------------------------------
 void Connection::encodeChannel(StringBuffer & channel, const char * key) const
 {
-    channel.append(REDIS_LOCK_PREFIX).append("_").append(key).append("_").append(database);
+    channel.append(REDIS_LOCK_PREFIX).append("_").append(key).append("_").append(database).append("_").append(ip.str()).append("_").append(port);
 }
 bool Connection::lock(ICodeContext * ctx, const char * key, const char * channel)
 {
@@ -688,7 +720,9 @@ bool Connection::lock(ICodeContext * ctx, const char * key, const char * channel
     OwnedReply reply = Reply::createReply(redisCommand(context, cmd.str(), key, strlen(key), channel, strlen(channel)));
     assertOnError(reply->query(), cmd.append(" of the key '").append(key).append("' failed"));
 
-    return (reply->query()->type == REDIS_REPLY_STATUS && strcmp(reply->query()->str, "OK") == 0);
+    if (reply->query()->type == REDIS_REPLY_STATUS && strcmp(reply->query()->str, "OK") == 0)
+        return true;
+    return false;
 }
 void Connection::unlock(ICodeContext * ctx, const char * key)
 {
@@ -766,9 +800,9 @@ void Connection::handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAtt
     else
     {
         //Check that we SUBSCRIBEd to the correct channel (which could have been manually SET).
-        if (strcmp(reply->query()->str, channel.str()) !=0 )
+        if (strcmp(reply->query()->str, channel) !=0 )
         {
-            VStringBuffer msg("Redis Plugin: ERROR - the key '%s', on database %" I64F "u, is locked with a channel ('%s') different to that subscribed to (%s).", key, database, reply->query()->str, channel.str());
+            VStringBuffer msg("Redis Plugin: ERROR - the key '%s', on database %" I64F "u, is locked with a channel ('%s') different to that subscribed to.", key, database, reply->query()->str);
             rtlFail(0, msg.str());
             //MORE: We could attempt to recover at this stage by subscribing to the channel that the key was actually locked with.
             //However, we may have missed the massage publication already or by then.
@@ -797,20 +831,54 @@ void Connection::handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAtt
 }
 void Connection::handleLockOnSet(ICodeContext * ctx, const char * key, const char * value, size_t size, unsigned expire)
 {
-    StringBuffer cmd("SET %b %b");
-    RedisPlugin::appendExpire(cmd, expire);
-
     //Due to locking logic surfacing into ECL, any locking.set (such as this is) assumes that they own the lock and therefore go ahead and set regardless.
     //It is possible for a process/call to 'own' a lock and store this info in the LockObject, however, this prevents sharing between clients.
-    redisAppendCommand(context, cmd.str(), key, strlen(key), value, size);//SET
+    const int approxLuaScriptTransmissionLength = 19 + 9 + 40;//strlen("EVAL %b %d %b %b %b") + strlen(luaScript) + SHA1
+    const int approxMultiTransmissionLength = 5 + 13 + 4;//strlen("MULTI") + strlen("PUBLISH %b %b") + strlen("EXEC")
     StringBuffer channel;
     encodeChannel(channel, key);
-    redisAppendCommand(context, "PUBLISH %b %b", channel.str(), channel.length(), value, size);//PUB
 
-    //Now read and assert replies
-    OwnedReply replyContainer = new Reply();
-    readReplyAndAssertWithKey(replyContainer, "SET", key);//SET reply
-    readReplyAndAssertWithKey(replyContainer, "PUB for the key", key);//PUB reply
+    if (true)//approxMultiTransmissionLength > approxLuaScriptTransmissionLength)
+    {
+        OwnedReply replyContainer = new Reply();
+        if (expire == 0)
+        {
+            const char * luaScriptSHA1 = "2a4a976d9bbd806756b2c7fc1e2bc2cb905e68c3"; //NOTE: update if luaScript is updated!
+            replyContainer->setClear((redisReply*)redisCommand(context, "EVALSHA %b %d %b %b %b", luaScriptSHA1, 40, 1, key, strlen(key), channel.str(), channel.length(), value, size));
+            if (noScript(replyContainer->query()))
+            {
+                const char * luaScript = "redis.call('SET', KEYS[1], ARGV[2]) redis.call('PUBLISH', ARGV[1], ARGV[2]) return";
+                replyContainer->setClear((redisReply*)redisCommand(context, "EVAL %b %d %b %b %b", luaScript, strlen(luaScript), 1, key, strlen(key), channel.str(), channel.length(), value, size));
+            }
+        }
+        else
+        {
+            const char * luaScriptWithExpireSHA1 = "a9d47439c71c11d9b535d176fa00e332ac23b46f"; //NOTE: update if luaScriptWithExpire is updated!
+            replyContainer->setClear((redisReply*)redisCommand(context, "EVALSHA %b %d %b %b %b %d", luaScriptWithExpireSHA1, 40, 1, key, strlen(key), channel.str(), channel.length(), value, size, expire));
+            if (noScript(replyContainer->query()))
+            {
+                const char * luaScriptWithExpire = "redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3]) redis.call('PUBLISH', ARGV[1], ARGV[2]) return";
+                replyContainer->setClear((redisReply*)redisCommand(context, "EVAL %b %d %b %b %b %d", luaScriptWithExpire, strlen(luaScriptWithExpire), 1, key, strlen(key), channel.str(), channel.length(), value, size, expire));
+            }
+        }
+        assertOnCommandErrorWithKey(replyContainer->query(), "SET", key);
+    }
+    else
+    {
+        StringBuffer cmd("SET %b %b");
+        RedisPlugin::appendExpire(cmd, expire);
+        redisAppendCommand(context, "MULTI");
+        redisAppendCommand(context, cmd.str(), key, strlen(key), value, size);//SET
+        redisAppendCommand(context, "PUBLISH %b %b", channel.str(), channel.length(), value, size);//PUB
+        redisAppendCommand(context, "EXEC");
+
+        //Now read and assert replies
+        OwnedReply reply = new Reply();
+        readReplyAndAssertWithKey(reply, "SET", key);//MULTI reply
+        readReplyAndAssertWithKey(reply, "SET", key);//SET reply
+        readReplyAndAssertWithKey(reply, "PUB for the key", key);//PUB reply
+        readReplyAndAssertWithKey(reply, "SET", key);//EXEC reply
+    }
 
     //NOTE: Pipelining the above commands may not be the desired behaviour but instead only PUBLISH upon a successful SET. Doing both regardless, does however ensure
     //(assuming only the SET fails) that any subscribers do in fact get their requested key-value even if the SET fails. However, this may not be expected behaviour
@@ -820,6 +888,10 @@ void Connection::handleLockOnSet(ICodeContext * ctx, const char * key, const cha
     //value stored, this can then be checked if it is a lock (i.e. has at least the "redis_key_lock prefix"), if it doesn't, PUB on the channel from encodeChannel(),
     //otherwise PUB on the value retrieved from GETSET or possibly only if it at least has the prefix "redis_key_lock".
     //This would however, prevent the two commands from being pipelined, as the GETSET would need to return before publishing.
+}
+bool Connection::noScript(const redisReply * reply) const
+{
+    return (reply && reply->type == REDIS_REPLY_ERROR && strncmp(reply->str, "NOSCRIPT", 8) == 0);
 }
 //--------------------------------------------------------------------------------
 //                           ECL SERVICE ENTRYPOINTS
