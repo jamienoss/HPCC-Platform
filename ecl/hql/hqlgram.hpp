@@ -461,7 +461,7 @@ public:
     void checkLoopFlags(const attribute & err, IHqlExpression * loopExpr);
     IHqlExpression * checkIndexRecord(IHqlExpression * record, const attribute & errpos, OwnedHqlExpr & indexAttrs);
     void checkIndexFieldType(IHqlExpression * cur, bool isPayload, bool insideNestedRecord, const attribute & errpos);
-    void checkIndexRecordType(IHqlExpression * record, unsigned numPayloadFields, bool insideNestedRecord, const attribute & errpos);
+    void checkIndexRecordType(IHqlExpression * record, unsigned numPayloadFields, bool insideNestedRecord, const attribute & errpos, bool hasFileposition);
     void checkIndexRecordTypes(IHqlExpression * index, const attribute & errpos);
     void reportInvalidIndexFieldType(IHqlExpression * expr, bool isPayload, const attribute & errpos);
     void reportUnsupportedFieldType(ITypeInfo * type, const attribute & errpos);

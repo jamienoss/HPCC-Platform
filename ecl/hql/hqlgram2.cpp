@@ -1045,22 +1045,21 @@ IHqlExpression * HqlGram::processIndexBuild(attribute & indexAttr, attribute * r
 
     LinkedHqlExpr inputDataset = dataset;
     OwnedHqlExpr flags = flagsAttr.getExpr();
+    bool hasFileposition = getBoolAttributeInList(flags, filepositionAtom, true);
     if (recordAttr)
     {
         OwnedHqlExpr record = recordAttr->getExpr();
         if (payloadAttr)
         {
             OwnedHqlExpr payload = payloadAttr->getExpr();
-            checkIndexRecordType(record, 0, false, *recordAttr);
-            checkIndexRecordType(payload, payload->numChildren(), false, *payloadAttr);
+            checkIndexRecordType(record, 0, false, *recordAttr, hasFileposition);
+            checkIndexRecordType(payload, payload->numChildren(), false, *payloadAttr, hasFileposition);
             modifyIndexPayloadRecord(record, payload, flags, indexAttr);
         }
         else
         {
-            bool hasFileposition = getBoolAttributeInList(flags, filepositionAtom, true);
             unsigned numPayloadFields = hasFileposition ? 1 : 0;
-
-            checkIndexRecordType(record, numPayloadFields, false, *recordAttr);
+            checkIndexRecordType(record, numPayloadFields, false, *recordAttr, hasFileposition);
         }
 
         //Recalculated because it might be updated in modifyIndexPayloadRecord() above
@@ -1072,7 +1071,7 @@ IHqlExpression * HqlGram::processIndexBuild(attribute & indexAttr, attribute * r
     }
     else
     {
-        checkIndexRecordType(dataset->queryRecord(), 1, false, indexAttr);
+        checkIndexRecordType(dataset->queryRecord(), 1, false, indexAttr, hasFileposition);
     }
 
     HqlExprArray args;
@@ -7028,7 +7027,6 @@ void HqlGram::reportInvalidIndexFieldType(IHqlExpression * expr, bool isKeyed, c
 
 void HqlGram::checkIndexFieldType(IHqlExpression * expr, bool isPayload, bool insideNestedRecord, const attribute & errpos)
 {
-    bool variableOk = isPayload;
     switch (expr->getOperator())
     {
     case no_field:
@@ -7056,7 +7054,7 @@ void HqlGram::checkIndexFieldType(IHqlExpression * expr, bool isPayload, bool in
                 {
                     IHqlExpression * record = expr->queryRecord();
                     unsigned numPayload = isPayload ? record->numChildren() : 0;
-                    checkIndexRecordType(record, numPayload, true, errpos);
+                    checkIndexRecordType(record, numPayload, true, errpos, false);
                     break;
                 }
             case type_dictionary:
@@ -7081,7 +7079,7 @@ void HqlGram::checkIndexFieldType(IHqlExpression * expr, bool isPayload, bool in
             default:
                 if (!type->isScalar())
                     reportInvalidIndexFieldType(expr, false, errpos);
-                else if ((type->getSize() == UNKNOWN_LENGTH) && !variableOk)
+                else if ((type->getSize() == UNKNOWN_LENGTH) && !isPayload)
                 {
                     reportError(ERR_INDEX_BADTYPE, errpos, "Variable size fields (%s) are not supported inside indexes", id->str());
                     break;
@@ -7096,29 +7094,49 @@ void HqlGram::checkIndexFieldType(IHqlExpression * expr, bool isPayload, bool in
 
             IHqlExpression * record = expr->queryChild(1);
             unsigned numPayload = isPayload ? record->numChildren() : 0;
-            checkIndexRecordType(record, numPayload, insideNestedRecord, errpos);
+            checkIndexRecordType(record, numPayload, insideNestedRecord, errpos, false);
             break;
         }
     case no_record:
         {
             unsigned numPayload = isPayload ? expr->numChildren() : 0;
-            checkIndexRecordType(expr, numPayload, insideNestedRecord, errpos);
+            checkIndexRecordType(expr, numPayload, insideNestedRecord, errpos, false);
             break;
         }
     }
 }
 
-void HqlGram::checkIndexRecordType(IHqlExpression * record, unsigned numPayloadFields, bool insideNestedRecord, const attribute & errpos)
+void HqlGram::checkIndexRecordType(IHqlExpression * record, unsigned numPayloadFields, bool insideNestedRecord, const attribute & errpos, bool hasFileposition)
 {
+    if (!record)
+        throwUnexpected();
     unsigned max = record->numChildren();
     for (unsigned i=0;i < max; i++)
-        checkIndexFieldType(record->queryChild(i), i >= max-numPayloadFields, insideNestedRecord, errpos);
+    {
+        bool isPayload = i >= max-numPayloadFields;
+        //Check that the last field is an integer, as required, if it is to be implicitly used for the fileposition.
+        if (i == max-1 && hasFileposition)
+        {
+            ITypeInfo * type = record->queryType();
+            if (!type)
+                throwUnexpected();
+            switch(type->getTypeCode())
+            {
+            case type_int:
+            case type_swapint:
+                break;
+            default:
+                isPayload = false;
+            }
+        }
+        checkIndexFieldType(record->queryChild(i), isPayload, insideNestedRecord, errpos);
+    }
 }
 
 void HqlGram::checkIndexRecordTypes(IHqlExpression * index, const attribute & errpos)
 {
     IHqlExpression * record = index->queryChild(1);
-    checkIndexRecordType(record, numPayloadFields(index), false, errpos);
+    checkIndexRecordType(record, numPayloadFields(index), false, errpos, false);
     IHqlExpression * ds = index->queryChild(0)->queryNormalizedSelector();
     IHqlExpression * filename = index->queryChild(2);
     if (filename->usesSelector(ds))
