@@ -1060,6 +1060,23 @@ IHqlExpression * HqlGram::processIndexBuild(attribute & indexAttr, attribute * r
             bool hasFileposition = getBoolAttributeInList(flags, filepositionAtom, true);
             unsigned numPayloadFields = hasFileposition ? 1 : 0;
 
+            //Check that the last field is an integer, as required, if it is to be implicitly used for the fileposition.
+            if (hasFileposition)
+            {
+                if (!record)
+                    throwUnexpected();
+                IHqlExpression * expr = record->queryChild(record->numChildren()-1);
+                if (!expr)
+                    throwUnexpected();
+                switch(expr->queryType()->getTypeCode())
+                {
+                case type_int:
+                case type_swapint:
+                    break;
+                default:
+                    numPayloadFields = 0;
+                }
+            }
             checkIndexRecordType(record, numPayloadFields, false, *recordAttr);
         }
 
@@ -7028,7 +7045,6 @@ void HqlGram::reportInvalidIndexFieldType(IHqlExpression * expr, bool isKeyed, c
 
 void HqlGram::checkIndexFieldType(IHqlExpression * expr, bool isPayload, bool insideNestedRecord, const attribute & errpos)
 {
-    bool variableOk = isPayload;
     switch (expr->getOperator())
     {
     case no_field:
@@ -7081,7 +7097,7 @@ void HqlGram::checkIndexFieldType(IHqlExpression * expr, bool isPayload, bool in
             default:
                 if (!type->isScalar())
                     reportInvalidIndexFieldType(expr, false, errpos);
-                else if ((type->getSize() == UNKNOWN_LENGTH) && !variableOk)
+                else if ((type->getSize() == UNKNOWN_LENGTH) && !isPayload)
                 {
                     reportError(ERR_INDEX_BADTYPE, errpos, "Variable size fields (%s) are not supported inside indexes", id->str());
                     break;
