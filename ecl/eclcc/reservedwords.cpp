@@ -572,11 +572,6 @@ void printKeywordsToXml()
          }
          buffer.append("  </cat>\n");
      }
-     buffer.append("</xml>\n");
-
-     Owned<IFile> treeFile = createIFile("ECLKeywords.xml");
-     Owned<IFileIO> io = treeFile->open(IFOcreaterw);
-     Owned<IIOStream> out = createIOStream(io);
-
-     out->write(buffer.length(), buffer.str());
+     buffer.append("</xml>");
+     fprintf(stdout, "%s\n", buffer.str());
 }
