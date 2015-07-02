@@ -335,11 +335,23 @@ public:
 
         if (expr->isDataset() || (expr->isDatarow() && (op != no_select)))
         {
-            if (!translator.canAssignInline(&ctx, expr))
+            if (translator.queryOptions().optimizeInlineOperations)
             {
-                noteCandidate(expr);
-                return;
+                if (!translator.mustAssignInline(&ctx, expr))
+                {
+                    noteCandidate(expr);
+                    return;
+                }
             }
+            else
+            {
+                if (!translator.canAssignInline(&ctx, expr))
+                {
+                    noteCandidate(expr);
+                    return;
+                }
+            }
+
             if (!walkFurtherDownTree(expr))
                 return;
         }
@@ -433,6 +445,7 @@ public:
         ChildGraphExprBuilder & builder = queryBuilder(extra);
         OwnedHqlExpr graph = builder.getGraph();
         OwnedHqlExpr cleanedGraph = mapExternalToInternalResults(graph, builder.queryRepresents());
+
         return cleanedGraph.getClear();
     }
 
@@ -7829,6 +7842,28 @@ void HqlCppTranslator::doBuildStmtEnsureResult(BuildCtx & ctx, IHqlExpression * 
     doBuildStmtSetResult(subctx, expr);
 }
 
+
+//---------------------------------------------------------------------------
+
+void HqlCppTranslator::doBuildStmtSetGraphResult(BuildCtx & ctx, IHqlExpression * expr)
+{
+    //MORE: This needs to be in a common function
+    IHqlExpression * dataset = expr->queryChild(0);
+    IHqlExpression * graphId = expr->queryChild(1);
+    IHqlExpression * resultNum = expr->queryChild(2);
+
+    HqlExprArray args;
+    args.append(*LINK(dataset->queryRecord()));
+    args.append(*LINK(graphId));
+    args.append(*LINK(resultNum));
+    OwnedHqlExpr result = createExprAttribute(resultAtom, args);
+    //Create an expression we can associate with the context so that subsequent get results
+    //can access the values that have been calculated
+
+    CHqlBoundExpr bound;
+    buildTempExpr(ctx, dataset, bound);
+    ctx.associateExpr(result, bound);
+}
 
 //---------------------------------------------------------------------------
 

@@ -1764,6 +1764,8 @@ void HqlCppTranslator::cacheOptions()
         DebugOption(options.optimizeSortAllFields,"optimizeSortAllFields",true),
         DebugOption(options.optimizeSortAllFieldsStrict,"optimizeSortAllFieldsStrict",false),
         DebugOption(options.alwaysReuseGlobalSpills,"alwaysReuseGlobalSpills",true),
+        // added for child query project
+        DebugOption(options.optimizeInlineOperations, "optimizeInlineOperations", false),
     };
 
     //get options values from workunit
@@ -3732,6 +3734,9 @@ void HqlCppTranslator::buildStmt(BuildCtx & _ctx, IHqlExpression * expr)
         return;
     case no_persist_check:
         buildWorkflowPersistCheck(ctx, expr);
+        return;
+    case no_setgraphresult:
+        doBuildStmtSetGraphResult(ctx, expr);
         return;
     case no_childquery:
         buildChildGraph(ctx, expr);

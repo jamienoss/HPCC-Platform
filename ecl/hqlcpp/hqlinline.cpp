@@ -407,6 +407,27 @@ bool canAssignInline(BuildCtx * ctx, IHqlExpression * expr)
     return canAssignNoSpill(getInlineFlags(ctx, expr));
 }
 
+bool mustAssignInline(BuildCtx *ctx, IHqlExpression *expr)
+{
+    node_operator op = expr->getOperator();
+    switch(op)
+    {
+    case no_getgraphresult:
+    case no_left:
+    case no_right:
+    case no_workunit_dataset:
+    case no_getresult:
+        //MORE: what else?
+        return true;
+    case no_alias:
+        return mustAssignInline(ctx, expr->queryChild(0));
+    default:
+        DBGLOG("Actvity not generated inline:");
+        EclIR::dbglogIR(expr);
+        return false;
+    }
+}
+
 bool canAssignNotEvaluateInline(BuildCtx * ctx, IHqlExpression * expr)
 {
     unsigned flags = getInlineFlags(ctx, expr);

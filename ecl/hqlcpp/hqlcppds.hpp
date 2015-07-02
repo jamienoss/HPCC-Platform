@@ -56,6 +56,7 @@ public:
 
 protected:
     void createBuilderAlias(BuildCtx & ctx, ParentExtract * extractBuilder);
+    IHqlExpression * optimizeInlineActivities(BuildCtx & ctx, IHqlExpression * resourcedGraph);
 
 protected:
     HqlCppTranslator & translator;
