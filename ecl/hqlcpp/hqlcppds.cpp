@@ -1400,9 +1400,19 @@ IHqlExpression * ChildGraphBuilder::optimizeInlineActivities(BuildCtx & ctx, IHq
         }
     }
 
-    //MORE: If any subgraphs shouldn't be executed inline do something like the following
+    //If all activities are expanded inline then there is nothing left to go in the child query, so
+    //return NULL to indicate that no subquery should be generated.
+    return NULL;
+
+    //If no activities are done inline then you can return the following as a special case optimization.
+    //Alternatively it could use the clone code below.
+    //return LINK(resourcedGraph);
+
+    //If the code above is selective, then it should produce a filtered array of subgraphs that were not
+    //executed inline.  If that is the case then the function will need to return a graph containing
+    //just those subgraphs.  i.e.,
     //return resourcedGraph->clone(outoflineSubgraphs);
-    return NULL;    // return LINK(resourcedGraph); to do nothing
+    //Note, it should also include attributes in the array so they are preserved.
 }
 
 void ChildGraphBuilder::generateGraph(BuildCtx & ctx)
