@@ -460,7 +460,7 @@ void HqlGram::init(IHqlScope * _globalScope, IHqlScope * _containerScope)
         StringBuffer plugin, version;
         globalScope->getProp(pluginAtom, plugin);
         globalScope->getProp(versionAtom, version);
-        serviceExtraAttributes.setown(createAttribute(pluginAtom, createConstant(plugin.str()), createConstant(version.str())));
+        serviceExtraAttributes.setown(createExprAttribute(pluginAtom, createConstant(plugin.str()), createConstant(version.str())));
     }
 }
 
@@ -3906,7 +3906,7 @@ ITypeInfo *HqlGram::checkPromoteIfType(attribute &a1, attribute &a2)
     ITypeInfo *t2 = a2.queryExprType();
 
     Owned<ITypeInfo> type = ::getPromotedECLType(t1, t2);
-    if (isStringType(type) && (t1->getStringLen() != t2->getStringLen()))
+    if ((isStringType(type) || isUnicodeType(type)) && (t1->getStringLen() != t2->getStringLen()))
         type.setown(getStretchedType(UNKNOWN_LENGTH, type));
 
     ensureType(a1, type);

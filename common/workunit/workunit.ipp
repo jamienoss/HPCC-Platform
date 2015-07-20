@@ -23,6 +23,7 @@
 
 #define SDS_LOCK_TIMEOUT (5*60*1000) // 5 mins
 #define WUID_VERSION 2 // recorded in each wuid created, useful for bkwd compat. checks
+#define GLOBAL_WORKUNIT "global"
 
 class CLocalWUAppValue : public CInterface, implements IConstWUAppValue
 {
@@ -249,6 +250,13 @@ public:
     virtual IConstWUGraphMetaIterator & getGraphsMeta(WUGraphType type) const;
     virtual IConstWUGraph * getGraph(const char *name) const;
     virtual IConstWUGraphProgress * getGraphProgress(const char * name) const;
+    virtual WUGraphState queryGraphState(const char *graphName) const;
+    virtual void setGraphState(const char *graphName, WUGraphState state) const;
+    virtual void setNodeState(const char *graphName, WUGraphIDType nodeId, WUGraphState state) const;
+    virtual WUGraphState queryNodeState(const char *graphName, WUGraphIDType nodeId) const;
+    virtual IWUGraphStats *updateStats(const char *graphName, StatisticCreatorType creatorType, const char * creator, unsigned subgraph) const;
+    void clearGraphProgress() const;
+
     virtual const char *queryJobName() const;
     virtual IConstWUPlugin * getPluginByName(const char * name) const;
     virtual IConstWUPluginIterator & getPlugins() const;
@@ -371,7 +379,6 @@ public:
     void addFile(const char *fileName, StringArray *clusters, unsigned usageCount, WUFileKind fileKind, const char *graphOwner);
     void noteFileRead(IDistributedFile *file);
     void releaseFile(const char *fileName);
-    void clearGraphProgress();
     void resetBeforeGeneration();
     void deleteTempFiles(const char *graph, bool deleteOwned, bool deleteJobOwned);
     void deleteTemporaries();
@@ -689,7 +696,6 @@ class CLocalWUGraph : public CInterface, implements IConstWUGraph
     const CLocalWorkUnit &owner;
     Owned<IPropertyTree> p;
     mutable Owned<IPropertyTree> graph; // cached copy of graph xgmml
-    mutable Linked<IConstWUGraphProgress> progress;
     unsigned wuidVersion;
 
     void mergeProgress(IPropertyTree &tree, IPropertyTree &progressTree, const unsigned &progressV) const;
@@ -713,5 +719,23 @@ public:
     void setXGMML(const char *str);
     void setXGMMLTree(IPropertyTree * tree);
 };
+
+class CWuGraphStats : public CInterfaceOf<IWUGraphStats>
+{
+public:
+    CWuGraphStats(IPropertyTree *_progress, StatisticCreatorType _creatorType, const char * _creator, const char * _rootScope, unsigned _id);
+    virtual void beforeDispose();
+    virtual IStatisticGatherer & queryStatsBuilder();
+protected:
+    Owned<IPropertyTree> progress;
+    Owned<IStatisticGatherer> collector;
+    StringAttr creator;
+    StatisticCreatorType creatorType;
+    unsigned id;
+};
+
+#define PROGRESS_FORMAT_V 2
+
+extern WORKUNIT_API IConstWUGraphProgress *createConstGraphProgress(const char *_wuid, const char *_graphName, IPropertyTree *_progress);
 
 #endif

@@ -10606,11 +10606,6 @@ extern HQL_API IHqlExpression *createLinkAttribute(IAtom * name, IHqlExpression 
     return createAttribute(no_attr_link, name, value, value2, value3);
 }
 
-extern HQL_API IHqlExpression *createLinkAttribute(IAtom * name, HqlExprArray & args)
-{
-    return createAttribute(no_attr_link, name, args);
-}
-
 extern HQL_API IHqlExpression *createUnknown(node_operator op, ITypeInfo * type, IAtom * name, IInterface * extra)
 {
     IHqlExpression * ret = CHqlUnknown::makeUnknown(op, type, name, extra);
@@ -13060,6 +13055,7 @@ static IHqlExpression * processPseudoWorkflow(SharedHqlExpr & expr, HqlExprArray
             return LINK(workflow);
         }
     case no_attr:
+    case no_attr_expr:
         {
             IAtom * name = workflow->queryName();
             if (name == sectionAtom)
@@ -14180,7 +14176,7 @@ static void simplifyFileViewRecordTypes(HqlExprArray & fields, IHqlExpression * 
             bool forceSimplify = false;
             if (isKey)
             {
-                if (cur->hasAttribute(blobAtom))
+                if (cur->hasAttribute(blobAtom) && !cur->hasAttribute(_isBlobInIndex_Atom))
                     forceSimplify = true;
             }
             else
@@ -16070,6 +16066,27 @@ extern bool HQL_API extractVersion(unsigned & major, unsigned & minor, unsigned 
     if (!readNumber(sub, version))
         return false;
     return true;
+}
+
+static HqlTransformerInfo cHqlBlobTransformerInfo("CHqlBlobTransformer");
+class CHqlBlobTransformer : public QuickHqlTransformer
+{
+public:
+    CHqlBlobTransformer() : QuickHqlTransformer(cHqlBlobTransformerInfo, NULL) {}
+
+    virtual IHqlExpression * createTransformed(IHqlExpression * expr)
+    {
+        OwnedHqlExpr transformed = QuickHqlTransformer::createTransformed(expr);
+        if ((expr->getOperator() == no_field) && expr->hasAttribute(blobAtom))
+            return appendOwnedOperand(transformed, createAttribute(_isBlobInIndex_Atom));
+        return transformed.getClear();
+    }
+};
+
+IHqlExpression * annotateIndexBlobs(IHqlExpression * expr)
+{
+    CHqlBlobTransformer transformer;
+    return transformer.transform(expr);
 }
 
 /*
