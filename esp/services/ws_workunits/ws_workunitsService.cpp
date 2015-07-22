@@ -442,11 +442,6 @@ void CWsWorkunitsEx::init(IPropertyTree *cfg, const char *process, const char *s
     getConfigurationDirectory(directories, "query", "esp", name ? name : "esp", queryDirectory);
     recursiveCreateDirectory(queryDirectory.str());
 
-    xpath.setf("Software/EspProcess[@name=\"%s\"]/EspBinding[@service=\"%s\"]/Authenticate", process, service);
-    Owned<IPropertyTree> authCFG = cfg->getPropTree(xpath.str());
-    if(authCFG)
-        authMethod.set(authCFG->queryProp("@method"));
-
     dataCache.setown(new DataCache(DATA_SIZE));
     archivedWuCache.setown(new ArchivedWuCache(AWUS_CACHE_SIZE));
     wuArchiveCache.setown(new WUArchiveCache(WUARCHIVE_CACHE_SIZE));
@@ -1563,7 +1558,12 @@ bool CWsWorkunitsEx::onWUInfo(IEspContext &context, IEspWUInfoRequest &req, IEsp
             resp.setCanCompile(notEmpty(context.queryUserId()));
             if (version > 1.24 && notEmpty(req.getThorSlaveIP()))
                 resp.setThorSlaveIP(req.getThorSlaveIP());
-            resp.setSecMethod(authMethod.get());
+
+            ISecManager* secmgr = context.querySecManager();
+            if (!secmgr)
+                resp.setSecMethod(NULL);
+            else
+                resp.setSecMethod(secmgr->querySecMgrTypeName());
         }
     }
     catch(IException* e)
@@ -3326,11 +3326,17 @@ bool CWsWorkunitsEx::onWUProcessGraph(IEspContext &context,IEspWUProcessGraphReq
             throw MakeStringException(ECLWATCH_CANNOT_OPEN_WORKUNIT,"Cannot open workunit %s.",wuid.str());
         ensureWsWorkunitAccess(context, *cw, SecAccess_Read);
 
-        Owned <IConstWUGraph> graph = cw->getGraph(req.getName());
-        Owned <IPropertyTree> xgmml = graph->getXGMMLTree(true); // merge in graph progress information
+        if (isEmpty(req.getName()))
+            throw MakeStringException(ECLWATCH_GRAPH_NOT_FOUND, "Please specify a graph name.");
+
+        Owned<IConstWUGraph> graph = cw->getGraph(req.getName());
+        if (!graph)
+            throw MakeStringException(ECLWATCH_GRAPH_NOT_FOUND, "Invalid graph name: %s for %s", req.getName(), wuid.str());
 
         StringBuffer xml;
-        resp.setTheGraph(toXML(xgmml.get(), xml).str());
+        Owned<IPropertyTree> xgmml = graph->getXGMMLTree(true); // merge in graph progress information
+        toXML(xgmml.get(), xml);
+        resp.setTheGraph(xml.str());
     }
 
     catch(IException* e)
@@ -3429,7 +3435,8 @@ bool CWsWorkunitsEx::onWUGetGraph(IEspContext& context, IEspWUGetGraphRequest& r
         else
         {
             Owned<IConstWUGraph> graph = cw->getGraph(req.getGraphName());
-            readGraph(context, req.getSubGraphId(), id, running, graph, graphs);
+            if (graph)
+                readGraph(context, req.getSubGraphId(), id, running, graph, graphs);
         }
         resp.setGraphs(graphs);
     }
