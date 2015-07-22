@@ -70,6 +70,25 @@ static unsigned getInlineFlags(BuildCtx * ctx, IHqlExpression * expr);
 
 static unsigned calcInlineFlags(BuildCtx * ctx, IHqlExpression * expr)
 {
+    node_operator op = expr->getOperator();
+    switch(op)
+    {
+    case no_subgraph:
+        {
+            ForEachChild(iActivity, expr)
+            {
+                IHqlExpression * cur = expr->queryChild(iActivity);
+                if (!cur->isAttribute())
+                {
+                    assertex(cur->isAction());
+                    if (!canProcessInline(ctx, cur))
+                        return 0;
+                }
+            }
+            return RETassign;//RETevaluate;
+        }
+    }
+
     //The following improves a few graphs, but sometimes significantly (e.g., bc10.xhql, seep11.xhql)
     //But it would be really good if the code could be made context independent - then it could go in hqlattr and be cached.
     if (ctx)
@@ -92,7 +111,6 @@ static unsigned calcInlineFlags(BuildCtx * ctx, IHqlExpression * expr)
     // RETassign - the dataset can be assigned to a temporary
     // 0 - the dataset cannot be evaluated inline, it requires a child query.
 
-    node_operator op = expr->getOperator();
     switch (op)
     {
     case no_workunit_dataset:
@@ -417,6 +435,10 @@ bool mustAssignInline(BuildCtx *ctx, IHqlExpression *expr)
     case no_right:
     case no_workunit_dataset:
     case no_getresult:
+    case no_null:
+    //case no_rows:
+    //case no_activerow:
+    case no_createrow:
         //MORE: what else?
         return true;
     case no_alias:

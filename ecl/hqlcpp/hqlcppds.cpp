@@ -1379,6 +1379,7 @@ IHqlExpression * ChildGraphBuilder::optimizeInlineActivities(BuildCtx & ctx, IHq
     //For the moment expand everything.  Later on this will need more work.
 
     assertex(resourcedGraph->getOperator() == no_subgraph);
+    HqlExprArray outoflineSubgraphs;
     ForEachChild(i, resourcedGraph)
     {
         IHqlExpression * subgraph = resourcedGraph->queryChild(i);
@@ -1389,20 +1390,34 @@ IHqlExpression * ChildGraphBuilder::optimizeInlineActivities(BuildCtx & ctx, IHq
 
         //MORE: check if the subgraph should be evaluated inline.  If so do generate the following
         //otherwise add it to a list of out-of-line subgraphs
-        ForEachChild(iActivity, subgraph)
+        /*forEachChild(iActivity, subgraph)
         {
             IHqlExpression * cur = subgraph->queryChild(iActivity);
             if (!cur->isAttribute())
             {
                 assertex(cur->isAction());
                 translator.buildStmt(ctx, cur);
+             }
+        }*/
+        if (canProcessInline(&ctx, subgraph))
+        {
+            ForEachChild(iActivity, subgraph)
+            {
+                IHqlExpression * cur = subgraph->queryChild(iActivity);
+                if (!cur->isAttribute())
+                {
+                    assertex(cur->isAction());
+                    translator.buildStmt(ctx, cur);
+                }
             }
         }
+        else
+            outoflineSubgraphs.append(*LINK(subgraph));
     }
 
     //If all activities are expanded inline then there is nothing left to go in the child query, so
     //return NULL to indicate that no subquery should be generated.
-    return NULL;
+    //return NULL;
 
     //If no activities are done inline then you can return the following as a special case optimization.
     //Alternatively it could use the clone code below.
@@ -1413,6 +1428,12 @@ IHqlExpression * ChildGraphBuilder::optimizeInlineActivities(BuildCtx & ctx, IHq
     //just those subgraphs.  i.e.,
     //return resourcedGraph->clone(outoflineSubgraphs);
     //Note, it should also include attributes in the array so they are preserved.
+
+    if (outoflineSubgraphs.empty())
+        return NULL;
+    else
+        return resourcedGraph->clone(outoflineSubgraphs); //could check if this is everything and return LINK(resourcedGraph); instead
+
 }
 
 void ChildGraphBuilder::generateGraph(BuildCtx & ctx)
