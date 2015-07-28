@@ -2224,6 +2224,15 @@ void HqlCppTranslator::doBuildDataset(BuildCtx & ctx, IHqlExpression * expr, CHq
     case no_sectioninput:
         buildDataset(ctx, expr->queryChild(0), tgt, format);
         return;
+    case no_split:
+        {
+            if (queryOptions().optimizeInlineOperations)
+            {
+                buildDataset(ctx, expr->queryChild(0), tgt, format);
+                return;
+            }
+            break;
+        }
     case no_forcegraph:
 #ifdef _DEBUG
         throwUnexpected();

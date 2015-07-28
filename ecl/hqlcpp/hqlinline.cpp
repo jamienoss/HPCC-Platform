@@ -79,7 +79,7 @@ static unsigned calcInlineFlags(BuildCtx * ctx, IHqlExpression * expr)
             {
                 IHqlExpression * cur = expr->queryChild(iActivity);
                 if (!cur->isAttribute())
-                {
+               {
                     assertex(cur->isAction());
                     if (!canProcessInline(ctx, cur))
                         return 0;
@@ -333,6 +333,8 @@ static unsigned calcInlineFlags(BuildCtx * ctx, IHqlExpression * expr)
         return RETevaluate;
     case no_translated:
         return RETevaluate;
+    //case no_split:
+      //  return RETevaluate;//getInlineFlags(ctx, expr->queryChild(0));//RETevaluate;
     case no_projectrow:
         {
             unsigned childFlags = getInlineFlags(ctx, expr->queryChild(0));
@@ -434,13 +436,18 @@ bool mustAssignInline(BuildCtx *ctx, IHqlExpression *expr)
     case no_left:
     case no_right:
     case no_workunit_dataset:
-    case no_getresult:
+    //case no_getresult:
     case no_null:
     //case no_rows:
     //case no_activerow:
     case no_createrow:
-        //MORE: what else?
+    {
+        //MORE: We should probably be able to handle this...
+        if (containsSkip(expr->queryChild(0)))
+            return 0;
         return true;
+    }
+        //MORE: what else?
     case no_alias:
         return mustAssignInline(ctx, expr->queryChild(0));
     default:
