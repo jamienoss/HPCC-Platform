@@ -67,27 +67,26 @@ void UsedFieldSet::addUnique(IHqlExpression * field)
 NestedField * UsedFieldSet::addNested(IHqlExpression * field)
 {
     NestedField * match = findNested(field);
-    if (!match)
-    {
-        assertex(originalFields);
-#ifdef PARANOID_CHECKING
-        assertex(!contains(*field));
-        assertex(originalFields->contains(*field));
-#endif
-        NestedField * original = originalFields->findNested(field);
-        if (!original)
-        {
-            EclIR::dump_ir(field, originalFields->findNestedByName(field)->field);
-            throwUnexpected();
-        }
-        match = new NestedField(field, &original->used);
-        appendNested(*LINK(field), match);
-    }
-    else
+    if (match)
     {
         assertex(contains(*field));
+        return match;
     }
 
+    assertex(originalFields);
+#ifdef PARANOID_CHECKING
+    assertex(!contains(*field));
+    assertex(originalFields->contains(*field));
+#endif
+    NestedField * original = originalFields->findNested(field);
+    if (!original)
+    {
+        original = originalFields->findNestedByName(field);
+        if (!original)
+            throwUnexpected();
+    }
+    match = new NestedField(field, &original->used);
+    appendNested(*LINK(field), match);
     return match;
 }
 
