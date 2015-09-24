@@ -125,6 +125,11 @@ public :
     void unlock(ICodeContext * ctx, const char * key);
     //--------------------------------------------------------------------------------------
 
+    //-------------------------------PUB/SUB------------------------------------------------
+    unsigned __int64 publish(ICodeContext * ctx, const char * keyOrChannel, size32_t messageSize, const char * message, bool lockedKey);
+    void subscribe(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, bool lockedKey);
+    //--------------------------------------------------------------------------------------
+
     void persist(ICodeContext * ctx, const char * key);
     void expire(ICodeContext * ctx, const char * key, unsigned _expire);
     void del(ICodeContext * ctx, const char * key);
@@ -560,9 +565,74 @@ template<class type> void Connection::get(ICodeContext * ctx, const char * key, 
     returnSize = reply->query()->len;
     returnValue = reinterpret_cast<type*>(allocateAndCopy(reply->query()->str, returnSize));
 }
+unsigned __int64 Connection::publish(ICodeContext * ctx, const char * keyOrChannel, size32_t messageSize, const char * message, bool lockedKey)
+{
+    StringBuffer channel;
+    if (lockedKey)
+        encodeChannel(channel, keyOrChannel);
+    else
+        channel.set(keyOrChannel);
+
+    OwnedReply reply = Reply::createReply(redisCommand(context, "PUBLISH %b %b", channel.str(), (size_t)channel.length(), message, (size_t)messageSize));
+    assertOnErrorWithCmdMsg(reply->query(), "PUBLISH", channel.str());
+    if (reply->query()->type == REDIS_REPLY_INTEGER)
+    {
+        if (reply->query()->integer >= 0)
+            return (unsigned __int64)reply->query()->integer;
+        else
+            throwUnexpected();
+    }
+    throwUnexpected();
+}
+void Connection::subscribe(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, bool lockedKey)
+{
+    StringBuffer channel;
+    if (lockedKey)
+        encodeChannel(channel, keyOrChannel);
+    else
+        channel.set(keyOrChannel);
+
+    OwnedReply reply = Reply::createReply(redisCommand(context, "SUBSCRIBE %b", channel.str(), (size_t)channel.length()));
+    assertOnErrorWithCmdMsg(reply->query(), "SUBSCRIBE", channel.str());
+    if (reply->query()->type == REDIS_REPLY_ARRAY && strcmp("subscribe", reply->query()->element[0]->str) != 0 )
+        fail("SUBSCRIBE", "failed to register SUB", channel.str());
+
+    readReply(reply);
+    assertOnErrorWithCmdMsg(reply->query(), "SUBSCRIBE", channel.str());
+
+    if (reply->query()->type == REDIS_REPLY_ARRAY && strcmp("message", reply->query()->element[0]->str) == 0)
+    {
+        if (reply->query()->element[2]->len > 0)
+        {
+            messageSize = (size_t)reply->query()->element[2]->len;
+            message = reinterpret_cast<char*>(allocateAndCopy(reply->query()->element[2]->str, messageSize));
+            return;
+        }
+        else
+        {
+            messageSize = 0;
+            message = NULL;
+            return;
+        }
+
+    }
+    throwUnexpected();
+}
 //--------------------------------------------------------------------------------
 //                           ECL SERVICE ENTRYPOINTS
 //--------------------------------------------------------------------------------
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRPub(ICodeContext * ctx, const char * keyOrChannel, size32_t messageSize, const char * message, const char * options, const char * password, unsigned timeout, bool lockedKey)
+{
+    Owned<Connection> master = Connection::createConnection(ctx, options, 0, password, timeout);
+    return master->publish(ctx, keyOrChannel, messageSize, message, lockedKey);
+}
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSub(ICodeContext * ctx, size32_t & messageSize, char * & message, const char * keyOrChannel, const char * options, const char * password, unsigned timeout, bool lockedKey)
+{
+    size_t _messageSize = 0;
+    Owned<Connection> master = Connection::createConnection(ctx, options, 0, password, timeout);
+    master->subscribe(ctx, keyOrChannel, _messageSize, message, lockedKey);
+    messageSize = static_cast<size32_t>(_messageSize);
+}
 ECL_REDIS_API void ECL_REDIS_CALL RClear(ICodeContext * ctx, const char * options, int database, const char * password, unsigned timeout)
 {
     Owned<Connection> master = Connection::createConnection(ctx, options, database, password, timeout);
