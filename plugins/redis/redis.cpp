@@ -40,11 +40,17 @@ ECL_REDIS_API bool getECLPluginDefinition(ECLPluginDefinitionBlock *pb)
 namespace RedisPlugin {
 
 class Connection;
+class SubConnection;
 static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 static __thread Connection * cachedConnection = NULL;
 static __thread Connection * cachedPubConnection = NULL;//database should always = 0
+static __thread Connection * cachedSubConnection = NULL;//intended to always point to SubConnection
 static __thread ThreadTermFunc threadHookChain = NULL;
 static __thread bool threadHooked = false;
+//MAX_UNSUB_READ_ATTEMPTS is effectively the number of (unwanted) PUBLISHES that can be received in the interval between a SUBSCIBE & UNSUBSCRIBE before
+//giving up on ensuring the connection is actually unsubscribed and the connection being, instead, thrown away (closed and a new one opened).
+static const int MAX_UNSUB_READ_ATTEMPTS = 10;
+
 
 static void * allocateAndCopy(const void * src, size_t size)
 {
@@ -95,7 +101,7 @@ public :
             return timeout - dt;
         return 0;
     }
-    inline unsigned getTimeout() { return timeout; }
+    inline unsigned getTimeout() const { return timeout; }
 
 private :
     unsigned timeout;
@@ -107,12 +113,10 @@ class Connection : public CInterface
 public :
     Connection(ICodeContext * ctx, const char * _options, int database, const char * password, unsigned _timeout);
     Connection(ICodeContext * ctx, const char * _options, const char * _ip, int _port, unsigned _serverIpPortPasswordHash, int _database, const char * password, unsigned _timeout);
-    ~Connection()
-    {
-        if (context)
-            redisFree(context);
-    }
-    static Connection * createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, int database, const char * password, unsigned _timeout);
+    ~Connection() { freeContext(); }
+
+    static Connection * createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout, bool sub = false);
+    static Connection * createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, const char * _ip, int _port, unsigned _serverIpPortPasswordHash, int _database, const char * password, unsigned _timeout, bool sub = false);
 
     //set
     template <class type> void set(ICodeContext * ctx, const char * key, type value, unsigned expire);
@@ -129,7 +133,7 @@ public :
 
     //-------------------------------PUB/SUB------------------------------------------------
     unsigned __int64 publish(ICodeContext * ctx, const char * keyOrChannel, size32_t messageSize, const char * message, int _database, bool lockedKey);
-    void subscribe(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, int _database, bool lockedKey);
+    virtual void subscribeAndWait(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, int _database, const char * password, bool lockedKey) { throwUnexpected(); }
     //--------------------------------------------------------------------------------------
 
     void persist(ICodeContext * ctx, const char * key);
@@ -140,26 +144,32 @@ public :
     bool exists(ICodeContext * ctx, const char * key);
 
 protected :
+    virtual void connect(ICodeContext * ctx, int _database, const char * password);
+    virtual void selectDB(ICodeContext * ctx, int _database);
+    virtual void reset(ICodeContext * ctx, const char * password, unsigned _timeout);
+    virtual void unsubscribe(ICodeContext * ctx, int _database, const char * password) { throwUnexpected(); }
+    virtual void openSubscribe(ICodeContext * ctx, Reply * reply, const char * channel, const char * password) { throwUnexpected(); }
+    virtual void assertSubscriptionConfirmation(ICodeContext * ctx, Reply * reply, const char * channel) { throwUnexpected(); }
+
+    void freeContext();
     void redisSetTimeout();
     void redisConnect();
-    unsigned timeLeft();
+    unsigned timeLeft() const;
     void parseOptions(ICodeContext * ctx, const char * _options);
-    void connect(ICodeContext * ctx, int _database, const char * password);
-    void selectDB(ICodeContext * ctx, int _database);
-    void reset(ICodeContext * ctx, const char * password, unsigned _timeout);
-    void readReply(Reply * reply);
+    int readReply(Reply * reply);
     void readReplyAndAssert(Reply * reply, const char * msg);
     void readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, const char * key = NULL);
-    void assertKey(const redisReply * reply, const char * key);
-    void assertAuthorization(const redisReply * reply);
-    void assertOnError(const redisReply * reply, const char * _msg);
-    void assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key = NULL);
-    void assertConnection(const char * _msg);
-    void assertConnectionWithCmdMsg(const char * cmd, const char * key = NULL);
-    void fail(const char * cmd, const char * errmsg, const char * key = NULL);
+    void assertKey(const redisReply * reply, const char * key) const;
+    void assertAuthorization(const redisReply * reply) const;
+    void assertOnError(const redisReply * reply, const char * _msg) const;
+    void assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key = NULL) const;
+    void assertConnection(const char * _msg) const;
+    void assertConnectionWithCmdMsg(const char * cmd, const char * key = NULL) const;
+    void fail(const char * cmd, const char * errmsg, const char * key = NULL) const;
     void * redisCommand(redisContext * context, const char * format, ...);
     static unsigned hashServerIpPortPassword(ICodeContext * ctx, const char * _options, const char * password);
     bool isSameConnection(ICodeContext * ctx, const char * _options, const char * password) const;
+    inline bool isSameConnection(ICodeContext * ctx, unsigned _serverIpPortPasswordHash) const;
 
     //-------------------------------LOCKING------------------------------------------------
     void handleLockOnSet(ICodeContext * ctx, const char * key, const char * value, size_t size, unsigned expire);
@@ -178,6 +188,27 @@ protected :
     TimeoutHandler timeout;
     int database; //NOTE: redis stores the maximum number of dbs as an 'int'.
 };
+class SubConnection : public Connection
+{
+public :
+    SubConnection(ICodeContext * ctx, const char * _options, int database, const char * password, unsigned _timeout) :
+        Connection(ctx, _options, 0, password, _timeout), subscribed(false) { };
+    SubConnection(ICodeContext * ctx, const char * _options, const char * _ip, int _port, unsigned _serverIpPortPasswordHash, int _database, const char * password, unsigned _timeout) :
+        Connection(ctx, _options, _ip, _port, _serverIpPortPasswordHash, _database, password, _timeout), subscribed(false) { };
+
+    virtual void subscribeAndWait(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, int _database, const char * password, bool lockedKey);
+
+protected :
+    virtual void connect(ICodeContext * ctx, int _database, const char * password);
+    virtual void selectDB(ICodeContext * ctx, int _database) { };
+    virtual void reset(ICodeContext * ctx, const char * password, unsigned _timeout);
+    virtual void unsubscribe(ICodeContext * ctx, int _database, const char * password);
+    virtual void openSubscribe(ICodeContext * ctx, Reply * reply, const char * channel, const char * password);
+    virtual void assertSubscriptionConfirmation(ICodeContext * ctx, Reply * reply, const char * channel);
+
+    StringAttr ch;
+    bool subscribed;
+};
 
 static void releaseContext()
 {
@@ -190,6 +221,11 @@ static void releaseContext()
     {
         cachedPubConnection->Release();
         cachedPubConnection = NULL;
+    }
+    if (cachedSubConnection)
+    {
+        cachedSubConnection->Release();
+        cachedSubConnection = NULL;
     }
     if (threadHookChain)
     {
@@ -207,14 +243,14 @@ public :
     ~MainThreadCachedConnection() { releaseContext(); }
 } mainThread;
 Connection::Connection(ICodeContext * ctx, const char * _options, int _database, const char * password, unsigned _timeout)
-  : database(0), timeout(_timeout), port(0), serverIpPortPasswordHash(hashServerIpPortPassword(ctx, _options, password))
+  : context(NULL), database(0), timeout(_timeout), port(0), serverIpPortPasswordHash(hashServerIpPortPassword(ctx, _options, password))
 {
     options.set(_options, strlen(_options));
     parseOptions(ctx, _options);
     connect(ctx, _database, password);
 }
 Connection::Connection(ICodeContext * ctx, const char * _options, const char * _ip, int _port, unsigned _serverIpPortPasswordHash, int _database, const char * password, unsigned _timeout)
-  : database(0), timeout(_timeout), serverIpPortPasswordHash(_serverIpPortPasswordHash), port(_port)
+  : context(NULL), database(0), timeout(_timeout), serverIpPortPasswordHash(_serverIpPortPasswordHash), port(_port)
 {
     options.set(_options, strlen(_options));
     ip.set(_ip, strlen(_ip));
@@ -232,8 +268,17 @@ void Connection::redisConnect()
     }
     assertConnection("connection");
 }
+void SubConnection::connect(ICodeContext * ctx, int _database, const char * password)
+{
+    subscribed = false;
+    ch.clear();
+    Connection::connect(ctx, 0, password);
+}
 void Connection::connect(ICodeContext * ctx, int _database, const char * password)
 {
+    if (context)
+        freeContext();
+
     redisConnect();
 
     //The following is the dissemination of the two methods authenticate(ctx, password) & selectDB(ctx, _database)
@@ -271,18 +316,18 @@ void * Connection::redisCommand(redisContext * context, const char * format, ...
     va_end(parameters);
     return reply;
 }
-unsigned Connection::timeLeft()
+unsigned Connection::timeLeft() const
 {
     unsigned _timeLeft = timeout.timeLeft();
     if (_timeLeft == 0 && timeout.getTimeout() != 0)
-        ::rtlFail(0, "Redis Plugin: ERROR - function timed out internally.");
+        rtlFail(0, "Redis Plugin: ERROR - function timed out internally.");
     return _timeLeft;
 }
 void Connection::redisSetTimeout()
 {
     unsigned _timeLeft = timeLeft();
     if (_timeLeft == 0)
-        return;
+        return;  //NOTE: looks incorrect however, timeLeft() only returns 0 if timeout = 0, failing otherwise - when timeout > 0 and all time expired (timeLeft = 0).
     struct timeval to = { _timeLeft/1000, (_timeLeft%1000)*1000 };
     assertex(context);
     if (::redisSetTimeout(context, to) != REDIS_OK)
@@ -294,6 +339,10 @@ void Connection::redisSetTimeout()
 bool Connection::isSameConnection(ICodeContext * ctx, const char * _options, const char * password) const
 {
     return (hashServerIpPortPassword(ctx, _options, password) == serverIpPortPasswordHash);
+}
+bool Connection::isSameConnection(ICodeContext * ctx, unsigned _serverIpPortPasswordHash) const
+{
+    return (_serverIpPortPasswordHash == serverIpPortPasswordHash);
 }
 unsigned Connection::hashServerIpPortPassword(ICodeContext * ctx, const char * _options, const char * password)
 {
@@ -320,7 +369,7 @@ void Connection::parseOptions(ICodeContext * ctx, const char * _options)
         else
         {
             VStringBuffer err("Redis Plugin: ERROR - unsupported option string '%s'", opt);
-            ::rtlFail(0, err.str());
+            rtlFail(0, err.str());
         }
     }
     if (ip.isEmpty())
@@ -334,23 +383,79 @@ void Connection::parseOptions(ICodeContext * ctx, const char * _options)
         }
     }
 }
+void Connection::freeContext()
+{
+    if(context)
+    {
+        redisFree(context);
+        context = NULL;
+    }
+}
 void Connection::reset(ICodeContext * ctx, const char * password, unsigned _timeout)
 {
     timeout.reset(_timeout);
     if (context && context->err != REDIS_OK)
     {
-        redisFree(context);
-        context = NULL;
+        freeContext();
+        database = 0;
+        connect(ctx, 0, password);
+        return;
+    }
+
+    if (!context)
+    {
         database = 0;
         connect(ctx, 0, password);
     }
 }
-void Connection::readReply(Reply * reply)
+void SubConnection::reset(ICodeContext * ctx, const char * password, unsigned _timeout)
+{
+    Connection::reset(ctx, password, _timeout);
+    unsubscribe(ctx, 0, password);
+    Connection::reset(ctx, password, timeLeft());
+}
+void SubConnection::unsubscribe(ICodeContext * ctx, int _database, const char * password)
+{
+    /*Unsubscribing: Any attempt to unsubscribe that fails, at any stage, results in the connection being closed and a new open opened.
+     *Whilst the connection is still subscribed, any PUBLISHED messages will be appended to the socket buffer. This buffer is dynamically
+     *allocated and any unnecessary expansion is not desired. Thus the first directive is to unsubscribe the socket.
+    */
+
+    if (!subscribed)
+        return;
+
+    int cmdWrittenToSocket = 0;
+    if (redisAppendCommand(context, "UNSUBSCRIBE %b", ch.str(), ch.length()) != REDIS_OK || redisBufferWrite(context, &cmdWrittenToSocket) != REDIS_OK)
+    {
+        connect(ctx, 0, password);
+        return;
+    }
+
+    OwnedReply reply = new Reply;
+    for (int i = 0; i < MAX_UNSUB_READ_ATTEMPTS; ++i)
+    {
+        if (!cmdWrittenToSocket || readReply(reply) != REDIS_OK || !reply->query() || reply->query()->type == REDIS_REPLY_ERROR || reply->query()->type != REDIS_REPLY_ARRAY)
+        {
+            connect(ctx, 0, password);
+            return;
+        }
+
+        if (strcmp("unsubscribe", reply->query()->element[0]->str) == 0)
+        {
+            subscribed = false;
+            ch.clear();
+            return;
+        }
+    }
+    connect(ctx, 0, password);
+}
+int Connection::readReply(Reply * reply)
 {
     redisReply * nakedReply = NULL;
     redisSetTimeout();
-    redisGetReply(context, (void**)&nakedReply);
+    int rtn = redisGetReply(context, (void**)&nakedReply);
     reply->setClear(nakedReply);
+    return rtn;
 }
 void Connection::readReplyAndAssert(Reply * reply, const char * msg)
 {
@@ -362,11 +467,14 @@ void Connection::readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, c
     readReply(reply);
     assertOnErrorWithCmdMsg(reply->query(), msg, key);
 }
-Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout)
+Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout, bool sub)
 {
     if (!_cachedConnection)
     {
-        _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
+        if (sub)
+            _cachedConnection = new SubConnection(ctx, options, _database, password, _timeout);
+        else
+            _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
 
         if (!threadHooked)
         {
@@ -386,9 +494,46 @@ Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _c
 
     _cachedConnection->Release();
     _cachedConnection = NULL;
-    _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
+    if (sub)
+        _cachedConnection = new SubConnection(ctx, options, _database, password, _timeout);
+    else
+        _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
     return LINK(_cachedConnection);
 }
+Connection * Connection::createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, const char * _ip, int _port, unsigned _serverIpPortPasswordHash, int _database, const char * password, unsigned _timeout, bool sub)
+{
+    if (!_cachedConnection)
+    {
+        if (sub)
+            _cachedConnection = new SubConnection(ctx, options, _ip, _port, _serverIpPortPasswordHash, _database, password, _timeout);
+        else
+            _cachedConnection = new Connection(ctx, options, _ip, _port, _serverIpPortPasswordHash, _database, password, _timeout);
+
+        if (!threadHooked)
+        {
+            threadHookChain = addThreadTermFunc(releaseContext);
+            threadHooked = true;
+        }
+        return LINK(_cachedConnection);
+    }
+
+    if (_cachedConnection->isSameConnection(ctx, _serverIpPortPasswordHash))
+    {
+        //MORE: should perhaps check that the connection has not expired (think hiredis REDIS_KEEPALIVE_INTERVAL is defaulted to 15s).
+        _cachedConnection->reset(ctx, password, _timeout);
+        _cachedConnection->selectDB(ctx, _database);
+        return LINK(_cachedConnection);
+    }
+
+    _cachedConnection->Release();
+    _cachedConnection = NULL;
+    if (sub)
+        _cachedConnection = new SubConnection(ctx, options, _ip, _port, _serverIpPortPasswordHash, _database, password, _timeout);
+    else
+        _cachedConnection = new Connection(ctx, options, _ip, _port, _serverIpPortPasswordHash, _database, password, _timeout);
+    return LINK(_cachedConnection);
+}
+
 void Connection::selectDB(ICodeContext * ctx, int _database)
 {
     if (database == _database)
@@ -398,17 +543,17 @@ void Connection::selectDB(ICodeContext * ctx, int _database)
     OwnedReply reply = Reply::createReply(redisCommand(context, cmd.str()));
     assertOnErrorWithCmdMsg(reply->query(), cmd.str());
 }
-void Connection::fail(const char * cmd, const char * errmsg, const char * key)
+void Connection::fail(const char * cmd, const char * errmsg, const char * key) const
 {
     if (key)
     {
         VStringBuffer msg("Redis Plugin: ERROR - %s '%s' on database %d for %s:%d failed : %s", cmd, key, database, ip.str(), port, errmsg);
-        ::rtlFail(0, msg.str());
+        rtlFail(0, msg.str());
     }
     VStringBuffer msg("Redis Plugin: ERROR - %s on database %d for %s:%d failed : %s", cmd, database, ip.str(), port, errmsg);
-    ::rtlFail(0, msg.str());
+    rtlFail(0, msg.str());
 }
-void Connection::assertOnError(const redisReply * reply, const char * _msg)
+void Connection::assertOnError(const redisReply * reply, const char * _msg) const
 {
     if (!reply)
     {
@@ -419,10 +564,10 @@ void Connection::assertOnError(const redisReply * reply, const char * _msg)
     {
         assertAuthorization(reply);
         VStringBuffer msg("Redis Plugin: %s - %s", _msg, reply->str);
-        ::rtlFail(0, msg.str());
+        rtlFail(0, msg.str());
     }
 }
-void Connection::assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key)
+void Connection::assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key) const
 {
     if (!reply)
     {
@@ -435,40 +580,40 @@ void Connection::assertOnErrorWithCmdMsg(const redisReply * reply, const char * 
         fail(cmd, reply->str, key);
     }
 }
-void Connection::assertAuthorization(const redisReply * reply)
+void Connection::assertAuthorization(const redisReply * reply) const
 {
     if (reply && reply->str && ( strncmp(reply->str, "NOAUTH", 6) == 0 || strncmp(reply->str, "ERR operation not permitted", 27) == 0 ))
     {
         VStringBuffer msg("Redis Plugin: ERROR - authentication for %s:%d failed : %s", ip.str(), port, reply->str);
-        ::rtlFail(0, msg.str());
+        rtlFail(0, msg.str());
     }
 }
-void Connection::assertKey(const redisReply * reply, const char * key)
+void Connection::assertKey(const redisReply * reply, const char * key) const
 {
     if (reply && reply->type == REDIS_REPLY_NIL)
     {
         VStringBuffer msg("Redis Plugin: ERROR - the requested key '%s' does not exist on database %d on %s:%d", key, database, ip.str(), port);
-        ::rtlFail(0, msg.str());
+        rtlFail(0, msg.str());
     }
 }
-void Connection::assertConnectionWithCmdMsg(const char * cmd, const char * key)
+void Connection::assertConnectionWithCmdMsg(const char * cmd, const char * key) const
 {
     if (!context)
         fail(cmd, "neither 'reply' nor connection error available", key);
     else if (context->err)
         fail(cmd, context->errstr, key);
 }
-void Connection::assertConnection(const char * _msg)
+void Connection::assertConnection(const char * _msg) const
 {
     if (!context)
     {
         VStringBuffer msg("Redis Plugin: ERROR - %s for %s:%d failed : neither 'reply' nor connection error available", _msg, ip.str(), port);
-        ::rtlFail(0, msg.str());
+        rtlFail(0, msg.str());
     }
     else if (context->err)
     {
         VStringBuffer msg("Redis Plugin: ERROR - %s for %s:%d failed : %s", _msg, ip.str(), port, context->errstr);
-        ::rtlFail(0, msg.str());
+        rtlFail(0, msg.str());
     }
 }
 void Connection::clear(ICodeContext * ctx)
@@ -595,7 +740,23 @@ unsigned __int64 Connection::publish(ICodeContext * ctx, const char * keyOrChann
     }
     throwUnexpected();
 }
-void Connection::subscribe(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, int _database, bool lockedKey)
+void SubConnection::assertSubscriptionConfirmation(ICodeContext * ctx, Reply * reply, const char * channel)
+{
+    assertOnErrorWithCmdMsg(reply->query(), "SUBSCRIBE", channel);
+    if (reply->query()->type != REDIS_REPLY_ARRAY || strcmp("subscribe", reply->query()->element[0]->str) != 0 )//MORE: could also check that completed subscription was to desired channel.
+        fail("SUBSCRIBE", "failed to register SUB", channel);
+    subscribed = true;
+    ch.set(channel);
+}
+void SubConnection::openSubscribe(ICodeContext * ctx, Reply * reply, const char * channel, const char * password)
+{
+    if (subscribed)
+        unsubscribe(ctx, 0, password);
+
+    reply->setClear(redisCommand(context, "SUBSCRIBE %b", channel, strlen(channel)));
+    assertSubscriptionConfirmation(ctx, reply, channel);
+}
+void SubConnection::subscribeAndWait(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, int _database, const char * password, bool lockedKey)
 {
     StringBuffer channel;
     if (lockedKey)
@@ -610,16 +771,18 @@ void Connection::subscribe(ICodeContext * ctx, const char * keyOrChannel, size_t
     }
 #endif
 
-    OwnedReply reply = Reply::createReply(redisCommand(context, "SUBSCRIBE %b", channel.str(), (size_t)channel.length()));
-    assertOnErrorWithCmdMsg(reply->query(), "SUBSCRIBE", channel.str());
-    if (reply->query()->type != REDIS_REPLY_ARRAY || strcmp("subscribe", reply->query()->element[0]->str) != 0 )
-        fail("SUBSCRIBE", "failed to register SUB", channel.str());
-
+    OwnedReply reply = new Reply;
+    openSubscribe(ctx, reply, channel.str(), password);
     readReply(reply);
     assertOnErrorWithCmdMsg(reply->query(), "SUBSCRIBE", channel.str());
+    //NOTE: It would be more effective to unsubscribe directly after readReply, however; this could fail and re-connect, destroying any context error info possibly reported by assertOnErrorWithCmdMsg.
+    unsubscribe(ctx, 0, password);
 
-    if (reply->query()->type == REDIS_REPLY_ARRAY && strcmp("message", reply->query()->element[0]->str) == 0 && reply->query()->elements == 3)
+    if (reply->query()->type == REDIS_REPLY_ARRAY && strcmp("message", reply->query()->element[0]->str) == 0 && reply->query()->elements > 2)
     {
+        if (strcmp( channel.str(), reply->query()->element[1]->str) != 0)//NOTE: In case the cached subscription connection encounters a failed unsubscribe resulting in mangled subscriptions.
+            throwUnexpected();
+
         if (reply->query()->element[2]->len > 0)
         {
             messageSize = (size_t)reply->query()->element[2]->len;
@@ -645,8 +808,8 @@ ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRPub(ICodeContext * ctx, const
 ECL_REDIS_API void ECL_REDIS_CALL SyncRSub(ICodeContext * ctx, size32_t & messageSize, char * & message, const char * keyOrChannel, const char * options, int database, const char * password, unsigned timeout, bool lockedKey)
 {
     size_t _messageSize = 0;
-    Owned<Connection> master = new Connection(ctx,  options, 0, password, timeout);
-    master->subscribe(ctx, keyOrChannel, _messageSize, message, database, lockedKey);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedSubConnection, options, 0, password, timeout, true);
+    master->subscribeAndWait(ctx, keyOrChannel, _messageSize, message, database, password, lockedKey);
     messageSize = static_cast<size32_t>(_messageSize);
 }
 ECL_REDIS_API void ECL_REDIS_CALL RClear(ICodeContext * ctx, const char * options, int database, const char * password, unsigned timeout)
@@ -854,7 +1017,7 @@ void Connection::handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAtt
 
     //SUB before GET
     //Requires separate connection from GET so that the replies are not mangled. This could be averted
-    Owned<Connection> subConnection = new Connection(ctx, options.str(), ip.str(), port, serverIpPortPasswordHash, database, password, timeLeft());
+    Owned<Connection> subConnection = createConnection(ctx, cachedSubConnection, options.str(), ip.str(), port, serverIpPortPasswordHash, 0, password, timeLeft(), true);
     OwnedReply subReply = Reply::createReply(redisCommand(subConnection->context, "SUBSCRIBE %b", channel.str(), (size_t)channel.length()));
     //Defer checking of reply/connection errors until actually needed.
 
@@ -903,11 +1066,10 @@ void Connection::handleLockOnGet(ICodeContext * ctx, const char * key, MemoryAtt
 #endif
 
         //Locked so SUBSCRIBE
-        subConnection->assertOnErrorWithCmdMsg(subReply->query(), "GetOrLock<type>", key);
-        if (subReply->query()->type != REDIS_REPLY_ARRAY || strcmp("subscribe", subReply->query()->element[0]->str) != 0 )
-            fail("GetOrLock<type>", "failed to register SUB", key);//NOTE: In this instance better to be this->fail rather than subConnection->fail - due to database reported in msg.
+        subConnection->assertSubscriptionConfirmation(ctx, subReply, channel.str());
         subConnection->readReply(subReply);
         subConnection->assertOnErrorWithCmdMsg(subReply->query(), "GetOrLock<type>", key);
+        subConnection->unsubscribe(ctx, 0, password);
 
         if (subReply->query()->type == REDIS_REPLY_ARRAY && strcmp("message", subReply->query()->element[0]->str) == 0)
         {
