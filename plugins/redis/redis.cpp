@@ -44,7 +44,6 @@ class SubConnection;
 static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 static __thread Connection * cachedConnection = NULL;
 static __thread Connection * cachedPubConnection = NULL;//database should always = 0
-static __thread Connection * cachedSubConnection = NULL;//intended to always point to SubConnection
 static __thread ThreadTermFunc threadHookChain = NULL;
 static __thread bool threadHooked = false;
 
@@ -114,7 +113,7 @@ public :
         if (context)
             redisFree(context);
     }
-    static Connection * createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, int database, const char * password, unsigned _timeout, bool sub = false);
+    static Connection * createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, int database, const char * password, unsigned _timeout);
 
     //set
     template <class type> void set(ICodeContext * ctx, const char * key, type value, unsigned expire);
@@ -142,14 +141,13 @@ public :
     bool exists(ICodeContext * ctx, const char * key);
 
 protected :
-    virtual void selectDB(ICodeContext * ctx, int _database);
-    virtual void reset();
-
     void redisSetTimeout();
     void redisConnect();
     unsigned timeLeft();
     void parseOptions(ICodeContext * ctx, const char * _options);
     void connect(ICodeContext * ctx, int _database, const char * password);
+    void selectDB(ICodeContext * ctx, int _database);
+    void resetContextErr();
     void readReply(Reply * reply);
     void readReplyAndAssert(Reply * reply, const char * msg);
     void readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, const char * key = NULL);
@@ -181,16 +179,6 @@ protected :
     TimeoutHandler timeout;
     int database; //NOTE: redis stores the maximum number of dbs as an 'int'.
 };
-class SubConnection : public Connection
-{
-public :
-    SubConnection(ICodeContext * ctx, const char * _options, int database, const char * password, unsigned _timeout) :
-        Connection(ctx, _options, 0, password, _timeout) { };
-
-protected :
-    virtual void selectDB(ICodeContext * ctx, int _database) { };
-    virtual void reset();
-};
 
 static void releaseContext()
 {
@@ -203,11 +191,6 @@ static void releaseContext()
     {
         cachedPubConnection->Release();
         cachedPubConnection = NULL;
-    }
-    if (cachedSubConnection)
-    {
-        cachedSubConnection->Release();
-        cachedSubConnection = NULL;
     }
     if (threadHookChain)
     {
@@ -352,16 +335,10 @@ void Connection::parseOptions(ICodeContext * ctx, const char * _options)
         }
     }
 }
-void Connection::reset()
+void Connection::resetContextErr()
 {
     if (context)
         context->err = REDIS_OK;
-}
-void SubConnection::reset()
-{
-    OwnedReply reply = Reply::createReply(redisCommand(context, "UNSUBSCRIBE"));
-    assertOnErrorWithCmdMsg(reply->query(), "UNSUBSCRIBE all channels");
-    Connection::reset();
 }
 void Connection::readReply(Reply * reply)
 {
@@ -380,14 +357,11 @@ void Connection::readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, c
     readReply(reply);
     assertOnErrorWithCmdMsg(reply->query(), msg, key);
 }
-Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout, bool sub)
+Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout)
 {
     if (!_cachedConnection)
     {
-        if (sub)
-            _cachedConnection = new SubConnection(ctx, options, _database, password, _timeout);
-        else
-            _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
+        _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
 
         if (!threadHooked)
         {
@@ -400,7 +374,7 @@ Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _c
     if (_cachedConnection->isSameConnection(ctx, options, password))
     {
         //MORE: should perhaps check that the connection has not expired (think hiredis REDIS_KEEPALIVE_INTERVAL is defaulted to 15s).
-        _cachedConnection->reset();//reset the context err to allow reuse when an error previously occurred.
+        _cachedConnection->resetContextErr();//reset the context err to allow reuse when an error previously occurred.
         _cachedConnection->timeout.reset(_timeout);
         _cachedConnection->selectDB(ctx, _database);
         return LINK(_cachedConnection);
@@ -408,10 +382,7 @@ Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _c
 
     _cachedConnection->Release();
     _cachedConnection = NULL;
-    if (sub)
-        _cachedConnection = new SubConnection(ctx, options, _database, password, _timeout);
-    else
-        _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
+    _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
     return LINK(_cachedConnection);
 }
 void Connection::selectDB(ICodeContext * ctx, int _database)
@@ -645,9 +616,6 @@ void Connection::subscribe(ICodeContext * ctx, const char * keyOrChannel, size_t
 
     if (reply->query()->type == REDIS_REPLY_ARRAY && strcmp("message", reply->query()->element[0]->str) == 0 && reply->query()->elements > 2)
     {
-        if (strcmp( channel.str(), reply->query()->element[1]->str) != 0)//NOTE: In case the cached subscription connection encounters a failed unsubscribe resulting in mangled subscriptions.
-            throwUnexpected();
-
         if (reply->query()->element[2]->len > 0)
         {
             messageSize = (size_t)reply->query()->element[2]->len;
@@ -673,7 +641,7 @@ ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRPub(ICodeContext * ctx, const
 ECL_REDIS_API void ECL_REDIS_CALL SyncRSub(ICodeContext * ctx, size32_t & messageSize, char * & message, const char * keyOrChannel, const char * options, int database, const char * password, unsigned timeout, bool lockedKey)
 {
     size_t _messageSize = 0;
-    Owned<Connection> master = Connection::createConnection(ctx, cachedSubConnection, options, 0, password, timeout, true);
+    Owned<Connection> master = new Connection(ctx,  options, 0, password, timeout);
     master->subscribe(ctx, keyOrChannel, _messageSize, message, database, lockedKey);
     messageSize = static_cast<size32_t>(_messageSize);
 }

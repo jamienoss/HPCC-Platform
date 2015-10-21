@@ -211,4 +211,4 @@ A few notes to point out here:
 | SetAndPublish (value length < 29) | 4       | 8       | new connection   |
 | Unlock              | 5       | 9       | new connection   |
 | Publish             | 1       | 4       | new connection   |
-| Subscribe           | 2       | 5       | new connection   |
+| Subscribe           | 5       | 5       | new connection always needed   |
