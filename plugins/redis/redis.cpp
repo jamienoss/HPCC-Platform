@@ -147,25 +147,26 @@ protected :
     virtual void connect(ICodeContext * ctx, int _database, const char * password);
     virtual void selectDB(ICodeContext * ctx, int _database);
     virtual void reset(ICodeContext * ctx, const char * password, unsigned _timeout);
-    virtual void unsubscribe(ICodeContext * ctx, int _database, const char * password) { throwUnexpected(); }
+    virtual void unsubscribe(ICodeContext * ctx, int _database, const char * password, bool reconnect = true) { throwUnexpected(); }
     virtual void openSubscribe(ICodeContext * ctx, Reply * reply, const char * channel, const char * password) { throwUnexpected(); }
     virtual void assertSubscriptionConfirmation(ICodeContext * ctx, Reply * reply, const char * channel) { throwUnexpected(); }
+    virtual void freeContext();
+    virtual void rtlFail(int code, const char * msg) { ::rtlFail(code, msg); }
 
-    void freeContext();
     void redisSetTimeout();
     void redisConnect();
-    unsigned timeLeft() const;
+    unsigned timeLeft();
     void parseOptions(ICodeContext * ctx, const char * _options);
     int readReply(Reply * reply);
     void readReplyAndAssert(Reply * reply, const char * msg);
     void readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, const char * key = NULL);
-    void assertKey(const redisReply * reply, const char * key) const;
-    void assertAuthorization(const redisReply * reply) const;
-    void assertOnError(const redisReply * reply, const char * _msg) const;
-    void assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key = NULL) const;
-    void assertConnection(const char * _msg) const;
-    void assertConnectionWithCmdMsg(const char * cmd, const char * key = NULL) const;
-    void fail(const char * cmd, const char * errmsg, const char * key = NULL) const;
+    void assertKey(const redisReply * reply, const char * key);
+    void assertAuthorization(const redisReply * reply);
+    void assertOnError(const redisReply * reply, const char * _msg);
+    void assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key = NULL);
+    void assertConnection(const char * _msg);
+    void assertConnectionWithCmdMsg(const char * cmd, const char * key = NULL);
+    void fail(const char * cmd, const char * errmsg, const char * key = NULL);
     void * redisCommand(redisContext * context, const char * format, ...);
     static unsigned hashServerIpPortPassword(ICodeContext * ctx, const char * _options, const char * password);
     bool isSameConnection(ICodeContext * ctx, const char * _options, const char * password) const;
@@ -199,12 +200,26 @@ public :
     virtual void subscribeAndWait(ICodeContext * ctx, const char * keyOrChannel, size_t & messageSize, char * & message, int _database, const char * password, bool lockedKey);
 
 protected :
+    virtual void freeContext()
+    {
+        Connection::freeContext();
+        if (subscribed)
+        {
+            subscribed = false;
+            ch.clear();
+        }
+    }
     virtual void connect(ICodeContext * ctx, int _database, const char * password);
     virtual void selectDB(ICodeContext * ctx, int _database) { };
     virtual void reset(ICodeContext * ctx, const char * password, unsigned _timeout);
-    virtual void unsubscribe(ICodeContext * ctx, int _database, const char * password);
+    virtual void unsubscribe(ICodeContext * ctx, int _database, const char * password, bool reconnect = true);
     virtual void openSubscribe(ICodeContext * ctx, Reply * reply, const char * channel, const char * password);
     virtual void assertSubscriptionConfirmation(ICodeContext * ctx, Reply * reply, const char * channel);
+    virtual void rtlFail(int code, const char * msg)
+    {
+        unsubscribe(NULL, 0, NULL, false);
+        ::rtlFail(code, msg);
+    }
 
     StringAttr ch;
     bool subscribed;
@@ -316,7 +331,7 @@ void * Connection::redisCommand(redisContext * context, const char * format, ...
     va_end(parameters);
     return reply;
 }
-unsigned Connection::timeLeft() const
+unsigned Connection::timeLeft()
 {
     unsigned _timeLeft = timeout.timeLeft();
     if (_timeLeft == 0 && timeout.getTimeout() != 0)
@@ -414,11 +429,11 @@ void SubConnection::reset(ICodeContext * ctx, const char * password, unsigned _t
     unsubscribe(ctx, 0, password);
     Connection::reset(ctx, password, timeLeft());
 }
-void SubConnection::unsubscribe(ICodeContext * ctx, int _database, const char * password)
+void SubConnection::unsubscribe(ICodeContext * ctx, int _database, const char * password, bool reconnect)
 {
     /*Unsubscribing: Any attempt to unsubscribe that fails, at any stage, results in the connection being closed and a new open opened.
-     *Whilst the connection is still subscribed, any PUBLISHED messages will be appended to the socket buffer. This buffer is dynamically
-     *allocated and any unnecessary expansion is not desired. Thus the first directive is to unsubscribe the socket.
+     *Whilst the connection is still subscribed, any PUBLISHED messages will be appended to the socket buffer.
+     *Thus the first directive is to unsubscribe the socket.
     */
 
     if (!subscribed)
@@ -427,7 +442,9 @@ void SubConnection::unsubscribe(ICodeContext * ctx, int _database, const char * 
     int cmdWrittenToSocket = 0;
     if (redisAppendCommand(context, "UNSUBSCRIBE %b", ch.str(), ch.length()) != REDIS_OK || redisBufferWrite(context, &cmdWrittenToSocket) != REDIS_OK)
     {
-        connect(ctx, 0, password);
+        freeContext();
+        if (reconnect)
+            connect(ctx, 0, password);
         return;
     }
 
@@ -436,7 +453,9 @@ void SubConnection::unsubscribe(ICodeContext * ctx, int _database, const char * 
     {
         if (!cmdWrittenToSocket || readReply(reply) != REDIS_OK || !reply->query() || reply->query()->type == REDIS_REPLY_ERROR || reply->query()->type != REDIS_REPLY_ARRAY)
         {
-            connect(ctx, 0, password);
+            freeContext();
+            if (reconnect)
+                connect(ctx, 0, password);
             return;
         }
 
@@ -447,7 +466,9 @@ void SubConnection::unsubscribe(ICodeContext * ctx, int _database, const char * 
             return;
         }
     }
-    connect(ctx, 0, password);
+    freeContext();
+    if (reconnect)
+        connect(ctx, 0, password);
 }
 int Connection::readReply(Reply * reply)
 {
@@ -543,7 +564,7 @@ void Connection::selectDB(ICodeContext * ctx, int _database)
     OwnedReply reply = Reply::createReply(redisCommand(context, cmd.str()));
     assertOnErrorWithCmdMsg(reply->query(), cmd.str());
 }
-void Connection::fail(const char * cmd, const char * errmsg, const char * key) const
+void Connection::fail(const char * cmd, const char * errmsg, const char * key)
 {
     if (key)
     {
@@ -553,7 +574,7 @@ void Connection::fail(const char * cmd, const char * errmsg, const char * key) c
     VStringBuffer msg("Redis Plugin: ERROR - %s on database %d for %s:%d failed : %s", cmd, database, ip.str(), port, errmsg);
     rtlFail(0, msg.str());
 }
-void Connection::assertOnError(const redisReply * reply, const char * _msg) const
+void Connection::assertOnError(const redisReply * reply, const char * _msg)
 {
     if (!reply)
     {
@@ -567,7 +588,7 @@ void Connection::assertOnError(const redisReply * reply, const char * _msg) cons
         rtlFail(0, msg.str());
     }
 }
-void Connection::assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key) const
+void Connection::assertOnErrorWithCmdMsg(const redisReply * reply, const char * cmd, const char * key)
 {
     if (!reply)
     {
@@ -580,7 +601,7 @@ void Connection::assertOnErrorWithCmdMsg(const redisReply * reply, const char * 
         fail(cmd, reply->str, key);
     }
 }
-void Connection::assertAuthorization(const redisReply * reply) const
+void Connection::assertAuthorization(const redisReply * reply)
 {
     if (reply && reply->str && ( strncmp(reply->str, "NOAUTH", 6) == 0 || strncmp(reply->str, "ERR operation not permitted", 27) == 0 ))
     {
@@ -588,7 +609,7 @@ void Connection::assertAuthorization(const redisReply * reply) const
         rtlFail(0, msg.str());
     }
 }
-void Connection::assertKey(const redisReply * reply, const char * key) const
+void Connection::assertKey(const redisReply * reply, const char * key)
 {
     if (reply && reply->type == REDIS_REPLY_NIL)
     {
@@ -596,14 +617,14 @@ void Connection::assertKey(const redisReply * reply, const char * key) const
         rtlFail(0, msg.str());
     }
 }
-void Connection::assertConnectionWithCmdMsg(const char * cmd, const char * key) const
+void Connection::assertConnectionWithCmdMsg(const char * cmd, const char * key)
 {
     if (!context)
         fail(cmd, "neither 'reply' nor connection error available", key);
     else if (context->err)
         fail(cmd, context->errstr, key);
 }
-void Connection::assertConnection(const char * _msg) const
+void Connection::assertConnection(const char * _msg)
 {
     if (!context)
     {

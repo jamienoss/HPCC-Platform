@@ -175,6 +175,16 @@ pubDS := DATASET(N2, TRANSFORM({ integer a }, SELF.a := pub('PubSubTest' + (STRI
 INTEGER pub2(STRING channel) := FUNCTION
         sl := SEQUENTIAL(
             Std.System.Debug.Sleep(2),
+            myRedis.Publish(channel, '3')//This pub is the one read by the sub.
+            );
+        value :=  myRedis.Publish(channel, '10000');//This pub isn't read by the sub, however the returned subscription count is present in the sum
+     RETURN WHEN(value, sl, BEFORE);
+END;
+pubDS2 := DATASET(N2, TRANSFORM({ integer a }, SELF.a := pub2('PubSubTest' + (STRING)COUNTER)));
+
+INTEGER pub3(STRING channel) := FUNCTION
+        sl := SEQUENTIAL(
+            Std.System.Debug.Sleep(2),
             myRedis.Publish(channel, '3'),//This pub is the one read by the sub.
             myRedis.Publish(channel, '3'),
             myRedis.Publish(channel, '3'),
@@ -195,12 +205,13 @@ INTEGER pub2(STRING channel) := FUNCTION
         value :=  myRedis.Publish(channel, '10000');//This pub isn't read by the sub, however the returned subscription count is present in the sum
      RETURN WHEN(value, sl, BEFORE);
 END;
-pubDS2 := DATASET(N2, TRANSFORM({ integer a }, SELF.a := pub2('PubSubTest' + (STRING)COUNTER)));
+pubDS3 := DATASET(N2, TRANSFORM({ integer a }, SELF.a := pub3('PubSubTest' + (STRING)COUNTER)));
 
 value := SUM(NOFOLD(subDS + pubDS2), a);
 SEQUENTIAL(
     OUTPUT(SUM(NOFOLD(subDS + pubDS), a));//answer = N*2 = 2000
-    OUTPUT( IF (value > N*4, (STRING)value, 'OK'));//ideally result = N*3, less than this => not all subs had pubs (but this would cause a timeout).
+    OUTPUT( IF (value > N2*4, (STRING)value, 'OK'));//ideally result = N*3, less than this => not all subs had pubs (but this would cause a timeout).
+    OUTPUT(SUM(NOFOLD(subDS + pubDS3), a));
     );
     // N*3 > result < N*4 => all subs received a pub, however, there were result-N*3 subs still open for the second pub. result > N*4 => gremlins.
 
