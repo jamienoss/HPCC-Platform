@@ -28,7 +28,6 @@
 #include "hqlgram.hpp"
 #include "hqlgram.h"
 
-#include "hqlgram.hpp"
 #include "hqlfold.hpp"
 #include "hqlpmap.hpp"
 
@@ -434,7 +433,7 @@ void HqlGram::init(IHqlScope * _globalScope, IHqlScope * _containerScope)
     resolveSymbols = true;
     lastpos = 0;
     inSignedModule = false;
-    
+
     containerScope = _containerScope;
     globalScope = _globalScope;
     parseScope.setown(createPrivateScope(_containerScope));
@@ -10963,15 +10962,55 @@ void HqlGram::simplifyExpected(int *expected)
     simplify(expected, END, '}', 0);
 }
 
+void SyntaxErrorContainer::set(const HqlLex * lexObject, const char * _message, int _token, const int * _expectedList, unsigned _length)
+{
+    message.set(_message);
+    yyText.set(lexObject->get_yyText());
+    lexObject->getPosition(pos);
+    token = _token;
+
+    if (_length == 0)
+    {
+        /* This method is nominally called from hqlgram.y::static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int token, bool deferOnErrorToken)
+         * where _length > 0 by construction. This code is merely for completeness.
+         */
+        expectedListLength = 0;
+        return;
+    }
+
+    if (expectedListLength < _length)//Only expand array if needed
+    {
+        clearExpected();
+        expectedList = new int [_length];
+    }
+    expectedListLength = _length;
+    memcpy(expectedList, _expectedList, expectedListLength*sizeof(int));
+}
+
+void SyntaxErrorContainer::reportError(HqlGram * parser, const char * _message, const attribute * attr)
+{
+   setPos(attr);
+   //Since expectedList is reused it is not true that if expectedListLength = 0 that expectedList = NULL.
+   int * expected = expectedListLength == 0 ? NULL : expectedList;
+   if (_message && *_message)
+       parser->syntaxError(_message, token, expected);
+   else
+       parser->syntaxError(message.str(), token, expected);
+}
+
 void HqlGram::syntaxError(const char *s, int token, int *expected)
-{ 
+{
     if (errorDisabled || !s || !errorHandler)
         return;
 
-    int lineno = lexObject->getActualLineNo();
-    int column = lexObject->getActualColumn();
-    int pos = lexObject->get_yyPosition();
-    const char * yytext = lexObject->get_yyText();
+    int lineno = 0;
+    int column = 0;
+    int pos = 0;
+    lineno = explicitSyntaxError.getLineNo();
+    column = explicitSyntaxError.getColumn();
+    pos = explicitSyntaxError.getPosition();
+    const char * yytext = explicitSyntaxError.get_yyText();
+
     if (yytext)
         column -= strlen(yytext);
 

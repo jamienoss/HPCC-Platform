@@ -379,6 +379,42 @@ struct TokenMap;
 
 class HqlGram;
 
+class SyntaxErrorContainer : public CInterface
+{
+public:
+    SyntaxErrorContainer() : token(0), /*is this best default choice?*/ expectedList(NULL), expectedListLength(0) {}
+    inline ~SyntaxErrorContainer() { clearExpected(); }
+    void clearExpected()
+    {
+        if(expectedList)
+        {
+            delete[] expectedList;
+            expectedList = NULL;
+            expectedListLength = 0;
+        }
+    }
+    inline int getLineNo() const { return pos.lineno; }
+    inline int getColumn() const { return pos.column; }
+    inline int getPosition() const { return pos.position; }
+    inline const char * get_yyText() const { return yyText.str(); }
+    void set(const HqlLex * lexObject, const char * _message, int _token, const int * _expectedList, unsigned length);
+    void reportError(HqlGram * parser, const char * _message, const attribute * attr);
+
+protected:
+    void setPos(const attribute * attr)
+    {
+        if (attr)
+            pos.set(attr->pos.lineno, attr->pos.column, attr->pos.position, attr->pos.sourcePath);
+    }
+
+    ECLlocation pos;
+    StringAttr message;
+    StringAttr yyText;
+    int token;
+    int * expectedList;
+    unsigned expectedListLength;
+};
+
 class LeftRightScope : public CInterface
 {
 public:
@@ -406,6 +442,7 @@ public:
 
     void yySetLexer(HqlLex *LexObject);
     HqlLex* getLexer() { return lexObject; }
+    const HqlLex * queryLexer() const { return lexObject; }
 
     void saveContext(HqlGramCtx & ctx, bool cloneScopes);
     IHqlScope * queryGlobalScope();
@@ -581,6 +618,9 @@ public:
     void reportError(int errNo, const ECLlocation & pos, const char* format, ...) __attribute__((format(printf, 4, 5)));
     void reportMacroExpansionPosition(IError * warning, HqlLex * lexer);
     void reportErrorUnexpectedX(const attribute & errpos, IAtom * unexpected);
+    inline void setExplicitSyntaxError(const HqlLex * lexObject, const char * message, int token, const int * expectedList, unsigned expectedListLength) { explicitSyntaxError.set(lexObject, message, token, expectedList, expectedListLength); }
+    inline void reportExplicitError(const char * message, const attribute & attr) { explicitSyntaxError.reportError(this, message, &attr); }
+    inline void reportExplicitError() { explicitSyntaxError.reportError(this, NULL, NULL); }
 
     // Don't use overloading: va_list is the same as char*!!
     void reportErrorVa(int errNo, const ECLlocation & a, const char* format, va_list args) __attribute__((format(printf,4,0)));
@@ -909,6 +949,7 @@ protected:
     unsigned minimumScopeIndex;
     const TokenMap * pendingAttributes;
     bool aborting;
+    SyntaxErrorContainer explicitSyntaxError;
 
     void setIdUnknown(bool expected) { expectedUnknownId = expected; }
     bool getIdUnknown() { return expectedUnknownId; }
@@ -1049,7 +1090,7 @@ class HqlLex
 
         /* push back a string to the input */
         HqlLex*  getMacroLex() { return inmacro; }
-        char *get_yyText(void);
+        const char *get_yyText(void) const;
         StringBuffer &getTokenText(StringBuffer &);
         HqlLex* getParentLex() { return parentLex; }
         void setParentLex(HqlLex* pLex) { parentLex = pLex; }
@@ -1058,7 +1099,7 @@ class HqlLex
 
         void loadXML(const YYSTYPE & errpos, const char * value, const char * child = NULL);
 
-        void getPosition(ECLlocation & pos)
+        void getPosition(ECLlocation & pos) const
         {
             if (inmacro)
                 inmacro->getPosition(pos);

@@ -209,7 +209,7 @@ HqlLex::~HqlLex()
     ::Release(forLoop);
 }
 
-char* HqlLex::get_yyText(void)
+const char* HqlLex::get_yyText(void) const
 {
     if (inmacro)
         return inmacro->get_yyText();
@@ -1576,7 +1576,7 @@ void HqlLex::doPreprocessorLookup(const YYSTYPE & errpos, bool stringify, int ex
 {
     StringBuffer out;
 
-    char *text = get_yyText() + 1;
+    const char *text = get_yyText() + 1;
     unsigned len = (size32_t)strlen(text) - 1;
     text += extra;
     len -= (extra+extra);

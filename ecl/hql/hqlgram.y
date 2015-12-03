@@ -18,7 +18,10 @@
 //Note the c++ generation still generates a separate class for the raw processing from the HqlGram class, so whichever is
 //used the productions need to use parser->... to access the context
 %define api.pure
+
+//%define parse.lac full
 //%error-verbose
+
 %lex-param {HqlGram* parser}
 %lex-param {int * yyssp}
 %parse-param {HqlGram* parser}
@@ -88,8 +91,8 @@ inline int eclyylex(attribute * yylval, HqlGram* parser, const short int * yyssp
 
 
 
-static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int token);
-#define eclyyerror(parser, s)       eclsyntaxerror(parser, s, yystate, yychar)
+static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int token, bool deferOnErrorToken = false);
+#define eclyyerror(parser, s)       eclsyntaxerror(parser, s, yystate, yychar, true)
 #define ignoreBisonWarning(x)
 #define ignoreBisonWarnings2(x,y)
 #define ignoreBisonWarnings3(x,y,z)
@@ -640,10 +643,14 @@ setActiveToExpected
     
 
 importSection
-    : startIMPORT importItem endIMPORT   
+    : startIMPORT importItem endIMPORT
                         {   parser->lastpos = $3.pos.position+1; $$.clear(); }
-    | startIMPORT error endIMPORT       
-                        {   parser->lastpos = $3.pos.position+1; $$.clear(); }
+    | startIMPORT error endIMPORT
+                        {
+                            parser->reportExplicitError();
+                            parser->lastpos = $3.pos.position+1;
+                            $$.clear();
+                        }
     ;
 
 startIMPORT
@@ -1017,6 +1024,7 @@ goodTypeObject
 
 badObject
     : error             {
+                            parser->reportExplicitError();
                             parser->processError(false);
                             $$.setExpr(createConstant((__int64) 0), $1);
                         }
@@ -1113,6 +1121,12 @@ embedCppPrefix
 compoundAttribute
     : startCompoundAttribute optDefinitions returnAction ';' END
                         {
+                            $$.setExpr(parser->processCompoundFunction($3, false), $3);
+                        }
+    | startCompoundAttribute optDefinitions returnAction error END
+                        {
+                            parser->reportExplicitError(NULL, $3);
+                            yyerrok;
                             $$.setExpr(parser->processCompoundFunction($3, false), $3);
                         }
     ;
@@ -1479,6 +1493,7 @@ simpleDefinition
                         }
  /* general error */
     | error   ';'       {
+                            parser->reportExplicitError();
                             yyerrok;
                             parser->processError(true);
                             $$.clear();
@@ -2077,6 +2092,7 @@ transformation1
                         }
     | transformDst ASSIGN error ';'
                         {
+                            parser->reportExplicitError();
                             $1.release();
                             $$.clear();
                         }
@@ -3899,6 +3915,7 @@ service
                         }
     | startService error
                         {
+                            parser->reportExplicitError();
                             $$.setExpr(parser->leaveService($2), $1);
                         }
     ;
@@ -4465,6 +4482,7 @@ fieldDef
                         }
     | ifblock
     | error             {
+                            parser->reportExplicitError();
                             $$.clear();
                         }
     | expandedSortListByReference
@@ -6148,6 +6166,7 @@ primexpr1
                         }
     | SIZEOF '(' error ')'
                         {
+                            parser->reportExplicitError();
                             parser->reportError(ERR_SIZEOF_WRONGPARAM, $1,"Illegal parameter for SIZEOF"); 
                             $$.setExpr(createConstant(1), $1);
                         }
@@ -11384,6 +11403,7 @@ optFieldMaps
     |                   { $$.setNullExpr(); }
     | '{' beginList error '}'
                         {
+                            parser->reportExplicitError();
                             HqlExprArray args;
                             parser->endList(args);
                             $$.setNullExpr();
@@ -12760,7 +12780,10 @@ int yyuntranslate(int token)
 }
 
 /* Cloned and modified from the verbose yyerror implementation */
-static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int token)
+/* NOTE: If deferOnErrorToken = true (As it is by default) & an error token is expected, the sntax error will NOT be automatically reported.
+ * Instead parser->reportExplicitError needs to be explicitly called from the rule containing the bison error token.
+ */
+static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int token, bool deferOnErrorToken)
 {
   int yyn = yypact[yystate];
 
@@ -12778,11 +12801,29 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
   int expected[YYNTOKENS];
   int curExpected = 0;
+  bool errorTokenFound = false;
   for (int yyx = yyxbegin; yyx < yyxend; ++yyx)
   {
-    if (yycheck[yyx + yyn] == yyx && yyx != YYTERROR)
-        expected[curExpected++] = yyuntranslate(yyx);
+    if (yycheck[yyx + yyn] == yyx)
+    {
+        if(yyx == YYTERROR)
+        {
+            if (!errorTokenFound)
+                errorTokenFound = true;
+            continue;
+        }
+        else
+            expected[curExpected++] = yyuntranslate(yyx);
+    }
   }
   expected[curExpected++] = 0;
+  if (errorTokenFound && deferOnErrorToken)
+  {
+      //save yystate & token for deferred error report.
+      //MORE: The array that expected is copied to expands only if needed - should we pass curExpected or be done with it and pass YYNTOKENS?
+      parser->setExplicitSyntaxError(parser->queryLexer(), s, token, expected, curExpected);
+      return;
+  }
+
   parser->syntaxError(s, token, expected);
 }
