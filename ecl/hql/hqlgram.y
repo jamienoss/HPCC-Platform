@@ -12781,10 +12781,46 @@ int yyuntranslate(int token)
     }
     return '?';
 }
+static void getTokenText(StringBuffer & msg, int token);
 
 /* Cloned and modified from the verbose yyerror implementation */
 static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int token)
 {
+
+  for (int yyn = YYPACT_NINF + 1; yyn <= YYLAST; yyn++)
+  {
+      //int yyn = yypact[state];
+      int yyxbegin = yyn < 0 ? -yyn : 0;
+      int yychecklim = YYLAST - yyn + 1;
+
+/*
+      StringBuffer tokenText;
+      getTokenText(tokenText, yyuntranslate(yyn));
+      if (strcmp(tokenText.str(), "'?'") == 0)
+          continue;
+      printf("root token: %s\n", tokenText.str());
+*/
+      bool found = false;
+      int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
+      for (int yyx = yyxbegin; yyx < yyxend; ++yyx)
+      {
+          if (yycheck[yyx + yyn] == yyx && yyx != YYTERROR)
+          {
+              found = true;
+              StringBuffer expectedText;
+              getTokenText(expectedText, yyuntranslate(yyx));
+              printf("    expected token: %s\n", expectedText.str());
+          }
+      }
+      if (found)
+      {
+          printf("\n");
+          found = false;
+      }
+
+   }
+
+/*
   int yyn = yypact[yystate];
 
   if (! (YYPACT_NINF < yyn && yyn <= YYLAST))
@@ -12793,10 +12829,10 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
     return;
   }
 
-  /* Start YYX at -YYN if negative to avoid negative indexes in YYCHECK.  */
+  // Start YYX at -YYN if negative to avoid negative indexes in YYCHECK.
   int yyxbegin = yyn < 0 ? -yyn : 0;
 
-  /* Stay within bounds of both yycheck and yytname.  */
+  // Stay within bounds of both yycheck and yytname. 
   int yychecklim = YYLAST - yyn + 1;
   int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
   int expected[YYNTOKENS];
@@ -12808,4 +12844,481 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
   }
   expected[curExpected++] = 0;
   parser->syntaxError(s, token, expected);
+  */
+}
+static void getTokenText(StringBuffer & msg, int token)
+{
+    switch (token)
+    {
+    case ABS: msg.append("ABS"); break;
+    case ACOS: msg.append("ACOS"); break;
+    case AFTER: msg.append("AFTER"); break;
+    case AGGREGATE: msg.append("AGGREGATE"); break;
+    case ALIAS: msg.append("__ALIAS__"); break;
+    case ALL: msg.append("ALL"); break;
+    case ALLNODES: msg.append("ALLNODES"); break;
+    case AND: msg.append("AND"); break;
+    case ANDAND: msg.append("&&"); break;
+    case ANY: msg.append("ANY"); break;
+    case APPLY: msg.append("APPLY"); break;
+    case _ARRAY_: msg.append("_ARRAY_"); break;
+    case AS: msg.append("AS"); break;
+    case ASCII: msg.append("ASCII"); break;
+    case ASIN: msg.append("ASIN"); break;
+    case TOK_ASSERT: msg.append("ASSERT"); break;
+    case ASSTRING: msg.append("ASSTRING"); break;
+    case ATAN: msg.append("ATAN"); break;
+    case ATAN2: msg.append("ATAN2"); break;
+    case ATMOST: msg.append("ATMOST"); break;
+    case AVE: msg.append("AVE"); break;
+    case BACKUP: msg.append("BACKUP"); break;
+    case BEFORE: msg.append("BEFORE"); break;
+    case BEST: msg.append("BEST"); break;
+    case BETWEEN: msg.append("BETWEEN"); break;
+    case BIG: msg.append("BIG_ENDIAN"); break;
+    case TOK_BITMAP: msg.append("BITMAP"); break;
+    case BLOB: msg.append("BLOB"); break;
+    case BNOT: msg.append("BNOT"); break;
+    case BUILD: msg.append("BUILD"); break;
+    case CARDINALITY: msg.append("CARDINALITY"); break;
+    case CASE: msg.append("CASE"); break;
+    case TOK_CATCH: msg.append("CATCH"); break;
+    case CHECKPOINT: msg.append("CHECKPOINT"); break;
+    case CHOOSE: msg.append("CHOOSE"); break;
+    case CHOOSEN: msg.append("CHOOSEN"); break;
+    case CHOOSENALL: msg.append("CHOOSEN:ALL"); break;
+    case CHOOSESETS: msg.append("CHOOSESETS"); break;
+    case CLUSTER: msg.append("CLUSTER"); break;
+    case CLUSTERSIZE: msg.append("CLUSTERSIZE"); break;
+    case COGROUP: msg.append("COGROUP"); break;
+    case COMBINE: msg.append("COMBINE"); break;
+    case __COMMON__: msg.append("__COMMON__"); break;
+    case __COMPOUND__: msg.append(""); break;
+    case COMPRESSED: msg.append("COMPRESSED"); break;
+    case __COMPRESSED__: msg.append("__COMPRESSED__"); break;
+    case TOK_CONST: msg.append("CONST"); break;
+    case CORRELATION: msg.append("CORRELATION"); break;
+    case COS: msg.append("COS"); break;
+    case COSH: msg.append("COSH"); break;
+    case COUNT: msg.append("COUNT"); break;
+    case COUNTER: msg.append("COUNTER"); break;
+    case COVARIANCE: msg.append("COVARIANCE"); break;
+    case CPPBODY: msg.append("BEGINC++"); break;
+    case TOK_CPP: msg.append("C++"); break;
+    case CRC: msg.append("HASHCRC"); break;
+    case CRON: msg.append("CRON"); break;
+    case CSV: msg.append("CSV"); break;
+    case DATASET: msg.append("DATASET"); break;
+    case __DEBUG__: msg.append("__DEBUG__"); break;
+    case DEDUP: msg.append("DEDUP"); break;
+    case DEFAULT: msg.append("DEFAULT"); break;
+    case DEFINE: msg.append("DEFINE"); break;
+    case DENORMALIZE: msg.append("DENORMALIZE"); break;
+    case DEPRECATED: msg.append("DEPRECATED"); break;
+    case DESC: msg.append("DESC"); break;
+    case DICTIONARY: msg.append("DICTIONARY"); break;
+    case DISTRIBUTE: msg.append("DISTRIBUTE"); break;
+    case DISTRIBUTED: msg.append("DISTRIBUTED"); break;
+    case DISTRIBUTION: msg.append("DISTRIBUTION"); break;
+    case DIV: msg.append("DIV"); break;
+    case DOTDOT: msg.append(".."); break;
+    case DYNAMIC: msg.append("DYNAMIC"); break;
+    case EBCDIC: msg.append("EBCDIC"); break;
+    case ECLCRC: msg.append("ECLCRC"); break;
+    case ELSE: msg.append("ELSE"); break;
+    case ELSEIF: msg.append("ELSEIF"); break;
+    case EMBED: msg.append("EMBED"); break;
+    case EMBEDDED: msg.append("EMBEDDED"); break;
+    case _EMPTY_: msg.append("_EMPTY_"); break;
+    case ENCODING: msg.append("ENCODING"); break;
+    case ENCRYPT: msg.append("ENCRYPT"); break;
+    case ENCRYPTED: msg.append("ENCRYPTED"); break;
+    case END: msg.append("END"); break;
+    case ENDCPP: msg.append("ENDCPP"); break;
+    case ENDEMBED: msg.append("ENDEMBED"); break;
+    case ENTH: msg.append("ENTH"); break;
+    case ENUM: msg.append("ENUM"); break;
+    case TOK_ERROR: msg.append("ERROR"); break;
+    case ESCAPE: msg.append("ESCAPE"); break;
+    case EVALUATE: msg.append("EVALUATE"); break;
+    case EVENT: msg.append("EVENT"); break;
+    case EVENTEXTRA: msg.append("EVENTEXTRA"); break;
+    case EVENTNAME: msg.append("EVENTNAME"); break;
+    case EXCEPT: msg.append("EXCEPT"); break;
+    case EXCLUSIVE: msg.append("EXCLUSIVE"); break;
+    case EXISTS: msg.append("EXISTS"); break;
+    case EXP: msg.append("expression"); break;
+    case EXPIRE: msg.append("EXPIRE"); break;
+    case EXPORT: msg.append("EXPORT"); break;
+    case EXTEND: msg.append("EXTEND"); break;
+    case FAIL: msg.append("FAIL"); break;
+    case FAILCODE: msg.append("FAILCODE"); break;
+    case FAILMESSAGE: msg.append("FAILMESSAGE"); break;
+    case FAILURE: msg.append("FAILURE"); break;
+    case FEATURE: msg.append("FEATURE"); break;
+    case FETCH: msg.append("FETCH"); break;
+    case FEW: msg.append("FEW"); break;
+    case TOK_FALSE: msg.append("FALSE"); break;
+    case FIELD_REF: msg.append("<?>"); break;
+    case FIELDS_REF: msg.append("<\?\?>"); break;
+    case FILEPOSITION: msg.append("FILEPOSITION"); break;
+    case FILTERED: msg.append("FILTERED"); break;
+    case FIRST: msg.append("FIRST"); break;
+    case TOK_FIXED: msg.append("FIXED"); break;
+    case FLAT: msg.append("FLAT"); break;
+    case FORMAT_ATTR: msg.append("FORMAT"); break;
+    case FORWARD: msg.append("FORWARD"); break;
+    case FROM: msg.append("FROM"); break;
+    case FROMUNICODE: msg.append("FROMUNICODE"); break;
+    case FROMJSON: msg.append("FROMJSON"); break;
+    case FROMXML: msg.append("FROMXML"); break;
+    case FULL: msg.append("FULL"); break;
+    case FUNCTION: msg.append("FULL"); break;
+    case GETENV: msg.append("GETENV"); break;
+    case GLOBAL: msg.append("GLOBAL"); break;
+    case GRAPH: msg.append("GRAPH"); break;
+    case GROUP: msg.append("GROUP"); break;
+    case GROUPBY: msg.append("GROUPBY"); break;
+    case GROUPED: msg.append("GROUPED"); break;
+    case __GROUPED__: msg.append("__GROUPED__"); break;
+    case GUARD: msg.append("GUARD"); break;
+    case HASH: msg.append("HASH"); break;
+    case HASH32: msg.append("HASH32"); break;
+    case HASH64: msg.append("HASH64"); break;
+    case HASHMD5: msg.append("HASHMD5"); break;
+    case HAVING: msg.append("HAVING"); break;
+    case HEADING: msg.append("HEADING"); break;
+    case HINT: msg.append("HINT"); break;
+    case HOLE: msg.append("HOLE"); break;
+    case IF: msg.append("IF"); break;
+    case IFF: msg.append("IFF"); break;
+    case IFBLOCK: msg.append("IFBLOCK"); break;
+    case TOK_IGNORE: msg.append("IGNORE"); break;
+    case IMPLEMENTS: msg.append("IMPLEMENTS"); break;
+    case IMPORT: msg.append("IMPORT"); break;
+    case INDEPENDENT: msg.append("INDEPENDENT"); break;
+    case INDEX: msg.append("INDEX"); break;
+    case INLINE: msg.append("INLINE"); break;
+    case TOK_IN: msg.append("IN"); break;
+    case INNER: msg.append("INNER"); break;
+    case INTERFACE: msg.append("INTERFACE"); break;
+    case INTERNAL: msg.append("INTERNAL"); break;
+    case INTFORMAT: msg.append("INTFORMAT"); break;
+    case ISNULL: msg.append("ISNULL"); break;
+    case ISVALID: msg.append("ISVALID"); break;
+    case ITERATE: msg.append("ITERATE"); break;
+    case JOIN: msg.append("JOIN"); break;
+    case JOINED: msg.append("JOINED"); break;
+    case JSON_TOKEN: msg.append("JSON"); break;
+    case KEEP: msg.append("KEEP"); break;
+    case KEYDIFF: msg.append("KEYDIFF"); break;
+    case KEYED: msg.append("KEYED"); break;
+    case KEYPATCH: msg.append("KEYPATCH"); break;
+    case KEYUNICODE: msg.append("KEYUNICODE"); break;
+    case LABELED: msg.append("LABELED"); break;
+    case LAST: msg.append("LAST"); break;
+    case LEFT: msg.append("LEFT"); break;
+    case LENGTH: msg.append("LENGTH"); break;
+    case LIBRARY: msg.append("LIBRARY"); break;
+    case LIMIT: msg.append("LIMIT"); break;
+    case LINKCOUNTED: msg.append("LINKCOUNTED"); break;
+    case LITERAL: msg.append("LITERAL"); break;
+    case LITTLE: msg.append("LITTLE_ENDIAN"); break;
+    case LN: msg.append("LN"); break;
+    case LOADXML: msg.append("LOADXML"); break;
+    case LOCAL: msg.append("LOCAL"); break;
+    case LOCALE: msg.append("LOCALE"); break;
+    case LOCALFILEPOSITION: msg.append("LOCALFILEPOSITION"); break;
+    case TOK_LOG: msg.append("LOG"); break;
+    case LOGICALFILENAME: msg.append("LOGICALFILENAME"); break;
+    case LOOKUP: msg.append("LOOKUP"); break;
+    case LOOP: msg.append("LOOP"); break;
+    case LZW: msg.append("LZW"); break;
+    case MANY: msg.append("MANY"); break;
+    case MAP: msg.append("MAP"); break;
+    case MATCHED: msg.append("MATCHED"); break;
+    case MATCHLENGTH: msg.append("MATCHLENGTH"); break;
+    case MATCHPOSITION: msg.append("MATCHPOSITION"); break;
+    case MATCHROW: msg.append("MATCHROW"); break;
+    case MATCHTEXT: msg.append("MATCHTEXT"); break;
+    case MATCHUNICODE: msg.append("MATCHUNICODE"); break;
+    case MATCHUTF8: msg.append("MATCHUTF8"); break;
+    case MAX: msg.append("MAX"); break;
+    case MAXCOUNT: msg.append("MAXCOUNT"); break;
+    case MAXLENGTH: msg.append("MAXLENGTH"); break;
+    case MAXSIZE: msg.append("MAXSIZE"); break;
+    case MERGE: msg.append("MERGE"); break;
+    case MERGE_ATTR: msg.append("MERGE"); break;
+    case MERGEJOIN: msg.append("MERGEJOIN"); break;
+    case MIN: msg.append("MIN"); break;
+    case MODULE: msg.append("MODULE"); break;
+    case MOFN: msg.append("MOFN"); break;
+    case MULTIPLE: msg.append("MULTIPLE"); break;
+    case NAMED: msg.append("NAMED"); break;
+    case NAMEOF: msg.append("__NAMEOF__"); break;
+    case NAMESPACE: msg.append("NAMESPACE"); break;
+    case NOBOUNDCHECK: msg.append("NOBOUNDCHECK"); break;
+    case NOCASE: msg.append("NOCASE"); break;
+    case NOCOMBINE: msg.append("NOCOMBINE"); break;
+    case NOFOLD: msg.append("NOFOLD"); break;
+    case NOHOIST: msg.append("NOHOIST"); break;
+    case NOLOCAL: msg.append("NOLOCAL"); break;
+    case NONEMPTY: msg.append("NONEMPTY"); break;
+    case NOOVERWRITE: msg.append("NOOVERWRITE"); break;
+    case NORMALIZE: msg.append("NORMALIZE"); break;
+    case NOROOT: msg.append("NOROOT"); break;
+    case NOSCAN: msg.append("NOSCAN"); break;
+    case NOSORT: msg.append("NOSORT"); break;
+    case __NOSTREAMING__: msg.append(""); break;        // internal
+    case NOT: msg.append("NOT"); break;
+    case NOTHOR: msg.append("NOTHOR"); break;
+    case NOTIFY: msg.append("NOTIFY"); break;
+    case NOTRIM: msg.append("NOTRIM"); break;
+    case NOXPATH: msg.append("NOXPATH"); break;
+    case OF: msg.append("OF"); break;
+    case OMITTED: msg.append("OMITTED"); break;
+    case ONCE: msg.append("ONCE"); break;
+    case ONFAIL: msg.append("ONFAIL"); break;
+    case ONLY: msg.append("ONLY"); break;
+    case ONWARNING: msg.append("ONWARNING"); break;
+    case OPT: msg.append("OPT"); break;
+    case OR : msg.append("OR "); break;
+    case ORDER: msg.append("ORDER"); break;
+    case ORDERED: msg.append("ORDERED"); break;
+    case OUTER: msg.append("OUTER"); break;
+    case OUTPUT: msg.append("OUTPUT"); break;
+    case TOK_OUT: msg.append("OUT"); break;
+    case OVERWRITE: msg.append("OVERWRITE"); break;
+    case __OWNED__: msg.append("__OWNED__"); break;
+    case PACKED: msg.append("PACKED"); break;
+    case PARALLEL: msg.append("PARALLEL"); break;
+    case PARSE: msg.append("PARSE"); break;
+    case PARTITION: msg.append("PARTITION"); break;
+    case PARTITION_ATTR: msg.append("PARTITION"); break;
+    case TOK_PATTERN: msg.append("PATTERN"); break;
+    case PENALTY: msg.append("PENALTY"); break;
+    case PERSIST: msg.append("PERSIST"); break;
+    case PHYSICALFILENAME: msg.append("PHYSICALFILENAME"); break;
+    case PIPE: msg.append("PIPE"); break;
+    case __PLATFORM__: msg.append("__PLATFORM__"); break;
+    case POWER: msg.append("POWER"); break;
+    case PREFETCH: msg.append("PREFETCH"); break;
+    case PRELOAD: msg.append("PRELOAD"); break;
+    case PRIORITY: msg.append("PRIORITY"); break;
+    case PRIVATE: msg.append("PRIVATE"); break;
+    case PROCESS: msg.append("PROCESS"); break;
+    case PROJECT: msg.append("PROJECT"); break;
+    case PULL: msg.append("PULL"); break;
+    case PULLED: msg.append("PULLED"); break;
+    case QUANTILE: msg.append("QUANTILE"); break;
+    case QUOTE: msg.append("QUOTE"); break;
+    case RANDOM: msg.append("RANDOM"); break;
+    case RANGE: msg.append("RANGE"); break;
+    case RANK: msg.append("RANK"); break;
+    case RANKED: msg.append("RANKED"); break;
+    case REALFORMAT: msg.append("REALFORMAT"); break;
+    case RECORD: msg.append("RECORD"); break;
+    case RECORDOF: msg.append("RECORDOF"); break;
+    case RECOVERY: msg.append("RECOVERY"); break;
+    case REFRESH: msg.append("REFRESH"); break;
+    case REGEXFIND: msg.append("REGEXFIND"); break;
+    case REGEXREPLACE: msg.append("REGEXREPLACE"); break;
+    case REGEXFINDSET: msg.append("REGEXFINDSET"); break;
+    case REGROUP: msg.append("REGROUP"); break;
+    case REJECTED: msg.append("REJECTED"); break;
+    case RELATIONSHIP: msg.append("RELATIONSHIP"); break;
+    case REMOTE: msg.append("REMOTE"); break;
+    case REPEAT: msg.append("REPEAT"); break;
+    case RESPONSE: msg.append("RESPONSE"); break;
+    case RETRY: msg.append("RETRY"); break;
+    case RETURN: msg.append("RETURN"); break;
+    case RIGHT: msg.append("RIGHT"); break;
+    case RIGHT_NN: msg.append("RIGHT2"); break;
+    case ROLLUP: msg.append("ROLLUP"); break;
+    case ROUND: msg.append("ROUND"); break;
+    case ROUNDUP: msg.append("ROUNDUP"); break;
+    case ROW: msg.append("ROW"); break;
+    case ROWS: msg.append("ROWS"); break;
+    case ROWSET: msg.append("ROWSET"); break;
+    case ROWDIFF: msg.append("ROWDIFF"); break;
+    case RULE: msg.append("RULE"); break;
+    case SAMPLE: msg.append("SAMPLE"); break;
+    case SCAN: msg.append("SCAN"); break;
+    case SCORE: msg.append("SCORE"); break;
+    case SECTION: msg.append("SECTION"); break;
+    case SELF: msg.append("SELF"); break;
+    case SEPARATOR: msg.append("SEPARATOR"); break;
+    case __SEQUENCE__: msg.append("__SEQUENCE__"); break;
+    case SEQUENTIAL: msg.append("SEQUENTIAL"); break;
+    case SERVICE: msg.append("SERVICE"); break;
+    case SET: msg.append("SET"); break;
+    case SHARED: msg.append("SHARED"); break;
+    case SIN: msg.append("SIN"); break;
+    case SINGLE: msg.append("SINGLE"); break;
+    case SINH: msg.append("SINH"); break;
+    case SIZEOF: msg.append("SIZEOF"); break;
+    case SKEW: msg.append("SKEW"); break;
+    case SKIP: msg.append("SKIP"); break;
+    case SMART: msg.append("SMART"); break;
+    case SOAPACTION: msg.append("SOAPACTION"); break;
+    case __STAND_ALONE__: msg.append("__STAND_ALONE__"); break;
+    case HTTPHEADER: msg.append("HTTPHEADER"); break;
+    case PROXYADDRESS: msg.append("PROXYADDRESS"); break;
+    case HTTPCALL: msg.append("HTTPCALL"); break;
+    case SOAPCALL: msg.append("SOAPCALL"); break;
+    case SORT: msg.append("SORT"); break;
+    case SORTED: msg.append("SORTED"); break;
+    case SQL: msg.append("SQL"); break;
+    case SQRT: msg.append("SQRT"); break;
+    case STABLE: msg.append("STABLE"); break;
+    case STEPPED: msg.append("STEPPED"); break;
+    case STORED: msg.append("STORED"); break;
+    case STREAMED: msg.append("STREAMED"); break;
+    case SUBSORT: msg.append("SUBSORT"); break;
+    case SUCCESS: msg.append("SUCCESS"); break;
+    case SUM: msg.append("SUM"); break;
+    case SWAPPED: msg.append("SWAPPED"); break;
+    case TABLE: msg.append("TABLE"); break;
+    case TAN: msg.append("TAN"); break;
+    case TANH: msg.append("TANH"); break;
+    case TERMINATOR: msg.append("TERMINATOR"); break;
+    case THEN: msg.append("THEN"); break;
+    case THISNODE: msg.append("THISNODE"); break;
+    case THOR: msg.append("THOR"); break;
+    case THRESHOLD: msg.append("THRESHOLD"); break;
+    case TIMEOUT: msg.append("TIMEOUT"); break;
+    case TIMELIMIT: msg.append("TIMELIMIT"); break;
+    case TOKEN: msg.append("TOKEN"); break;
+    case TOJSON: msg.append("TOJSON"); break;
+    case TOPN: msg.append("TOPN"); break;
+    case TOUNICODE: msg.append("TOUNICODE"); break;
+    case TOXML: msg.append("TOXML"); break;
+    case TRACE: msg.append("TRACE"); break;
+    case TRANSFER: msg.append("TRANSFER"); break;
+    case TRANSFORM: msg.append("TRANSFORM"); break;
+    case TRIM: msg.append("TRIM"); break;
+    case TRUNCATE: msg.append("TRUNCATE"); break;
+    case TOK_TRUE: msg.append("TRUE"); break;
+    case TYPE: msg.append("TYPE"); break;
+    case TYPEOF: msg.append("TYPEOF"); break;
+    case UNGROUP: msg.append("UNGROUP"); break;
+    case UNICODEORDER: msg.append("UNICODEORDER"); break;
+    case UNORDERED: msg.append("UNORDERED"); break;
+    case UNSIGNED: msg.append("UNSIGNED"); break;
+    case UNSORTED: msg.append("UNSORTED"); break;
+    case UNSTABLE: msg.append("UNSTABLE"); break;
+    case UPDATE: msg.append("UPDATE"); break;
+    case USE: msg.append("USE"); break;
+    case VALIDATE: msg.append("VALIDATE"); break;
+    case VARIANCE: msg.append("VARIANCE"); break;
+    case VIRTUAL: msg.append("VIRTUAL"); break;
+    case WAIT: msg.append("WAIT"); break;
+    case TOK_WARNING: msg.append("WARNING"); break;
+    case WHEN: msg.append("WHEN"); break;
+    case WHICH: msg.append("WHICH"); break;
+    case WIDTH: msg.append("WIDTH"); break;
+    case WILD: msg.append("WILD"); break;
+    case WITHIN: msg.append("WITHIN"); break;
+    case WHOLE: msg.append("WHOLE"); break;
+    case WORKUNIT: msg.append("WORKUNIT"); break;
+    case XML_TOKEN: msg.append("XML"); break;
+    case XMLDECODE: msg.append("XMLDECODE"); break;
+    case XMLDEFAULT: msg.append("XMLDEFAULT"); break;
+    case XMLENCODE: msg.append("XMLENCODE"); break;
+    case XMLNS: msg.append("XMLNS"); break;
+    case XMLPROJECT: msg.append("XMLPROJECT"); break;
+    case XMLTEXT: msg.append("XMLTEXT"); break;
+    case XMLUNICODE: msg.append("XMLUNICODE"); break;
+    case XPATH: msg.append("XPATH"); break;
+
+    case HASH_CONSTANT: msg.append("#CONSTANT"); break;
+    case HASH_ONWARNING: msg.append("#ONWARNING"); break;
+    case HASH_OPTION: msg.append("#OPTION"); break;
+    case HASH_STORED: msg.append("#STORED"); break;
+    case HASH_LINK: msg.append("#LINK"); break;
+    case HASH_WORKUNIT: msg.append("#WORKUNIT"); break;
+    case HASH_WEBSERVICE: msg.append("#WEBSERVICE"); break;
+    case SIMPLE_TYPE: msg.append("type-name"); break;
+
+    case EQ: msg.append("="); break;
+    case NE: msg.append("<>"); break;
+    case LE: msg.append("<="); break;
+    case LT: msg.append("<"); break;
+    case GE: msg.append(">="); break;
+    case GT: msg.append(">"); break;
+    case ASSIGN: msg.append(":="); break;
+    case GOESTO: msg.append("=>"); break;
+    case SHIFTL: msg.append("<<"); break;
+    case SHIFTR: msg.append(">>"); break;
+
+    case DATASET_ID: msg.append("dataset"); break;
+    case DATAROW_ID: msg.append("datarow"); break;
+    case DICTIONARY_ID: msg.append("dictionary"); break;
+    case RECORD_ID: msg.append("record-name"); break;
+    case RECORD_FUNCTION: msg.append("record-name"); break;
+    case VALUE_ID: msg.append("identifier"); break;
+    case VALUE_ID_REF: msg.append("field reference"); break;
+    case UNKNOWN_ID: msg.append("identifier"); break;
+    case SCOPE_ID: msg.append("module-name"); break;
+    case ACTION_ID: msg.append("identifier"); break;
+    case TRANSFORM_ID: msg.append("transform-name"); break;
+    case ALIEN_ID: msg.append("type name"); break;
+    case PATTERN_ID: msg.append("pattern-name"); break;
+    case FEATURE_ID: msg.append("feature-name"); break;
+    case EVENT_ID: msg.append("identifier"); break;
+    case ENUM_ID: msg.append("identifier"); break;
+    case LIST_DATASET_ID: msg.append("identifier"); break;
+    case SORTLIST_ID: msg.append("field list"); break;
+
+    case TYPE_ID: msg.append("type name"); break;
+    case SET_TYPE_ID: msg.append("type name"); break;
+    case PATTERN_TYPE_ID: msg.append("type name"); break;
+    case DICTIONARY_TYPE_ID: msg.append("type name"); break;
+    case DATASET_TYPE_ID: msg.append("type name"); break;
+
+    case ACTION_FUNCTION: msg.append("action"); break;
+    case PATTERN_FUNCTION: msg.append("pattern"); break;
+    case EVENT_FUNCTION: msg.append("event"); break;
+    case SCOPE_FUNCTION: msg.append("module-name"); break;
+    case TRANSFORM_FUNCTION: msg.append("transform-name"); break;
+    case DATAROW_FUNCTION: msg.append("datarow"); break;
+    case DICTIONARY_FUNCTION: msg.append("dictionary"); break;
+    case LIST_DATASET_FUNCTION: msg.append("identifier"); break;
+
+    case VALUE_FUNCTION: 
+    case DATASET_FUNCTION: 
+        msg.append("function-name"); 
+        break;
+
+    case BOOL_CONST: msg.append("boolean"); break;
+    case REAL_CONST:
+    case INTEGER_CONST: msg.append("number"); break;
+    case STRING_CONST: msg.append("string"); break;
+    case UNICODE_CONST: msg.append("unicode-string"); break;
+    case DATA_CONST: msg.append("constant"); break;
+    case TYPE_LPAREN: msg.append("(>"); break;
+    case TYPE_RPAREN: msg.append("<)"); break;
+    case HASHBREAK: msg.append("#BREAK"); break;
+    case SKIPPED: msg.append("SKIPPED"); break;
+    case HASHEND: msg.append("#END"); break;
+    case HASHELIF: msg.append("#ELIF"); break;      //? not in the lexer...
+
+    case MACRO: msg.append("MACRO"); break;
+    case COMPLEX_MACRO: msg.append("complex-macro"); break;
+    case VALUE_MACRO:   msg.append("macro-name"); break;
+    case DEFINITIONS_MACRO: msg.append("macro-name"); break;
+    case ENDMACRO: msg.append("ENDMACRO"); break;
+    case INTERNAL_READ_NEXT_TOKEN: break;
+
+    default:
+        if (token < 128)
+            msg.appendf("'%c'", (char)token);
+        else
+        {
+            /* if fail, use "hqltest -internal" to find out why. */
+            msg.appendf("???");
+            //PrintLog("Internal error: Error handler unknown token %d", expected[i]);
+            //assertex(!"Token not mapped to text");
+        }
+    }
 }

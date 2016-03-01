@@ -1995,6 +1995,10 @@ bool EclCC::parseCommandLineOptions(int argc, const char* argv[])
         else if (iter.matchFlag(optKeywords, "--keywords"))
         {
         }
+        else if (iter.matchFlag(optKeywords, "-expected"))
+        {
+
+        }
         else if (iter.matchFlag(tempArg, "-L"))
         {
             libraryPaths.append(tempArg);
