@@ -94,3 +94,15 @@
 <Dataset name='Result 32'>
  <Row><Result_32>OK</Result_32></Row>
 </Dataset>
+<Dataset name='Result 33'>
+ <Row><Result_33>21</Result_33></Row>
+</Dataset>
+<Dataset name='Result 34'>
+ <Row><Result_34>21</Result_34></Row>
+</Dataset>
+<Dataset name='Result 35'>
+ <Row><Result_35>511</Result_35></Row>
+</Dataset>
+<Dataset name='Result 36'>
+ <Row><Result_36>511</Result_36></Row>
+</Dataset>

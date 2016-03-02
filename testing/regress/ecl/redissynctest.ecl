@@ -189,5 +189,19 @@ SEQUENTIAL(
     );
     // N*3 > result < N*4 => all subs received a pub, however, there were result-N*3 subs still open for the second pub. result > N*4 => gremlins.
 
+SEQUENTIAL(
+    myRedis.FlushDB(),
+    myRedis.SetInteger('testINCRBY', 10),
+    myRedis.INCRBY('testINCRBY', 11),
+    myRedis.GetInteger('testINCRBY')
+);
+
+SEQUENTIAL(
+    myRedis.FlushDB(),
+    myRedis.SetString('testINCRBY2', '500'),
+    myRedis.INCRBY('testINCRBY2', 11),
+    myRedis.GetInteger('testINCRBY2')
+);
+
 myRedis.FlushDB();
 myRedis2.FlushDB();

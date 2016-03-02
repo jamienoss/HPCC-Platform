@@ -126,4 +126,12 @@ SEQUENTIAL(
                                                                          'Timed Out', 'Unexpected Error - ' + FAILMESSAGE)))));
     );
 
+STRING pluginIntExpected := 'Redis Plugin: ERROR - INCRBY \'testINCRBY\' on database 0 for 127.0.0.1:6379 failed: ERR value is not an integer or out of range';
+dsINCRBY := DATASET(NOFOLD(1), TRANSFORM({INTEGER value}, SELF.value := myRedis.INCRBY('testINCRBY' + (string)COUNTER, 11)));
+SEQUENTIAL(
+    myRedis.FlushDB();
+    myRedis.setString('testINCRBY1', 'this is a string and not an integer'),
+    OUTPUT(CATCH(dsINCRBY, ONFAIL(TRANSFORM({ INTEGER value }, SELF.value := IF(FAILMESSAGE = pluginIntExpected, 1, 0) ))));
+    );
+
 myRedis.FlushDB();
