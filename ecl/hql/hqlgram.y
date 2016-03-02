@@ -12809,7 +12809,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
               found = true;
               StringBuffer expectedText;
               getTokenText(expectedText, yyuntranslate(yyx));
-              printf("    expected token: %s\n", expectedText.str());
+              printf("%s\n", expectedText.str());
           }
       }
       if (found)
