@@ -12793,28 +12793,26 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
       int yyxbegin = yyn < 0 ? -yyn : 0;
       int yychecklim = YYLAST - yyn + 1;
 
-/*
-      StringBuffer tokenText;
-      getTokenText(tokenText, yyuntranslate(yyn));
-      if (strcmp(tokenText.str(), "'?'") == 0)
-          continue;
-      printf("root token: %s\n", tokenText.str());
-*/
+      int expected[YYNTOKENS];
       bool found = false;
       int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
+      int curExpected = 0;
       for (int yyx = yyxbegin; yyx < yyxend; ++yyx)
       {
           if (yycheck[yyx + yyn] == yyx && yyx != YYTERROR)
           {
               found = true;
               StringBuffer expectedText;
-              getTokenText(expectedText, yyuntranslate(yyx));
-              printf("%s\n", expectedText.str());
+              expected[curExpected++] = yyuntranslate(yyx);
+              //getTokenText(expectedText, yyuntranslate(yyx));
+              //printf("%s\n", expectedText.str());
           }
       }
       if (found)
       {
-          printf("\n");
+           parser->syntaxError(s, token, expected);
+          
+          //printf("\n");yyuntranslate(yyx)
           found = false;
       }
 

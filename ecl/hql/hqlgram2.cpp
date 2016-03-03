@@ -10959,7 +10959,7 @@ void HqlGram::simplifyExpected(int *expected)
                        HTTPCALL, SOAPCALL, LIMIT, PARSE, FAIL, MERGE, PRELOAD, ROW, TOPN, ALIAS, LOCAL, NOFOLD, NOCOMBINE, NOHOIST, NOTHOR, IF, GLOBAL, __COMMON__, __COMPOUND__, TOK_ASSERT, _EMPTY_,
                        COMBINE, ROWS, REGROUP, XMLPROJECT, SKIP, LOOP, CLUSTER, NOLOCAL, REMOTE, PROCESS, ALLNODES, THISNODE, GRAPH, MERGEJOIN, STEPPED, NONEMPTY, HAVING,
                        TOK_CATCH, '@', SECTION, WHEN, IFF, COGROUP, HINT, INDEX, PARTITION, AGGREGATE, SUBSORT, TOK_ERROR, CHOOSE, TRACE, QUANTILE, 0);
-    simplify(expected, EXP, ABS, SIN, COS, TAN, SINH, COSH, TANH, ACOS, ASIN, ATAN, ATAN2, 
+    /*simplify(expected, EXP, ABS, SIN, COS, TAN, SINH, COSH, TANH, ACOS, ASIN, ATAN, ATAN2,
                        COUNT, CHOOSE, MAP, CASE, IF, HASH, HASH32, HASH64, HASHMD5, CRC, LN, TOK_LOG, POWER, RANDOM, ROUND, ROUNDUP, SQRT, 
                        TRUNCATE, LENGTH, TRIM, INTFORMAT, REALFORMAT, ASSTRING, TRANSFER, MAX, MIN, EVALUATE, SUM,
                        AVE, VARIANCE, COVARIANCE, CORRELATION, WHICH, REJECTED, SIZEOF, RANK, RANKED, COUNTER, '+', '-', '(', '~', TYPE_LPAREN, ROWDIFF, WORKUNIT,
@@ -10980,10 +10980,31 @@ void HqlGram::simplifyExpected(int *expected)
     simplify(expected, SCOPE_ID, '$', 0);
     simplify(expected, SIMPLE_TYPE, _ARRAY_, LINKCOUNTED, EMBEDDED, STREAMED, 0);
     simplify(expected, END, '}', 0);
+    */
 }
 
 void HqlGram::syntaxError(const char *s, int token, int *expected)
 { 
+	if(!expected)
+	    return;
+	if (!containsToken(DISTRIBUTE, expected))
+	    return;
+
+	if (expected)
+	  simplifyExpected(expected);
+
+	for (int *finger = expected;*finger; finger++)
+	    {
+	        if (*finger != ' ')
+	        {
+	        	StringBuffer text;
+	        	getTokenText(text, *finger);
+	            printf("%s\n", text.str());
+
+	        }
+	    }
+return;
+
     if (errorDisabled || !s || !errorHandler)
         return;
 
