@@ -754,17 +754,10 @@ ECL_REDIS_API double ECL_REDIS_CALL SyncRGetDouble(ICodeContext * ctx, const cha
 }
 ECL_REDIS_API signed __int64 ECL_REDIS_CALL SyncRGetInt8(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
 {
-//Gives a 8B vs 2B mem conversion error - look in to RESP strings
-    signed __int64 value;
-    SyncRGet(ctx, options, key, value, database, password, timeout);
-    return value;
-//This doesn't work as GET only returns strings
-/*
     Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
     OwnedReply reply = Reply::createReply(master->redisCommand("GET %b", key, strlen(key)));
-    //return (signed __int64)reply->query()->str;
-    return master->returnInt(key, "GET", reply->query());
-*/
+    //This needs a  little more thought and checks in place etc
+    return strtoll(reply->query()->str, NULL, 10);
 }
 ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRGetUint8(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
 {
