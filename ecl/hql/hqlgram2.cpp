@@ -10953,56 +10953,93 @@ void HqlGram::simplify(int *expected, int first, ...)
 
 void HqlGram::simplifyExpected(int *expected)
 {
-    //simplify checks if the first item in the list is expected next, and if so it removes all of the others as expected tokens.
+    //simplify(int *expected, int first, ...) checks if the first item in the list exists within expected, and if so it removes all of the following tokens from expected.
+    //The first token, in the below lists can not exist as a token removed from another set. E.g. if EXP exists in the DIRSTRIBUTE set and thus removed, none of the tokens
+    //belonging to the EXP will be removed. Technically it is ok that a set lead token be removed after that set has been simplified, however, it is cleaner to remove this
+    //dependance on the order in which the sets are simplified.
     simplify(expected, DISTRIBUTE, DISTRIBUTE, ASCII, CHOOSEN, CHOOSESETS, DEDUP, DISTRIBUTED, EBCDIC, ENTH, SAMPLE, SORT, SORTED, TABLE, DATASET, FETCH,
                        GROUP, GROUPED, KEYED, UNGROUP, JOIN, PULL, ROLLUP, ITERATE, PROJECT, NORMALIZE, PIPE, DENORMALIZE, CASE, MAP, 
-                       HTTPCALL, SOAPCALL, LIMIT, PARSE, FAIL, MERGE, PRELOAD, ROW, TOPN, ALIAS, LOCAL, NOFOLD, NOCOMBINE, NOHOIST, NOTHOR, IF, GLOBAL, __COMMON__, __COMPOUND__, TOK_ASSERT, _EMPTY_,
+                       HTTPCALL, SOAPCALL, LIMIT, PARSE, FAIL, MERGE, PRELOAD, ROW, TOPN, ALIAS, LOCAL, NOFOLD, NOCOMBINE, NOHOIST, NOTHOR, IF, GLOBAL, __COMMON__, __COMPOUND__,
+					   TOK_ASSERT, _EMPTY_,
                        COMBINE, ROWS, REGROUP, XMLPROJECT, SKIP, LOOP, CLUSTER, NOLOCAL, REMOTE, PROCESS, ALLNODES, THISNODE, GRAPH, MERGEJOIN, STEPPED, NONEMPTY, HAVING,
                        TOK_CATCH, '@', SECTION, WHEN, IFF, COGROUP, HINT, INDEX, PARTITION, AGGREGATE, SUBSORT, TOK_ERROR, CHOOSE, TRACE, QUANTILE, 0);
-    /*simplify(expected, EXP, ABS, SIN, COS, TAN, SINH, COSH, TANH, ACOS, ASIN, ATAN, ATAN2,
+    simplify(expected, EXP, ABS, SIN, COS, TAN, SINH, COSH, TANH, ACOS, ASIN, ATAN, ATAN2,
                        COUNT, CHOOSE, MAP, CASE, IF, HASH, HASH32, HASH64, HASHMD5, CRC, LN, TOK_LOG, POWER, RANDOM, ROUND, ROUNDUP, SQRT, 
                        TRUNCATE, LENGTH, TRIM, INTFORMAT, REALFORMAT, ASSTRING, TRANSFER, MAX, MIN, EVALUATE, SUM,
                        AVE, VARIANCE, COVARIANCE, CORRELATION, WHICH, REJECTED, SIZEOF, RANK, RANKED, COUNTER, '+', '-', '(', '~', TYPE_LPAREN, ROWDIFF, WORKUNIT,
                        FAILCODE, FAILMESSAGE, FROMUNICODE, __GROUPED__, ISNULL, ISVALID, XMLDECODE, XMLENCODE, XMLTEXT, XMLUNICODE,
-                       MATCHED, MATCHLENGTH, MATCHPOSITION, MATCHTEXT, MATCHUNICODE, MATCHUTF8, NOFOLD, NOHOIST, NOTHOR, OPT, REGEXFIND, REGEXREPLACE, RELATIONSHIP, SEQUENTIAL, SKIP, TOUNICODE, UNICODEORDER, UNSORTED,
-                       KEYUNICODE, TOK_TRUE, TOK_FALSE, BOOL_CONST, NOT, EXISTS, WITHIN, LEFT, RIGHT, SELF, '[', HTTPCALL, SOAPCALL, ALL, TOK_ERROR, TOK_CATCH, __COMMON__, __COMPOUND__, RECOVERY, CLUSTERSIZE, CHOOSENALL, BNOT, STEPPED, ECLCRC, NAMEOF,
+                       MATCHED, MATCHLENGTH, MATCHPOSITION, MATCHTEXT, MATCHUNICODE, MATCHUTF8, NOFOLD, NOHOIST, NOTHOR, OPT, REGEXFIND, REGEXREPLACE, RELATIONSHIP, SEQUENTIAL, SKIP,
+					   TOUNICODE, UNICODEORDER, UNSORTED,
+                       KEYUNICODE, TOK_TRUE, TOK_FALSE, BOOL_CONST, NOT, EXISTS, WITHIN, LEFT, RIGHT, SELF, '[', HTTPCALL, SOAPCALL, ALL, TOK_ERROR, TOK_CATCH, __COMMON__, __COMPOUND__,
+					   RECOVERY, CLUSTERSIZE, CHOOSENALL, BNOT, STEPPED, ECLCRC, NAMEOF,
                        TOXML, TOJSON, '@', SECTION, EVENTEXTRA, EVENTNAME, __SEQUENCE__, IFF, OMITTED, GETENV, __DEBUG__, __STAND_ALONE__, 0);
     simplify(expected, DATA_CONST, REAL_CONST, STRING_CONST, INTEGER_CONST, UNICODE_CONST, 0);
     simplify(expected, VALUE_MACRO, DEFINITIONS_MACRO, 0);
     simplify(expected, DICTIONARY_ID, DICTIONARY_FUNCTION, DICTIONARY, 0);
     simplify(expected, ACTION_ID, ORDERED, 0); // more include other actions
-    simplify(expected, VALUE_ID, DATASET_ID, DICTIONARY_ID, RECORD_ID, ACTION_ID, UNKNOWN_ID, SCOPE_ID, VALUE_FUNCTION, DATAROW_FUNCTION, DATASET_FUNCTION, DICTIONARY_FUNCTION, LIST_DATASET_FUNCTION, LIST_DATASET_ID, ALIEN_ID, TYPE_ID, SET_TYPE_ID, TRANSFORM_ID, TRANSFORM_FUNCTION, RECORD_FUNCTION, FEATURE_ID, EVENT_ID, EVENT_FUNCTION, SCOPE_FUNCTION, ENUM_ID, PATTERN_TYPE_ID, DICTIONARY_TYPE_ID, DATASET_TYPE_ID, 0);
+    simplify(expected, VALUE_ID, DATASET_ID,  RECORD_ID, UNKNOWN_ID,  VALUE_FUNCTION, DATAROW_FUNCTION, DATASET_FUNCTION, DICTIONARY_FUNCTION,
+    		           LIST_DATASET_FUNCTION, LIST_DATASET_ID, ALIEN_ID, TYPE_ID, SET_TYPE_ID, TRANSFORM_FUNCTION, RECORD_FUNCTION, FEATURE_ID, EVENT_ID, EVENT_FUNCTION,
+					   SCOPE_FUNCTION, ENUM_ID, PATTERN_TYPE_ID, DICTIONARY_TYPE_ID, DATASET_TYPE_ID, 0);//DICTIONARY_ID, ACTION_ID, TRANSFORM_ID, SCOPE_ID
     simplify(expected, LIBRARY, LIBRARY, SCOPE_FUNCTION, STORED, PROJECT, INTERFACE, MODULE, 0);
-    simplify(expected, MATCHROW, MATCHROW, LEFT, RIGHT, IF, IFF, ROW, HTTPCALL, SOAPCALL, PROJECT, GLOBAL, NOFOLD, NOHOIST, ALLNODES, THISNODE, SKIP, DATAROW_FUNCTION, TRANSFER, RIGHT_NN, FROMXML, FROMJSON, 0);
+    simplify(expected, MATCHROW, MATCHROW, LEFT, RIGHT, IF, IFF, ROW, HTTPCALL, SOAPCALL, PROJECT, GLOBAL, NOFOLD, NOHOIST, ALLNODES, THISNODE, SKIP, DATAROW_FUNCTION, TRANSFER,
+    		           RIGHT_NN, FROMXML, FROMJSON, 0);
     simplify(expected, TRANSFORM_ID, TRANSFORM_FUNCTION, TRANSFORM, '@', 0);
-    simplify(expected, RECORD, RECORDOF, RECORD_ID, RECORD_FUNCTION, SCOPE_ID, VALUE_MACRO, '{', '@', 0);
+    simplify(expected, RECORD, RECORDOF, RECORD_ID, RECORD_FUNCTION, SCOPE_ID, '{', '@', 0); //VALUE_MACRO,
     simplify(expected, IFBLOCK, ANY, PACKED, BIG, LITTLE, 0);
     simplify(expected, SCOPE_ID, '$', 0);
     simplify(expected, SIMPLE_TYPE, _ARRAY_, LINKCOUNTED, EMBEDDED, STREAMED, 0);
     simplify(expected, END, '}', 0);
-    */
+
+}
+static const int lastToken = HIGHEST_PRECEDENCE+1;//477; //from hqlgram.cpp
+static __thread	int bin[lastToken] = {0};
+
+void printTokenHist()
+{
+    for (unsigned i = ABS; i < HIGHEST_PRECEDENCE; i++)
+    {
+        StringBuffer text;
+        getTokenText(text, i);
+    	if (strcmp(text.str(), "'?'") != 0 && (*text.str() < 97 && *text.str() > 122))
+    	{
+    	    printf("%s, %d\n", text.str(), bin[i]);
+    	}
+    }
 }
 
 void HqlGram::syntaxError(const char *s, int token, int *expected)
 { 
 	if(!expected)
 	    return;
-	if (!containsToken(DISTRIBUTE, expected))
+	if (!containsToken(DATASET_ID, expected))
 	    return;
 
-	if (expected)
-	  simplifyExpected(expected);
+	//if (expected)
+	  //simplifyExpected(expected);
 
+
+bool found = false;
 	for (int *finger = expected;*finger; finger++)
 	    {
 	        if (*finger != ' ')
 	        {
-	        	StringBuffer text;
-	        	getTokenText(text, *finger);
-	            printf("%s\n", text.str());
+	        	unsigned indx = *finger;
+	        	bin[indx]++;
+	        	if (bin[indx] == 1)
+	        	{
+	        	     StringBuffer text;
+	        	     getTokenText(text, *finger);
+	        	     if (*text.str() != '\0')// && !(*text.str() >= 97 && *text.str() <= 122))
+	        	     {
+	                     printf("%s\n", text.str());
+	                     found = true;
+	        	     }
+	        	}
 
 	        }
 	    }
+    if (found)
+	    printf("\n");
 return;
 
     if (errorDisabled || !s || !errorHandler)

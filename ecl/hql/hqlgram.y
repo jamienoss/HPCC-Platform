@@ -12776,7 +12776,7 @@ int yyuntranslate(int token)
 {
     for (unsigned i=0; i< _elements_in(yytranslate); i++)
     {
-        if (yytranslate[i] == token)
+        if (YYTRANSLATE(i) == token)
             return i;
     }
     return '?';
@@ -12789,7 +12789,7 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
 
   for (int yyn = YYPACT_NINF + 1; yyn <= YYLAST; yyn++)
   {
-      //int yyn = yypact[state];
+              
       int yyxbegin = yyn < 0 ? -yyn : 0;
       int yychecklim = YYLAST - yyn + 1;
 
@@ -12804,15 +12804,17 @@ static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int 
               found = true;
               StringBuffer expectedText;
               expected[curExpected++] = yyuntranslate(yyx);
-              //getTokenText(expectedText, yyuntranslate(yyx));
-              //printf("%s\n", expectedText.str());
+              getTokenText(expectedText, yyuntranslate(yyx));
+#if 1 //print all expected sets
+              if (*expectedText.str() != '\0')//  && !(*expectedText.str() >= 97 && *expectedText.str() <= 122))
+                printf("%s,\n", expectedText.str());
+#endif
           }
       }
       if (found)
       {
-           parser->syntaxError(s, token, expected);
-          
-          //printf("\n");yyuntranslate(yyx)
+          //parser->syntaxError(s, token, expected);
+          printf("\n");
           found = false;
       }
 

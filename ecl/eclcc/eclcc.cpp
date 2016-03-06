@@ -443,7 +443,10 @@ static int doMain(int argc, const char *argv[])
         if (processor.printKeywordsToXml())
             return 0;
         if (!processor.processFiles())
+        {
+        	//printTokenHist();
             return 2;
+        }
     }
     catch (IException *E)
     {
