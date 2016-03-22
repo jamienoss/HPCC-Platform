@@ -44,6 +44,7 @@ static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 static __thread Connection * cachedConnection;
 static __thread ThreadTermFunc threadHookChain;
 static __thread bool threadHooked;
+static Mutex redisConnectMutex;
 
 static void * allocateAndCopy(const void * src, size_t size)
 {
@@ -197,9 +198,21 @@ Connection::Connection(ICodeContext * ctx, const char * _options, const char * _
 void Connection::connect(ICodeContext * ctx, unsigned __int64 _database, const char * password)
 {
     struct timeval to = { timeout/1000, (timeout%1000)*1000 };
-    context = redisConnectWithTimeout(ip.str(), port, to);
+    {
+        synchronized block(redisConnectMutex, timeout);
+        context = redisConnectWithTimeout(ip.str(), port, to);
+    }
     assertConnection();
-    redisSetTimeout(context, to);
+    if (redisSetTimeout(context, to) != REDIS_OK)
+    {
+        if (context->err)
+        {
+            VStringBuffer msg("RedisPlugin: failed to set timeout - %s", context->errstr);
+            rtlFail(0, msg.str());
+        }
+        else
+            rtlFail(0, "RedisPlugin: failed to set timeout - no message available");
+    }
 
     //The following is the dissemination of the two methods authenticate(ctx, password) & selectDB(ctx, _database)
     //such that they may be pipelined to save an extra round trip to the server and back.
