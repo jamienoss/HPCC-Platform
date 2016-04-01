@@ -43,8 +43,10 @@ class Connection;
 static const char * REDIS_LOCK_PREFIX = "redis_ecl_lock";
 static __thread Connection * cachedConnection = NULL;
 static __thread Connection * cachedPubConnection = NULL;//database should always = 0
+#if HIREDIS_VERSION_OK
 static __thread ThreadTermFunc threadHookChain = NULL;
 static __thread bool threadHooked = false;
+#endif
 
 static void * allocateAndCopy(const void * src, size_t size)
 {
@@ -179,6 +181,7 @@ protected :
     int database; //NOTE: redis stores the maximum number of dbs as an 'int'.
 };
 
+#if HIREDIS_VERSION_OK
 static void releaseContext()
 {
     if (cachedConnection)
@@ -206,15 +209,17 @@ public :
     MainThreadCachedConnection() { }
     ~MainThreadCachedConnection() { releaseContext(); }
 } mainThread;
+#endif
+
 Connection::Connection(ICodeContext * ctx, const char * _options, int _database, const char * password, unsigned _timeout)
-  : database(0), timeout(_timeout), port(0), serverIpPortPasswordHash(hashServerIpPortPassword(ctx, _options, password))
+  : context(nullptr), database(0), timeout(_timeout), port(0), serverIpPortPasswordHash(hashServerIpPortPassword(ctx, _options, password))
 {
     options.set(_options, strlen(_options));
     parseOptions(ctx, _options);
     connect(ctx, _database, password);
 }
 Connection::Connection(ICodeContext * ctx, const char * _options, const char * _ip, int _port, unsigned _serverIpPortPasswordHash, int _database, const char * password, unsigned _timeout)
-  : database(0), timeout(_timeout), serverIpPortPasswordHash(_serverIpPortPasswordHash), port(_port)
+  : context(nullptr), database(0), timeout(_timeout), serverIpPortPasswordHash(_serverIpPortPasswordHash), port(_port)
 {
     options.set(_options, strlen(_options));
     ip.set(_ip, strlen(_ip));
@@ -364,6 +369,7 @@ void Connection::readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, c
 }
 Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout)
 {
+#if HIREDIS_VERSION_OK
     if (!_cachedConnection)
     {
         _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
@@ -388,6 +394,8 @@ Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _c
     _cachedConnection = NULL;
     _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
     return LINK(_cachedConnection);
+#endif
+    return new Connection(ctx, options, _database, password, _timeout);
 }
 void Connection::selectDB(ICodeContext * ctx, int _database)
 {
