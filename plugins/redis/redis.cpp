@@ -112,7 +112,7 @@ public :
         if (context)
             redisFree(context);
     }
-    static Connection * createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, int database, const char * password, unsigned _timeout);
+    static Connection * createConnection(ICodeContext * ctx, Connection * & _cachedConnection, const char * options, int database, const char * password, unsigned _timeout, bool cacheConnections);
 
     //set
     template <class type> void set(ICodeContext * ctx, const char * key, type value, unsigned expire);
@@ -362,32 +362,37 @@ void Connection::readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, c
     readReply(reply);
     assertOnErrorWithCmdMsg(reply->query(), msg, key);
 }
-Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout)
+Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    if (!_cachedConnection)
+    if (cacheConnections)
     {
-        _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
-
-        if (!threadHooked)
+        if (!_cachedConnection)
         {
-            threadHookChain = addThreadTermFunc(releaseContext);
-            threadHooked = true;
+            _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
+
+            if (!threadHooked)
+            {
+                threadHookChain = addThreadTermFunc(releaseContext);
+                threadHooked = true;
+            }
+            return LINK(_cachedConnection);
         }
+
+        if (_cachedConnection->isSameConnection(ctx, options, password))
+        {
+            //MORE: should perhaps check that the connection has not expired (think hiredis REDIS_KEEPALIVE_INTERVAL is defaulted to 15s).
+            _cachedConnection->reset(ctx, password, _timeout);
+            _cachedConnection->selectDB(ctx, _database);
+            return LINK(_cachedConnection);
+        }
+
+        _cachedConnection->Release();
+        _cachedConnection = NULL;
+        _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
         return LINK(_cachedConnection);
     }
-
-    if (_cachedConnection->isSameConnection(ctx, options, password))
-    {
-        //MORE: should perhaps check that the connection has not expired (think hiredis REDIS_KEEPALIVE_INTERVAL is defaulted to 15s).
-        _cachedConnection->reset(ctx, password, _timeout);
-        _cachedConnection->selectDB(ctx, _database);
-        return LINK(_cachedConnection);
-    }
-
-    _cachedConnection->Release();
-    _cachedConnection = NULL;
-    _cachedConnection = new Connection(ctx, options, _database, password, _timeout);
-    return LINK(_cachedConnection);
+    else
+        return new Connection(ctx, options, _database, password, _timeout);
 }
 void Connection::selectDB(ICodeContext * ctx, int _database)
 {
@@ -507,15 +512,15 @@ unsigned __int64 Connection::dbSize(ICodeContext * ctx)
 }
 //-------------------------------------------SET-----------------------------------------
 //--OUTER--
-template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, type value, int database, unsigned expire, const char * password, unsigned _timeout)
+template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, type value, int database, unsigned expire, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, _options, database, password, _timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, _options, database, password, _timeout, cacheConnections);
     master->set(ctx, key, value, expire);
 }
 //Set pointer types
-template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueSize, const type * value, int database, unsigned expire, const char * password, unsigned _timeout)
+template<class type> void SyncRSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueSize, const type * value, int database, unsigned expire, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, _options, database, password, _timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, _options, database, password, _timeout, cacheConnections);
     master->set(ctx, key, valueSize, value, expire);
 }
 //--INNER--
@@ -540,14 +545,14 @@ template<class type> void Connection::set(ICodeContext * ctx, const char * key, 
 }
 //-------------------------------------------GET-----------------------------------------
 //--OUTER--
-template<class type> void SyncRGet(ICodeContext * ctx, const char * options, const char * key, type & returnValue, int database, const char * password, unsigned _timeout)
+template<class type> void SyncRGet(ICodeContext * ctx, const char * options, const char * key, type & returnValue, int database, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, _timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, _timeout, cacheConnections);
     master->get(ctx, key, returnValue);
 }
-template<class type> void SyncRGet(ICodeContext * ctx, const char * options, const char * key, size_t & returnSize, type * & returnValue, int database, const char * password, unsigned _timeout)
+template<class type> void SyncRGet(ICodeContext * ctx, const char * options, const char * key, size_t & returnSize, type * & returnValue, int database, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, _timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, _timeout, cacheConnections);
     master->get(ctx, key, returnSize, returnValue);
 }
 //--INNER--
@@ -637,136 +642,136 @@ void Connection::subscribe(ICodeContext * ctx, const char * keyOrChannel, size_t
 //--------------------------------------------------------------------------------
 //                           ECL SERVICE ENTRYPOINTS
 //--------------------------------------------------------------------------------
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRPub(ICodeContext * ctx, const char * keyOrChannel, size32_t messageSize, const char * message, const char * options, int database, const char * password, unsigned timeout, bool lockedKey)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRPub(ICodeContext * ctx, const char * keyOrChannel, size32_t messageSize, const char * message, const char * options, int database, const char * password, unsigned timeout, bool lockedKey, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedPubConnection, options, 0, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedPubConnection, options, 0, password, timeout, cacheConnections);
     return master->publish(ctx, keyOrChannel, messageSize, message, database, lockedKey);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSub(ICodeContext * ctx, size32_t & messageSize, char * & message, const char * keyOrChannel, const char * options, int database, const char * password, unsigned timeout, bool lockedKey)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSub(ICodeContext * ctx, size32_t & messageSize, char * & message, const char * keyOrChannel, const char * options, int database, const char * password, unsigned timeout, bool lockedKey, bool cacheConnections)
 {
     size_t _messageSize = 0;
     Owned<Connection> master = new Connection(ctx,  options, 0, password, timeout);
     master->subscribe(ctx, keyOrChannel, _messageSize, message, database, lockedKey);
     messageSize = static_cast<size32_t>(_messageSize);
 }
-ECL_REDIS_API void ECL_REDIS_CALL RClear(ICodeContext * ctx, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL RClear(ICodeContext * ctx, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout, cacheConnections);
     master->clear(ctx);
 }
-ECL_REDIS_API bool ECL_REDIS_CALL RExist(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API bool ECL_REDIS_CALL RExist(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout, cacheConnections);
     return master->exists(ctx, key);
 }
-ECL_REDIS_API void ECL_REDIS_CALL RDel(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL RDel(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout, cacheConnections);
     master->del(ctx, key);
 }
-ECL_REDIS_API void ECL_REDIS_CALL RPersist(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL RPersist(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout, cacheConnections);
     master->persist(ctx, key);
 }
-ECL_REDIS_API void ECL_REDIS_CALL RExpire(ICodeContext * ctx, const char * key, const char * options, int database, unsigned _expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL RExpire(ICodeContext * ctx, const char * key, const char * options, int database, unsigned _expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout, cacheConnections);
     master->expire(ctx, key, _expire);
 }
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RDBSize(ICodeContext * ctx, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL RDBSize(ICodeContext * ctx, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout, cacheConnections);
     return master->dbSize(ctx);
 }
 //-----------------------------------SET------------------------------------------
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetStr(ICodeContext * ctx, const char * key, size32_t valueSize, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetStr(ICodeContext * ctx, const char * key, size32_t valueSize, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, valueSize, value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, valueSize, value, database, expire, password, timeout, cacheConnections);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUChar(ICodeContext * ctx, const char * key, size32_t valueLength, const UChar * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUChar(ICodeContext * ctx, const char * key, size32_t valueLength, const UChar * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, (valueLength)*sizeof(UChar), value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, (valueLength)*sizeof(UChar), value, database, expire, password, timeout, cacheConnections);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetInt(ICodeContext * ctx, const char * key, signed __int64 value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetInt(ICodeContext * ctx, const char * key, signed __int64 value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, value, database, expire, password, timeout, cacheConnections);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUInt(ICodeContext * ctx, const char * key, unsigned __int64 value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUInt(ICodeContext * ctx, const char * key, unsigned __int64 value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, value, database, expire, password, timeout, cacheConnections);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetReal(ICodeContext * ctx, const char * key, double value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetReal(ICodeContext * ctx, const char * key, double value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, value, database, expire, password, timeout, cacheConnections);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetBool(ICodeContext * ctx, const char * key, bool value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetBool(ICodeContext * ctx, const char * key, bool value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, value, database, expire, password, timeout, cacheConnections);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetData(ICodeContext * ctx, const char * key, size32_t valueSize, const void * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetData(ICodeContext * ctx, const char * key, size32_t valueSize, const void * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, valueSize, value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, valueSize, value, database, expire, password, timeout, cacheConnections);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUtf8(ICodeContext * ctx, const char * key, size32_t valueLength, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRSetUtf8(ICodeContext * ctx, const char * key, size32_t valueLength, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncRSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, database, expire, password, timeout);
+    SyncRSet(ctx, options, key, rtlUtf8Size(valueLength, value), value, database, expire, password, timeout, cacheConnections);
 }
 //-------------------------------------GET----------------------------------------
-ECL_REDIS_API bool ECL_REDIS_CALL SyncRGetBool(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API bool ECL_REDIS_CALL SyncRGetBool(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     bool value;
-    SyncRGet(ctx, options, key, value, database, password, timeout);
+    SyncRGet(ctx, options, key, value, database, password, timeout, cacheConnections);
     return value;
 }
-ECL_REDIS_API double ECL_REDIS_CALL SyncRGetDouble(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API double ECL_REDIS_CALL SyncRGetDouble(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     double value;
-    SyncRGet(ctx, options, key, value, database, password, timeout);
+    SyncRGet(ctx, options, key, value, database, password, timeout, cacheConnections);
     return value;
 }
-ECL_REDIS_API signed __int64 ECL_REDIS_CALL SyncRGetInt8(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API signed __int64 ECL_REDIS_CALL SyncRGetInt8(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     signed __int64 value;
-    SyncRGet(ctx, options, key, value, database, password, timeout);
+    SyncRGet(ctx, options, key, value, database, password, timeout, cacheConnections);
     return value;
 }
-ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRGetUint8(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API unsigned __int64 ECL_REDIS_CALL SyncRGetUint8(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     unsigned __int64 value;
-    SyncRGet(ctx, options, key, value, database, password, timeout);
+    SyncRGet(ctx, options, key, value, database, password, timeout, cacheConnections);
     return value;
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetStr(ICodeContext * ctx, size32_t & returnSize, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetStr(ICodeContext * ctx, size32_t & returnSize, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     size_t _returnSize;
-    SyncRGet(ctx, options, key, _returnSize, returnValue, database, password, timeout);
+    SyncRGet(ctx, options, key, _returnSize, returnValue, database, password, timeout, cacheConnections);
     returnSize = static_cast<size32_t>(_returnSize);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     size_t returnSize;
-    SyncRGet(ctx, options, key, returnSize, returnValue, database, password, timeout);
+    SyncRGet(ctx, options, key, returnSize, returnValue, database, password, timeout, cacheConnections);
     returnLength = static_cast<size32_t>(returnSize/sizeof(UChar));
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     size_t returnSize;
-    SyncRGet(ctx, options, key, returnSize, returnValue, database, password, timeout);
+    SyncRGet(ctx, options, key, returnSize, returnValue, database, password, timeout, cacheConnections);
     returnLength = static_cast<size32_t>(rtlUtf8Length(returnSize, returnValue));
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncRGetData(ICodeContext * ctx, size32_t & returnSize, void * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncRGetData(ICodeContext * ctx, size32_t & returnSize, void * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
     size_t _returnSize;
-    SyncRGet(ctx, options, key, _returnSize, returnValue, database, password, timeout);
+    SyncRGet(ctx, options, key, _returnSize, returnValue, database, password, timeout, cacheConnections);
     returnSize = static_cast<size32_t>(_returnSize);
 }
 //----------------------------------LOCK------------------------------------------
 //-----------------------------------SET-----------------------------------------
 //Set pointer types
-void SyncLockRSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueSize, const char * value, int database, unsigned expire, const char * password, unsigned _timeout)
+void SyncLockRSet(ICodeContext * ctx, const char * _options, const char * key, size32_t valueSize, const char * value, int database, unsigned expire, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, _options, database, password, _timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, _options, database, password, _timeout, cacheConnections);
     master->lockSet(ctx, key, valueSize, value, expire);
 }
 //--INNER--
@@ -777,9 +782,9 @@ void Connection::lockSet(ICodeContext * ctx, const char * key, size32_t valueSiz
 }
 //-------------------------------------------GET-----------------------------------------
 //--OUTER--
-void SyncLockRGet(ICodeContext * ctx, const char * options, const char * key, size_t & returnSize, char * & returnValue, int database, unsigned expire, const char * password, unsigned _timeout)
+void SyncLockRGet(ICodeContext * ctx, const char * options, const char * key, size_t & returnSize, char * & returnValue, int database, unsigned expire, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, _timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, _timeout, cacheConnections);
     master->lockGet(ctx, key, returnSize, returnValue, password, expire);
 }
 //--INNER--
@@ -1002,50 +1007,50 @@ bool Connection::noScript(const redisReply * reply) const
 //                           ECL SERVICE ENTRYPOINTS
 //--------------------------------------------------------------------------------
 //-----------------------------------SET------------------------------------------
-ECL_REDIS_API void ECL_REDIS_CALL SyncLockRSetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncLockRSetStr(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
-    SyncLockRSet(ctx, options, key, valueLength, value, database, expire, password, timeout);
+    SyncLockRSet(ctx, options, key, valueLength, value, database, expire, password, timeout, cacheConnections);
     returnLength = valueLength;
     returnValue = (char*)allocateAndCopy(value, valueLength);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncLockRSetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue, const char * key, size32_t valueLength, const UChar * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncLockRSetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue, const char * key, size32_t valueLength, const UChar * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
     unsigned valueSize = (valueLength)*sizeof(UChar);
-    SyncLockRSet(ctx, options, key, valueSize, (char*)value, database, expire, password, timeout);
+    SyncLockRSet(ctx, options, key, valueSize, (char*)value, database, expire, password, timeout, cacheConnections);
     returnLength= valueLength;
     returnValue = (UChar*)allocateAndCopy(value, valueSize);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncLockRSetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncLockRSetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, size32_t valueLength, const char * value, const char * options, int database, unsigned expire, const char * password, unsigned timeout, bool cacheConnections)
 {
     unsigned valueSize = rtlUtf8Size(valueLength, value);
-    SyncLockRSet(ctx, options, key, valueSize, value, database, expire, password, timeout);
+    SyncLockRSet(ctx, options, key, valueSize, value, database, expire, password, timeout, cacheConnections);
     returnLength = valueLength;
     returnValue = (char*)allocateAndCopy(value, valueSize);
 }
 //-------------------------------------GET----------------------------------------
-ECL_REDIS_API void ECL_REDIS_CALL SyncLockRGetStr(ICodeContext * ctx, size32_t & returnSize, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout, unsigned expire)
+ECL_REDIS_API void ECL_REDIS_CALL SyncLockRGetStr(ICodeContext * ctx, size32_t & returnSize, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout, unsigned expire, bool cacheConnections)
 {
     size_t _returnSize;
-    SyncLockRGet(ctx, options, key, _returnSize, returnValue, database, expire, password, timeout);
+    SyncLockRGet(ctx, options, key, _returnSize, returnValue, database, expire, password, timeout, cacheConnections);
     returnSize = static_cast<size32_t>(_returnSize);
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncLockRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * key, const char * options, int database, const char * password, unsigned timeout, unsigned expire)
+ECL_REDIS_API void ECL_REDIS_CALL SyncLockRGetUChar(ICodeContext * ctx, size32_t & returnLength, UChar * & returnValue,  const char * key, const char * options, int database, const char * password, unsigned timeout, unsigned expire, bool cacheConnections)
 {
     size_t returnSize;
     char  * _returnValue;
-    SyncLockRGet(ctx, options, key, returnSize, _returnValue, database, expire, password, timeout);
+    SyncLockRGet(ctx, options, key, returnSize, _returnValue, database, expire, password, timeout, cacheConnections);
     returnValue = (UChar*)_returnValue;
     returnLength = static_cast<size32_t>(returnSize/sizeof(UChar));
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncLockRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout, unsigned expire)
+ECL_REDIS_API void ECL_REDIS_CALL SyncLockRGetUtf8(ICodeContext * ctx, size32_t & returnLength, char * & returnValue, const char * key, const char * options, int database, const char * password, unsigned timeout, unsigned expire, bool cacheConnections)
 {
     size_t returnSize;
-    SyncLockRGet(ctx, options, key, returnSize, returnValue, database, expire, password, timeout);
+    SyncLockRGet(ctx, options, key, returnSize, returnValue, database, expire, password, timeout, cacheConnections);
     returnLength = static_cast<size32_t>(rtlUtf8Length(returnSize, returnValue));
 }
-ECL_REDIS_API void ECL_REDIS_CALL SyncLockRUnlock(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout)
+ECL_REDIS_API void ECL_REDIS_CALL SyncLockRUnlock(ICodeContext * ctx, const char * key, const char * options, int database, const char * password, unsigned timeout, bool cacheConnections)
 {
-    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout);
+    Owned<Connection> master = Connection::createConnection(ctx, cachedConnection, options, database, password, timeout, cacheConnections);
     master->unlock(ctx, key);
 }
 }//close namespace
