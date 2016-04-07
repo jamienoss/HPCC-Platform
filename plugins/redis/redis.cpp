@@ -373,7 +373,10 @@ Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _c
     unsigned connectionCachingLevel = ALLOW_CONNECTION_CACHING;
     //Fetch connection caching level
     if (!connectionCachingLevelChecked.test_and_set(std::memory_order_acq_rel))
-        ctx->queryContextLogger().CTXLOG("RedisPlugin_connection_caching_level: %d", connectionCachingLevel);
+    {
+        globals->getPropBool("@watchdogEnabled");
+        //ctx->queryContextLogger().CTXLOG("RedisPlugin_connection_caching_level: %d", connectionCachingLevel);
+    }
     if (connectionCachingLevel == CACHE_ALL_CONNECTIONS || (connectionCachingLevel && cacheConnections))
     {
         if (!_cachedConnection)
