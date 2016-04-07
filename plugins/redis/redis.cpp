@@ -14,7 +14,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 ############################################################################## */
-
+//#include <stdatomic.h>
 #include "platform.h"
 #include "jthread.hpp"
 #include "eclrtl.hpp"
@@ -45,6 +45,11 @@ static __thread Connection * cachedConnection = NULL;
 static __thread Connection * cachedPubConnection = NULL;//database should always = 0
 static __thread ThreadTermFunc threadHookChain = NULL;
 static __thread bool threadHooked = false;
+
+#define NO_CONNECTION_CACHING 0
+#define ALLOW_CONNECTION_CACHING 1
+#define CACHE_ALL_CONNECTIONS 2
+static std::atomic_flag connectionCachingLevelChecked = ATOMIC_FLAG_INIT;
 
 static void * allocateAndCopy(const void * src, size_t size)
 {
@@ -170,13 +175,14 @@ protected :
     //--------------------------------------------------------------------------------------
 
 protected :
-    redisContext * context;
+    redisContext * context = nullptr;
     StringAttr options;
-    StringAttr ip;
+    StringAttr ip; //The default is set in parseOptions as "localhost"
     unsigned serverIpPortPasswordHash;
-    int port;
+    int port = 6379; //Default redis-server port
     TimeoutHandler timeout;
-    int database; //NOTE: redis stores the maximum number of dbs as an 'int'.
+    int database = 0; //NOTE: redis stores the maximum number of dbs as an 'int'.
+    int cacheSwitchLevel = ALLOW_CONNECTION_CACHING;
 };
 
 static void releaseContext()
@@ -207,15 +213,16 @@ public :
     ~MainThreadCachedConnection() { releaseContext(); }
 } mainThread;
 Connection::Connection(ICodeContext * ctx, const char * _options, int _database, const char * password, unsigned _timeout)
-  : database(0), timeout(_timeout), port(0), serverIpPortPasswordHash(hashServerIpPortPassword(ctx, _options, password))
+  : timeout(_timeout), serverIpPortPasswordHash(hashServerIpPortPassword(ctx, _options, password))
 {
     options.set(_options, strlen(_options));
     parseOptions(ctx, _options);
     connect(ctx, _database, password);
 }
 Connection::Connection(ICodeContext * ctx, const char * _options, const char * _ip, int _port, unsigned _serverIpPortPasswordHash, int _database, const char * password, unsigned _timeout)
-  : database(0), timeout(_timeout), serverIpPortPasswordHash(_serverIpPortPasswordHash), port(_port)
+  : timeout(_timeout), serverIpPortPasswordHash(_serverIpPortPasswordHash)
 {
+    port = _port;
     options.set(_options, strlen(_options));
     ip.set(_ip, strlen(_ip));
     connect(ctx, _database, password);
@@ -326,7 +333,6 @@ void Connection::parseOptions(ICodeContext * ctx, const char * _options)
     if (ip.isEmpty())
     {
         ip.set("localhost");
-        port = 6379;
         if (ctx)
         {
             VStringBuffer msg("Redis Plugin: WARNING - using default cache (%s:%d)", ip.str(), port);
@@ -364,7 +370,11 @@ void Connection::readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, c
 }
 Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    if (cacheConnections)
+    unsigned connectionCachingLevel = ALLOW_CONNECTION_CACHING;
+    //Fetch connection caching level
+    if (!connectionCachingLevelChecked.test_and_set(std::memory_order_acq_rel))
+        ctx->queryContextLogger().CTXLOG("RedisPlugin_connection_caching_level: %d", connectionCachingLevel);
+    if (connectionCachingLevel == CACHE_ALL_CONNECTIONS || (connectionCachingLevel && cacheConnections))
     {
         if (!_cachedConnection)
         {
