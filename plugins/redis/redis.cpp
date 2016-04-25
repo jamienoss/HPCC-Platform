@@ -19,6 +19,7 @@
 #include "jthread.hpp"
 #include "eclrtl.hpp"
 #include "jstring.hpp"
+#include "jsem.hpp"
 #include "redis.hpp"
 #include "hiredis/hiredis.h"
 
@@ -49,6 +50,7 @@ static __thread bool threadHooked = false;
 #define NO_CONNECTION_CACHING 0
 #define ALLOW_CONNECTION_CACHING 1
 #define CACHE_ALL_CONNECTIONS 2
+static int connectionCachingLevel = ALLOW_CONNECTION_CACHING;
 static std::atomic_flag connectionCachingLevelChecked = ATOMIC_FLAG_INIT;
 
 static void * allocateAndCopy(const void * src, size_t size)
@@ -370,13 +372,13 @@ void Connection::readReplyAndAssertWithCmdMsg(Reply * reply, const char * msg, c
 }
 Connection * Connection::createConnection(ICodeContext * ctx,  Connection * & _cachedConnection, const char * options, int _database, const char * password, unsigned _timeout, bool cacheConnections)
 {
-    unsigned connectionCachingLevel = ALLOW_CONNECTION_CACHING;
     //Fetch connection caching level
-    if (!connectionCachingLevelChecked.test_and_set(std::memory_order_acq_rel))
+    if (!connectionCachingLevelChecked.test_and_set(std::memory_order_acquire))
     {
-        globals->getPropBool("@watchdogEnabled");
-        //ctx->queryContextLogger().CTXLOG("RedisPlugin_connection_caching_level: %d", connectionCachingLevel);
+        //connectionCachingLevel = ctx->ctxGetPropInt("@redisPluginConnectionCachingLevel", ALLOW_CONNECTION_CACHING);
     }
+    connectionCachingLevelChecked.test_and_set(std::memory_order_release);
+
     if (connectionCachingLevel == CACHE_ALL_CONNECTIONS || (connectionCachingLevel && cacheConnections))
     {
         if (!_cachedConnection)
