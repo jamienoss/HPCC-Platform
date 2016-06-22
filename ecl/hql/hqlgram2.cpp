@@ -457,7 +457,6 @@ void HqlGram::init(IHqlScope * _globalScope, IHqlScope * _containerScope)
 
     errorDisabled = false;
     setIdUnknown(false);
-    m_maxErrorsAllowed = DEFAULT_MAX_ERRORS;
     sortDepth = 0;
     serviceScope.clear();
 
@@ -3063,7 +3062,7 @@ void HqlGram::processForwardModuleDefinition(const attribute & errpos)
         case EOF:
         case 0:
             reportError(ERR_EXPECTED, errpos, "Missing END in FORWARD module definition");
-            abortParsing();
+            softAbortParsing();
             return;
         case COMPLEX_MACRO: 
         case MACRO:
@@ -6047,12 +6046,7 @@ void HqlGram::report(IError* error)
         else
         {
             errorHandler->report(error);
-
-            if (getMaxErrorsAllowed()>0 && errorHandler->errCount() >= getMaxErrorsAllowed())
-            {
-                errorHandler->reportError(ERR_ERROR_TOOMANY,"Too many errors; parsing aborted",error->getFilename(),error->getLine(),error->getColumn(),error->getPosition());
-                abortParsing();
-            }
+            checkAndAbort();
         }
 
         reportMacroExpansionPosition(error, lexObject);
@@ -11049,9 +11043,28 @@ void HqlGram::simplifyExpected(int *expected)
     simplify(expected, SIMPLE_TYPE, _ARRAY_, LINKCOUNTED, EMBEDDED, STREAMED, 0);
     simplify(expected, END, '}', 0);
 }
+bool HqlGram::exceedsMaxCompileErrors()
+{
+    unsigned errorCount = errorHandler ? errorHandler->errCount() : 0;
+    return errorCount >= getMaxCompileErrors();
+}
+void HqlGram::checkAndAbort()
+{
+    if (exceedsMaxCompileErrors())
+    {
+        reportTooManyErrors();
+        abortParsing();
+    }
+}
+void HqlGram::reportTooManyErrors()
+{
+    StringBuffer msg("Too many errors");
+    msg.append(" (max = ").append(getMaxCompileErrors()).append(")");
+    errorHandler->reportError(ERR_ERROR_TOOMANY, msg.str(), str(lexObject->queryActualSourcePath()), lexObject->getActualLineNo(), lexObject->getActualColumn(), lexObject->get_yyPosition());
 
+}
 void HqlGram::syntaxError(const char *s, int token, int *expected)
-{ 
+{
     if (errorDisabled || !s || !errorHandler)
         return;
 
@@ -11165,12 +11178,16 @@ void HqlGram::syntaxError(const char *s, int token, int *expected)
 
 void HqlGram::abortParsing()
 {
+    softAbortParsing();
+    throw MakeStringException(ERR_ABORT_PARSING, "Parsing aborted");
+}
+void HqlGram::softAbortParsing()
+{
     // disable more error report
     disableError();
     lookupCtx.setAborting();
     aborting = true;
 }
-
 IHqlExpression * HqlGram::createCheckMatchAttr(attribute & attr, type_t tc)
 {
     OwnedITypeInfo type;
@@ -11713,7 +11730,7 @@ IHqlExpression * reparseTemplateFunction(IHqlExpression * funcdef, IHqlScope *sc
     parser.getLexer()->set_yyColumn(1);         // need to take off 2 for => that has been added.
 
     //MORE: May also need to setup current_type
-    return parser.yyParse(true, false);
+    return parser.yyParse(true);
 }
                         
 //===============================================================================================
@@ -11759,7 +11776,7 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
         parser.getLexer()->set_yyLineNo(1);
         parser.getLexer()->set_yyColumn(1);
         parser.getLexer()->setMacroParams(macroParams);
-        OwnedHqlExpr ret = parser.yyParse(false, true);
+        OwnedHqlExpr ret = parser.yyParse(false);
         ctx.noteEndQuery();
         return parser.clearFieldMap(ret.getClear());
     }
@@ -11773,6 +11790,8 @@ extern HQL_API IHqlExpression * parseQuery(IHqlScope *scope, IFileContents * con
                 StringBuffer s;
                 ctx.errs->reportError(ERR_INTERNALEXCEPTION, E->errorMessage(s).str(), str(sourcePath), 0, 0, 1);
             }
+            else if (E->errorCode() == ERR_ABORT_PARSING)
+                throw;
             else
             {
                 StringBuffer s("Internal error: ");
@@ -11797,7 +11816,7 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
         HqlGram parser(scope, scope, contents, moduleCtx, xmlScope, false, loadImplicit);
         parser.getLexer()->set_yyLineNo(1);
         parser.getLexer()->set_yyColumn(1);
-        OwnedHqlExpr ret = parser.yyParse(false, true);
+        OwnedHqlExpr ret = parser.yyParse(false);
         moduleCtx.noteEndModule();
     }
     catch (IException *E)
@@ -11810,6 +11829,8 @@ extern HQL_API void parseModule(IHqlScope *scope, IFileContents * contents, HqlL
                 StringBuffer s;
                 ctx.errs->reportError(ERR_INTERNALEXCEPTION, E->errorMessage(s).str(), str(sourcePath), 0, 0, 1);
             }
+            else if (E->errorCode() == ERR_ABORT_PARSING)
+                throw;
             else
             {
                 StringBuffer s("Internal error: ");
@@ -11841,7 +11862,7 @@ bool parseForwardModuleMember(HqlGramCtx & _parent, IHqlScope *scope, IHqlExpres
     parser.getLexer()->set_yyLineNo(forwardSymbol->getStartLine());
     parser.getLexer()->set_yyColumn(forwardSymbol->getStartColumn());
     unsigned prevErrors = ctx.errs->errCount();
-    ::Release(parser.yyParse(false, false));
+    ::Release(parser.yyParse(false));
     return (prevErrors == ctx.errs->errCount());
 }
 
@@ -11859,7 +11880,7 @@ void parseAttribute(IHqlScope * scope, IFileContents * contents, HqlLookupContex
     parser.setAssociateWarnings(true);
     parser.getLexer()->set_yyLineNo(1);
     parser.getLexer()->set_yyColumn(1);
-    ::Release(parser.yyParse(false, false));
+    ::Release(parser.yyParse(false));
     attrCtx.noteEndAttribute();
 }
 
@@ -11949,7 +11970,7 @@ int testReservedWords()
     return error;
 }
 
-IHqlExpression *HqlGram::yyParse(bool _parsingTemplateAttribute, bool catchAbort)
+IHqlExpression *HqlGram::yyParse(bool _parsingTemplateAttribute)
 {
     parsingTemplateAttribute = _parsingTemplateAttribute;
     try 
@@ -11958,27 +11979,23 @@ IHqlExpression *HqlGram::yyParse(bool _parsingTemplateAttribute, bool catchAbort
     }
     catch (IException * e)
     {
-        if (e->errorCode() != ERR_ABORT_PARSING)
-        {
-            StringBuffer msg;
-            e->errorMessage(msg);
-            reportError(e->errorCode(), msg.str(), 0, 0, 0);
-        }
-        else if (!catchAbort)
+        if (e->errorCode() == ERR_ABORT_PARSING)
             throw;
 
-
+        StringBuffer msg;
+        e->errorMessage(msg);
+        reportError(e->errorCode(), msg.str(), 0, 0, 0);
         e->Release();
-        return NULL;
+        return nullptr;
     }
     catch(int)
     {
-        return NULL;
+        return nullptr;
     }
     catch (RELEASE_CATCH_ALL)
     {
         PrintLog("Unexpected exception caught");
-        return NULL;
+        return nullptr;
     }
 }
 

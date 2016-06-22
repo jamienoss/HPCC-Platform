@@ -899,6 +899,8 @@ public:
     IErrorArray orphanedWarnings;
     HqlExprArray defaultFunctionCache;
     CIArrayOf<ForwardScopeItem> forwardLinks;
+    unsigned maxErrors = DEFAULT_MAX_ERRORS;
+    bool unsuppressImediateSyntaxErrors = false;
     bool expandCallsWhenBound;
     bool ignoreUnknownImport;
     bool aborting;
