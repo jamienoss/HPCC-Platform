@@ -191,13 +191,8 @@ struct EclCompileInstance
 {
 public:
     EclCompileInstance(IFile * _inputFile, IErrorReceiver & _errorProcessor, FILE * _errout, const char * _outputFilename, bool _legacyImport, bool _legacyWhen) :
-      inputFile(_inputFile),
-      errorProcessor(&_errorProcessor),
-      errout(_errout),
-      outputFilename(_outputFilename),
-      legacyImport(_legacyImport),
-      legacyWhen(_legacyWhen)
-    {
+      inputFile(_inputFile), errorProcessor(&_errorProcessor), errout(_errout), outputFilename(_outputFilename), legacyImport(_legacyImport), legacyWhen(_legacyWhen)
+{
         stats.parseTime = 0;
         stats.generateTime = 0;
         stats.xmlSize = 0;
@@ -341,7 +336,7 @@ protected:
     unsigned batchSplit = 1;
     unsigned optLogDetail = 0;
     unsigned optMaxErrors = 0;
-    unsigned optUnsuppressImediateSyntaxErrors = false;
+    bool optUnsuppressImmediateSyntaxErrors = false;
     bool logVerbose = false;
     bool logTimings = false;
     bool optArchive = false;
@@ -1103,7 +1098,7 @@ void EclCC::processSingleQuery(EclCompileInstance & instance,
         HqlParseContext parseCtx(instance.dataServer, this, instance.archive);
         if (optMaxErrors > 0)
             parseCtx.maxErrors = optMaxErrors;
-        parseCtx.unsuppressImediateSyntaxErrors = optUnsuppressImediateSyntaxErrors;
+        parseCtx.unsuppressImmediateSyntaxErrors = optUnsuppressImmediateSyntaxErrors;
         if (!instance.archive)
             parseCtx.globalDependTree.setown(createPTree(ipt_none)); //to locate associated manifests, keep separate from user specified MetaOptions
         if (optGenerateMeta || optIncludeMeta)
@@ -2084,7 +2079,7 @@ int EclCC::parseCommandLineOptions(int argc, const char* argv[])
         else if (iter.matchOption(optMaxErrors, "--maxErrors"))
         {
         }
-        else if (iter.matchOption(optUnsuppressImediateSyntaxErrors, "--unsuppressImediateSyntaxErrors"))
+        else if (iter.matchFlag(optUnsuppressImmediateSyntaxErrors, "--unsuppressImmediateSyntaxErrors"))
         {
         }
         else if (iter.matchOption(optIniFilename, "-specs"))

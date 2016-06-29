@@ -900,7 +900,7 @@ public:
     HqlExprArray defaultFunctionCache;
     CIArrayOf<ForwardScopeItem> forwardLinks;
     unsigned maxErrors = DEFAULT_MAX_ERRORS;
-    bool unsuppressImediateSyntaxErrors = false;
+    bool unsuppressImmediateSyntaxErrors = false;
     bool expandCallsWhenBound;
     bool ignoreUnknownImport;
     bool aborting;

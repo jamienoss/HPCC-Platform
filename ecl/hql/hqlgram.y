@@ -92,7 +92,7 @@ inline int eclyylex(attribute * yylval, HqlGram* parser, const short int * yyssp
 
 
 static void eclsyntaxerror(HqlGram * parser, const char * s, short yystate, int token);
-#define eclyyerror(parser, s) eclsyntaxerror(parser, s, yystate, yychar); if (parser->unsuppressImediateSyntaxErrors()) yyerrok; parser->checkAndAbort()
+#define eclyyerror(parser, s) eclsyntaxerror(parser, s, yystate, yychar); if (parser->unsuppressImmediateSyntaxErrors()) yyerrok; parser->checkAndAbort()
 #define ignoreBisonWarning(x)
 #define ignoreBisonWarnings2(x,y)
 #define ignoreBisonWarnings3(x,y,z)

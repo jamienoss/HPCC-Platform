@@ -400,7 +400,7 @@ public:
     virtual ~HqlGram();
     IMPLEMENT_IINTERFACE
 
-    IHqlExpression *yyParse(bool parsingTemplateAttribute);
+    IHqlExpression *yyParse(bool parsingTemplateAttribute, bool catchAbort);
     void setQuery(bool _value) { isQuery = _value; }
 
     void yySetLexer(HqlLex *LexObject);
@@ -583,9 +583,9 @@ public:
     {
         return lookupCtx.queryParseContext().maxErrors;
     }
-    bool unsuppressImediateSyntaxErrors()
+    bool unsuppressImmediateSyntaxErrors()
     {
-        return lookupCtx.queryParseContext().unsuppressImediateSyntaxErrors;
+        return lookupCtx.queryParseContext().unsuppressImmediateSyntaxErrors;
     }
     void reportTooManyErrors();
     void doReportWarning(WarnErrorCategory category, int warnNo, const char *msg, const char *filename, int lineno, int column, int pos);
